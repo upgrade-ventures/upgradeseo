@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/ai-search-prompts")({
       title: "AI Search Prompt Explorer",
       description: page.description,
       path: "/features/ai-search-prompts",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

@@ -1,25 +1,23 @@
 # Docker Self-Hosting
 
-Run OpenSEO locally with Docker.
+Run UpgradeSEO locally with Docker.
 
-In Docker mode, OpenSEO uses `AUTH_MODE=local_noauth` (no auth checks, local admin user `admin@localhost`). Only expose it behind your own auth-protected reverse proxy, tunnel, or private network.
+In Docker mode, UpgradeSEO uses `AUTH_MODE=local_noauth` (no auth checks, local admin user `admin@localhost`). Only expose it behind your own auth-protected reverse proxy, tunnel, or private network.
 
 The default `compose.yaml` uses the published GHCR image:
 
-- `ghcr.io/every-app/open-seo:latest`
+- `ghcr.io/YOUR_GITHUB_ORG/upgradeseo:latest`
 
 ## Prerequisites
 
 - Docker Desktop (or Docker Engine + Docker Compose)
-- A DataForSEO API key (see [`DATAFORSEO_API_KEY.md`](./DATAFORSEO_API_KEY.md))
+  UpgradeSEO runs on free data sources (Google Ads, Bing Webmaster, Foundery, PageSpeed Insights). Set them up from /help/free-setup in the running app.
 
 ## Quickstart
 
 ```bash
 cp .env.example .env
 ```
-
-Set `DATAFORSEO_API_KEY` in `.env` using the [DataForSEO setup guide](./DATAFORSEO_API_KEY.md), then start OpenSEO:
 
 ```bash
 docker compose up -d
@@ -32,8 +30,8 @@ Optional env values:
 - `PORT` (defaults to `3001`)
 - `ALLOWED_HOST` (single reverse-proxy hostname to allow in Vite preview)
 - `AUTH_MODE=local_noauth` (already set in compose)
-- `OPEN_SEO_IMAGE` (defaults to `ghcr.io/every-app/open-seo:latest`)
-- `OPENROUTER_API_KEY` (required for AI features such as SAM; see [OpenRouter](https://openrouter.ai/settings/keys))
+- `OPEN_SEO_IMAGE` (defaults to `ghcr.io/YOUR_GITHUB_ORG/upgradeseo:latest`)
+- `OPENROUTER_API_KEY` (required for AI features such as the onboarding agent; see [OpenRouter](https://openrouter.ai/settings/keys))
 
 If you are putting Docker behind a reverse proxy or a temporary tunnel, remember that Docker self-hosting runs with app auth disabled. Only expose it behind your own auth-protected reverse proxy, tunnel, or private network, and add the public hostname before restarting:
 
@@ -45,16 +43,16 @@ You can also persist it in `.env`.
 
 ## Telemetry
 
-OpenSEO collects anonymized telemetry for core usage events: heartbeats with aggregate counts (installs, users, projects, feature usage) tied to a random install ID, sent every 5 minutes during the first two hours after install, then at most once daily. Telemetry also includes failed setup check names and statuses, never values or error messages. No URLs, keywords, prompts, emails, or IP-derived location are collected, and idle installs send nothing.
+UpgradeSEO collects anonymized telemetry for core usage events: heartbeats with aggregate counts (installs, users, projects, feature usage) tied to a random install ID, sent every 5 minutes during the first two hours after install, then at most once daily. Telemetry also includes failed setup check names and statuses, never values or error messages. No URLs, keywords, prompts, emails, or IP-derived location are collected, and idle installs send nothing.
 
-To disable it, set `OPENSEO_TELEMETRY_DISABLED=1` (or `DO_NOT_TRACK=1`) in `.env`, then run `docker compose up -d --force-recreate open-seo`.
+To disable it, set `UPGRADESEO_TELEMETRY_DISABLED=1` (or `DO_NOT_TRACK=1`) in `.env`, then run `docker compose up -d --force-recreate upgradeseo`.
 
 ## Pin to a specific image tag
 
 Set `OPEN_SEO_IMAGE` in `.env` and restart:
 
 ```bash
-OPEN_SEO_IMAGE=ghcr.io/every-app/open-seo:v1.2.3
+OPEN_SEO_IMAGE=ghcr.io/YOUR_GITHUB_ORG/upgradeseo:v1.2.3
 docker compose up -d
 ```
 
@@ -63,8 +61,8 @@ docker compose up -d
 If you are testing local code changes, build and run a local tag:
 
 ```bash
-docker build -f Dockerfile.selfhost -t open-seo:local .
-OPEN_SEO_IMAGE=open-seo:local docker compose up -d
+docker build -f Dockerfile.selfhost -t upgradeseo:local .
+OPEN_SEO_IMAGE=upgradeseo:local docker compose up -d
 ```
 
 ## Common commands
@@ -72,7 +70,7 @@ OPEN_SEO_IMAGE=open-seo:local docker compose up -d
 - Restart service after env changes:
 
 ```bash
-docker compose up -d open-seo
+docker compose up -d upgradeseo
 ```
 
 - Pull latest published image and restart:
@@ -99,12 +97,10 @@ To confirm Docker Compose is using the expected environment variables:
 docker compose config
 ```
 
-Check that `AUTH_MODE=local_noauth`, and that `DATAFORSEO_API_KEY` is the base64
-encoded value of your DataForSEO email and API password in this format:
 `email:password`.
 
 If you changed `.env`, recreate the container so Compose reapplies it:
 
 ```bash
-docker compose up -d --force-recreate open-seo
+docker compose up -d --force-recreate upgradeseo
 ```

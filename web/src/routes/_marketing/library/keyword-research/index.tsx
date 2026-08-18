@@ -63,7 +63,7 @@ const faqs = [
   {
     question: "How do you do keyword research for free?",
     answer:
-      "The discovery half runs on sources you already have: customer conversations, Google's autocomplete and People Also Ask, and your Search Console. Quality SEO data (volume, difficulty, live SERPs) is difficult to get, which is why SaaS tools run $100/month and up. OpenSEO is the most affordable option, starting at $10/month, and you can start for free.",
+      "The discovery half runs on sources you already have: customer conversations, Google's autocomplete and People Also Ask, and your Search Console. Quality SEO data (volume, difficulty, live SERPs) is difficult to get, which is why SaaS tools run $100/month and up. UpgradeSEO is the most affordable option, starting at $10/month, and you can start for free.",
   },
   {
     question: "Can you do keyword research without Google Keyword Planner?",
@@ -97,9 +97,9 @@ export const Route = createFileRoute("/_marketing/library/keyword-research/")({
     buildPageSeo({
       title: "How to Do Keyword Research: The Strategy Library",
       description:
-        "Eight demand-discovery strategies drawn from interviews with working SEOs, each with a workflow you can run in OpenSEO.",
+        "Eight demand-discovery strategies drawn from interviews with working SEOs, each with a workflow you can run in UpgradeSEO.",
       path: PATH,
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
     }),
   component: KeywordResearchLibraryPage,
 });
@@ -116,7 +116,7 @@ function KeywordResearchLibraryPage() {
         </h1>
         <p className="mt-5 text-lg leading-8 text-[var(--color-brand-muted)]">
           Eight demand-discovery strategies drawn from interviews with working
-          SEOs, each with a workflow you can run in OpenSEO.
+          SEOs, each with a workflow you can run in UpgradeSEO.
         </p>
       </header>
 
@@ -213,7 +213,7 @@ function KeywordResearchLibraryPage() {
             href="/features/keyword-research"
             className="font-medium text-neutral-950 underline decoration-[var(--color-brand-accent)] underline-offset-4"
           >
-            OpenSEO's keyword research
+            UpgradeSEO's keyword research
           </a>
           , connected to your live Search Console. Open source, self-hostable,
           and scriptable through the{" "}
@@ -224,7 +224,7 @@ function KeywordResearchLibraryPage() {
             MCP
           </a>{" "}
           so your AI assistant can run the whole workflow. Quality SEO data is
-          why the big suites run $100/month and up; OpenSEO starts at $10/month,
+          why the big suites run $100/month and up; UpgradeSEO starts at $10/month,
           and you can start for free.
         </p>
       </section>

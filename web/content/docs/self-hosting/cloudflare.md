@@ -1,23 +1,23 @@
 ---
 title: "Cloudflare Self-Hosting"
-description: "Deploy OpenSEO to your own Cloudflare account for internet-facing, multi-device, or team use."
+description: "Deploy UpgradeSEO to your own Cloudflare account for internet-facing, multi-device, or team use."
 ---
 
-Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
+Host UpgradeSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
 
 ## Prerequisites
 
 - **Node 22.6 or newer** and **pnpm** (`corepack enable` sets it up).
 - **A Cloudflare account with R2 enabled.** Activating R2 requires a payment method on file, even within its free tier — if you have never used R2, open `R2` in the Cloudflare dashboard once.
-- **A DataForSEO account** — see [DataForSEO API key setup](/docs/self-hosting#dataforseo-api-key-setup).
+UpgradeSEO runs on free data sources: Google Ads for real Google volume and CPC, Bing Webmaster, Azure AI Foundry for the in-app agent, and PageSpeed Insights. Set them up from /help/free-setup in the running app.
 
-## 1) Clone your OpenSEO repo
+## 1) Clone your UpgradeSEO repo
 
-Fork `every-app/open-seo` on GitHub if you want a repo you control, then clone it locally:
+Fork `YOUR_GITHUB_ORG/upgradeseo` on GitHub if you want a repo you control, then clone it locally:
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USER/open-seo.git
-cd open-seo
+git clone https://github.com/YOUR_GITHUB_USER/upgradeseo.git
+cd upgradeseo
 corepack enable
 pnpm install
 ```
@@ -25,8 +25,8 @@ pnpm install
 If you do not need a fork, clone the upstream repo instead:
 
 ```bash
-git clone https://github.com/every-app/open-seo.git
-cd open-seo
+git clone 
+cd upgradeseo
 corepack enable
 pnpm install
 ```
@@ -60,17 +60,17 @@ This provisions the D1 database, KV namespaces, and R2 bucket, applies the datab
 
 1. Open the Worker URL printed at the end of the deploy.
 2. Sign in with Cloudflare Access.
-3. OpenSEO should load after login.
+3. UpgradeSEO should load after login.
 
 If login fails, re-check `ACCESS_ALLOWED_EMAILS` and redeploy.
 
 ## Connect the MCP server through Cloudflare Access
 
-Use the same Cloudflare Access application that protects your OpenSEO Worker. Managed OAuth is required for MCP clients and is not enabled by default.
+Use the same Cloudflare Access application that protects your UpgradeSEO Worker. Managed OAuth is required for MCP clients and is not enabled by default.
 
 1. Open Cloudflare Zero Trust.
 2. Go to `Access controls` -> `Applications`.
-3. Find your OpenSEO application, then select `Edit`.
+3. Find your UpgradeSEO application, then select `Edit`.
 4. Go to `Additional settings` -> `OAuth`.
 5. Turn on `Managed OAuth`.
 6. In `Managed OAuth settings`, allow the redirect URIs your MCP clients use:
@@ -85,11 +85,11 @@ MCP clients should connect to:
 https://YOUR_WORKER_HOSTNAME/mcp
 ```
 
-## Give teammates access to OpenSEO
+## Give teammates access to UpgradeSEO
 
-Add the teammate to `ACCESS_ALLOWED_EMAILS` in `.env.selfhost` and redeploy. Everyone allowed through shares one OpenSEO workspace.
+Add the teammate to `ACCESS_ALLOWED_EMAILS` in `.env.selfhost` and redeploy. Everyone allowed through shares one UpgradeSEO workspace.
 
-## Updating to the latest OpenSEO version
+## Updating to the latest UpgradeSEO version
 
 ```bash
 git pull        # or: git fetch upstream && git merge upstream/main, if you forked
@@ -99,5 +99,5 @@ pnpm deploy:selfhost --yes
 
 ## More guides on GitHub
 
-- [Operations](https://github.com/every-app/open-seo/blob/main/docs/SELF_HOSTING_CLOUDFLARE_OPERATIONS.md): telemetry and other day-to-day tasks.
-- [Legacy deployments](https://github.com/every-app/open-seo/blob/main/docs/SELF_HOSTING_CLOUDFLARE_LEGACY.md): maintenance for installs created with the retired Deploy-button or manual Wrangler flows.
+- [Operations](): telemetry and other day-to-day tasks.
+- [Legacy deployments](): maintenance for installs created with the retired Deploy-button or manual Wrangler flows.

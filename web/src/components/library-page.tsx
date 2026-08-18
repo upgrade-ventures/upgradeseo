@@ -54,15 +54,15 @@ function LibrarySpokeCta() {
         Run every play in this guide
       </p>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-brand-muted)]">
-        OpenSEO connects your Search Console and expands your seeds. Open
+        UpgradeSEO connects your Search Console and expands your seeds. Open
         source, free to try, no credit card.
       </p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <a
-          href="https://app.openseo.so/sign-up"
+          href=""
           className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
         >
-          Start with OpenSEO
+          Start with UpgradeSEO
           <span className="ml-2" aria-hidden="true">
             &rarr;
           </span>

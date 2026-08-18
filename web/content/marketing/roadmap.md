@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-description: Features we plan to add to OpenSEO over the next three months.
+description: Features we plan to add to UpgradeSEO over the next three months.
 ---
 
 Have a feature request that belongs here? [Tell us on Discord](https://discord.gg/c9uGs3cFXr).
@@ -20,7 +20,7 @@ Have a feature request that belongs here? [Tell us on Discord](https://discord.g
   - We'll make a community library for these more advanced workflows.
 - Web Bot Auth for bot-protected sites for Audit
 - Improve In App Agent
-- Consistent design across OpenSEO, built on a shared component library
+- Consistent design across UpgradeSEO, built on a shared component library
 - IndexNow support
 
 ## Soon

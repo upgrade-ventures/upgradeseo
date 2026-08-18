@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/rank-tracking")({
       title: "Rank Tracker",
       description: page.description,
       path: "/features/rank-tracking",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

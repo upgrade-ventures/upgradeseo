@@ -12,10 +12,10 @@ import { SiteFooter } from "@/components/site-footer";
 import { featurePages } from "@/lib/feature-pages";
 import "./landing-page.css";
 
-const SIGNUP_URL = "https://app.openseo.so/sign-up";
+const SIGNUP_URL = "";
 const PRODUCT_HUNT_URL =
-  "https://www.producthunt.com/products/openseo?launch=openseo";
-const GITHUB_URL = "https://github.com/every-app/open-seo";
+  "https://www.producthunt.com/products/upgradeseo?launch=upgradeseo";
+const GITHUB_URL = "";
 const DISCORD_URL = "https://discord.gg/c9uGs3cFXr";
 
 type Testimonial = {
@@ -31,7 +31,7 @@ type Testimonial = {
 const TESTIMONIALS: Testimonial[] = [
   {
     quote:
-      "All of the value, none of the bloat. OpenSEO is a no-brainer compared to the expensive alternatives!",
+      "All of the value, none of the bloat. UpgradeSEO is a no-brainer compared to the expensive alternatives!",
     name: "Fed",
     initial: "F",
     handle: "@foliofed",
@@ -41,7 +41,7 @@ const TESTIMONIALS: Testimonial[] = [
   },
   {
     quote:
-      "I've been using OpenSEO for the past 3 months, Ben keeps launching features to make it the best. I use it every day to find where my competitors are ranking.",
+      "I've been using UpgradeSEO for the past 3 months, Ben keeps launching features to make it the best. I use it every day to find where my competitors are ranking.",
     name: "Samik",
     initial: "S",
     handle: "Subclip",
@@ -51,7 +51,7 @@ const TESTIMONIALS: Testimonial[] = [
   },
   {
     quote:
-      "It's so straightforward and incredibly easy to get started. OpenSEO gives you the complete setup, stripped of all the fluff that you get elsewhere.",
+      "It's so straightforward and incredibly easy to get started. UpgradeSEO gives you the complete setup, stripped of all the fluff that you get elsewhere.",
     name: "Tom Raine",
     initial: "T",
     handle: "LinkedIn",
@@ -217,7 +217,7 @@ function Hero() {
           className="itc-subhead itc-muted itc-hero-subtitle"
           style={{ maxWidth: 640, margin: "24px auto 0" }}
         >
-          Without quality data, AI gives generic advice. OpenSEO is built for
+          Without quality data, AI gives generic advice. UpgradeSEO is built for
           you and your AI agent to work together on SEO strategy + content
           tailored to your business.
         </p>
@@ -341,12 +341,12 @@ function DemoVideo() {
       autoPlay
       playsInline
       preload="metadata"
-      aria-label="OpenSEO product demo: running keyword research"
+      aria-label="UpgradeSEO product demo: running keyword research"
     >
       <source src="/demo.mp4" type="video/mp4" />
       <img
         src="/demo-poster.webp"
-        alt="OpenSEO keyword research dashboard"
+        alt="UpgradeSEO keyword research dashboard"
         width={1280}
         height={966}
         loading="lazy"
@@ -361,10 +361,10 @@ function ProductSection() {
     <section className="itc-section itc-section-demo">
       <Container>
         <div className="itc-narrow">
-          <h2 className="itc-display-lg">See OpenSEO in action</h2>
+          <h2 className="itc-display-lg">See UpgradeSEO in action</h2>
           <p className="itc-subhead itc-muted" style={{ margin: "20px 0 0" }}>
             Keyword research, competitor analysis, backlinks, rank tracking,
-            technical audits, and AI-search visibility, all on real DataForSEO
+            technical audits, and AI-search visibility, all on real
             data and connected to each other.
           </p>
         </div>
@@ -433,7 +433,7 @@ function McpSection() {
             <p className="itc-body-lg itc-muted" style={{ margin: "20px 0 0" }}>
               Give your agent real SEO data instead of guesses. It can research
               keywords, competitors, backlinks, and Google Search Console
-              performance, then you can review the work in OpenSEO.
+              performance, then you can review the work in UpgradeSEO.
             </p>
             <div className="itc-agent-icons">
               {MCP_CLIENTS.map(({ name, Icon }) => (
@@ -470,15 +470,15 @@ function McpSection() {
                 <span className="itc-terminal-dot" />
                 <span className="itc-terminal-dot" />
               </span>
-              <span className="itc-terminal-label">claude · openseo mcp</span>
+              <span className="itc-terminal-label">claude · upgradeseo mcp</span>
             </div>
             <pre>
               <code>
                 <span className="t-orange">›</span> find and cluster keywords
-                for <span className="t-bright">openseo.so</span>
+                for <span className="t-bright">upgradeseo.so</span>
                 {"\n\n"}
                 <span className="t-dim">
-                  ⏺ openseo.keyword_research(seed: &quot;open source seo&quot;)
+                  ⏺ upgradeseo.keyword_research(seed: &quot;open source seo&quot;)
                 </span>
                 {"\n"}
                 {"  "}keyword{"                      "}volume{"     "}kd{"\n"}
@@ -505,7 +505,7 @@ function McpSection() {
                 {"\n"}
                 <span className="t-orange">↳</span>
                 <span className="t-dim"> View data in app: </span>
-                <span className="t-bright">app.openseo.so/keywords</span>
+                <span className="t-bright">app.upgradeseo.so/keywords</span>
               </code>
             </pre>
           </div>
@@ -806,7 +806,7 @@ function OpenSourceSection() {
           <p className="itc-subhead itc-muted" style={{ margin: "20px 0 0" }}>
             People should have the option to self-host and customize their
             tools. If you ever hear someone talking about building their own
-            tool from scratch, tell them to build on top of OpenSEO.
+            tool from scratch, tell them to build on top of UpgradeSEO.
           </p>
         </div>
 
@@ -903,7 +903,7 @@ export function LandingPage() {
         target="_blank"
         rel="noopener noreferrer"
         className="itc-discord"
-        aria-label="Join the OpenSEO Discord"
+        aria-label="Join the UpgradeSEO Discord"
       >
         <IconDiscord size={18} />
         <span>Discord</span>

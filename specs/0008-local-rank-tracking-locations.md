@@ -1,12 +1,18 @@
 # 0008 — Local Rank Tracking: Location Data & Search
 
-How city/region-level rank tracking stores and searches DataForSEO's location
+> **Superseded on the data-source question (16 Aug 2026).** UpgradeSEO now runs
+> entirely on free sources: Microsoft Advertising and Google Ads for keyword
+> volume and CPC, Bing Webmaster, Common Crawl, PageSpeed Insights, Search
+> Console, and Azure AI Foundry for the in-app agent. The decisions below
+> stand; the vendor they were written against is gone.
+
+How city/region-level rank tracking stores and searches the provider's location
 registry, and why it works the way it does. Shipped July 2026; future
 directions are listed at the end.
 
 ## The feature
 
-Rank tracking configs take an optional `location_name` — a canonical DataForSEO
+Rank tracking configs take an optional `location_name` — a canonical provider
 location string like `Enid,Oklahoma,United States`. Null means the existing
 country-level behavior, unchanged. Uniqueness is enforced by two partial
 indexes: one config per (project, domain, country) for national trackers, one
@@ -18,7 +24,7 @@ When set, the location flows through verbatim:
   `location_code`, so positions reflect what a searcher in that city sees.
   SERP pricing is location-independent, so cost estimates are unchanged.
 - **Keyword metrics** come city-scoped: volume / CPC / competition from Google
-  Ads `search_volume` (the only DataForSEO source that accepts sub-country
+  Ads `search_volume` (the only source that accepts sub-country
   geotargets), merged per keyword with national KD / intent from Labs (which
   is country-only). This matters: "rv storage near me" is 135K/mo nationally
   but 70/mo in Pittsburgh — a national number on a local tracker overstates
@@ -57,7 +63,7 @@ usually happens before the first keystroke. Warm searches are tens of ms.
 | D1 / Postgres table          | Schema + migrations on two providers for quarterly-static reference data; revisit if server-side validation or MCP location search justify a real table. |
 | Durable Object per country   | Pins to its first-request region forever; new binding for self-host; buys coordination this read-only data doesn't need.                                 |
 | Static assets, client search | Refresh requires redeploy — self-hosters would be pinned to release-time snapshots.                                                                      |
-| "Just accept zip codes"      | Doesn't avoid the registry: DataForSEO only accepts canonical values, and zips are registry entries themselves (~32k for the US).                        |
+| "Just accept zip codes"      | Doesn't avoid the registry: the provider only accepts canonical values, and zips are registry entries themselves (~32k for the US).                      |
 
 Cost is noise either way: KV bills per operation, so storage for all supported
 countries is ~$0.02/month and each search read is fractions of a cent.
@@ -75,4 +81,4 @@ countries is ~$0.02/month and each search read is fractions of a cent.
   city with a shared keyword set — the agency 3–5-metro workflow.
 - **Server-side `location_name` validation** at config save, closing the gap
   where a hand-crafted request can store an arbitrary string (fails at
-  DataForSEO at cost 0 today, so client-side validation suffices).
+  the provider at cost 0 today, so client-side validation suffices).

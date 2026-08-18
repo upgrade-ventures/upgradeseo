@@ -1,8 +1,8 @@
-# Contributing to OpenSEO
+# Contributing to UpgradeSEO
 
-Thank you for your interest in contributing to OpenSEO!
+Thank you for your interest in contributing to UpgradeSEO!
 
-We deeply appreciate the time and enthusiasm that people bring to the project. One of my favorite things is seeing the forks that people make building off of OpenSEO.
+We deeply appreciate the time and enthusiasm that people bring to the project. One of my favorite things is seeing the forks that people make building off of UpgradeSEO.
 
 ## Why aren't we accepting PRs?
 
@@ -10,7 +10,7 @@ Short Answer: AI & Security
 
 I love using AI to write code as much as anyone. But, it makes it very challenging to assess how much thought and effort went into external pull requests. As a result, I spend a lot of time reviewing, testing and iterating on many external PRs and it ends up slowing down overall development.
 
-Additionally, as OpenSEO becomes more popular, I'm concerned about malicious contributors attempting to sneak in code that slips through review.
+Additionally, as UpgradeSEO becomes more popular, I'm concerned about malicious contributors attempting to sneak in code that slips through review.
 
 ## Issues: The best way to contribute
 
@@ -31,10 +31,10 @@ For ease of review, I would appreciate if you used the `/simple-issue-descriptio
 Install it with:
 
 ```sh
-npx skills add every-app/open-seo --skill simple-issue-description
+npx skills add YOUR_GITHUB_ORG/upgradeseo --skill simple-issue-description
 ```
 
-See [Set up OpenSEO Agent Skills](https://openseo.so/docs/skills/setup) for other install options.
+See [Set up UpgradeSEO Agent Skills]() for other install options.
 
 Here is what we're aiming for with `/simple-issue-description`:
 
@@ -47,7 +47,7 @@ Here is what we're aiming for with `/simple-issue-description`:
 
 ### Our Roadmap
 
-Here is a link to our Roadmap: http://openseo.so/roadmap
+Here is a link to our Roadmap:
 
 These are planned features and improvements. If you'd like to create an issue and give your thoughts on what would make these features great, I'm all ears!
 

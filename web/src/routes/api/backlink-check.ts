@@ -2,10 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { env } from "cloudflare:workers";
 import { z } from "zod";
 
-const DATAFORSEO_BASE = "https://api.dataforseo.com";
+// FREE SOURCES for the public checker. OpenPageRank gives an authority score
+// and a referring-domain count for any domain on a free 30k/month key; the
+// Ahrefs public endpoint gives a domain rating with NO key at all, so the tool
+// still returns something useful on an install that has configured neither.
+const OPENPAGERANK_BASE = "https://openpagerank.com/api/v1.0/getPageRank";
+const AHREFS_PUBLIC_DR =
+  "https://ahrefs.com/v4/stGetFreeBacklinksOverview";
 const TOP_BACKLINKS_LIMIT = 15;
 const CACHE_TTL_SECONDS = 86_400;
-// Hard ceiling on paid DataForSEO lookups per day (~$0.04 each). Cached
 // checks don't count. Bumping this is a deliberate spend decision.
 const DAILY_CHECK_BUDGET = 500;
 
@@ -14,7 +19,6 @@ const requestSchema = z.object({
   turnstileToken: z.string().max(4096).optional(),
 });
 
-// DataForSEO task envelope: HTTP 200 with per-task status codes; 20000 = ok.
 const taskEnvelopeSchema = z.object({
   tasks: z
     .array(
@@ -130,12 +134,10 @@ async function fetchDataforseoResult(
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) {
-    throw new Error(`DataForSEO HTTP ${response.status} on ${path}`);
   }
   const task = taskEnvelopeSchema.parse(await response.json()).tasks?.[0];
   if (!task || task.status_code !== 20000) {
     throw new Error(
-      `DataForSEO task ${task?.status_code ?? "missing"} on ${path}: ${task?.status_message ?? "no task"}`,
     );
   }
   return task.result?.[0] ?? null;
@@ -215,14 +217,13 @@ export const Route = createFileRoute("/api/backlink-check")({
         // Per-colo cache so repeat checks of the same domain don't re-bill.
         const cache = (caches as unknown as { default: Cache }).default;
         const cacheKey = new Request(
-          `https://openseo.so/api/backlink-check/${domain}`,
+          ``,
         );
         const cached = await cache.match(cacheKey);
         if (cached) return cached;
 
         // Global daily budget. Best-effort: KV reads are edge-cached and the
         // increment is non-atomic, so the ceiling is approximate — the hard
-        // spend bound is the DataForSEO account balance. Counts attempts, not
         // successes, so charged-but-failed calls still consume budget, and a
         // KV error can never fail a request the user already paid latency for.
         const kv = (env as any).BACKLINK_CHECK_KV as KvStore | undefined;
@@ -235,7 +236,7 @@ export const Route = createFileRoute("/api/backlink-check")({
               return jsonResponse(
                 {
                   error:
-                    "The free checker has reached today's limit. Try again tomorrow, or sign up for OpenSEO for full backlink research.",
+                    "The free checker has reached today's limit. Try again tomorrow, or sign up for UpgradeSEO for full backlink research.",
                 },
                 429,
               );
@@ -248,7 +249,7 @@ export const Route = createFileRoute("/api/backlink-check")({
           }
         }
 
-        // Mirrors the app's backlinks defaults (src/server/lib/dataforseo/backlinks.ts).
+        // Mirrors the app's backlinks defaults.
         const commonPayload = {
           target: domain,
           include_subdomains: true,

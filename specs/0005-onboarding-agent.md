@@ -1,5 +1,11 @@
 # Onboarding agent
 
+> **Superseded on the data-source question (16 Aug 2026).** UpgradeSEO now runs
+> entirely on free sources: Microsoft Advertising and Google Ads for keyword
+> volume and CPC, Bing Webmaster, Common Crawl, PageSpeed Insights, Search
+> Console, and Azure AI Foundry for the in-app agent. The decisions below
+> stand; the vendor they were written against is gone.
+
 ## Status
 
 Proposed (June 2026) — v1 product spec, pending technical design.
@@ -43,7 +49,7 @@ more projects with different websites (and their own countries) later, so users
 don't feel they must cram every site into this first one. Keep the whole stage
 to ~4 fields — the onboarding UX audit flagged form friction. Country and
 language become the project's default location (see Project defaults) and are
-reused for every DataForSEO call going forward.
+reused for every keyword-provider call going forward.
 
 **Stage 1 — Discover (live).** Sitemap-first using existing robots.txt +
 sitemap discovery; fall back to a shallow crawl. Produces a map of the site's
@@ -73,11 +79,11 @@ Stage 3 is **archetype-conditional**: detect the site type cheaply, then frame
 the goal accordingly. For v1 the archetype branches the _narrative_, not a large
 matrix of API calls. Two calls baseline:
 
-| Call                   | Endpoint                                               | Purpose                                              | When                                                                 |
-| ---------------------- | ------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------------------- |
-| `domain_rank_overview` | `/v3/dataforseo_labs/google/domain_rank_overview/live` | traffic + # ranking keywords; the archetype detector | always                                                               |
-| `keyword_ideas`        | `/v3/dataforseo_labs/google/keyword_ideas/live`        | starter keyword list, seeded from scraped themes     | always                                                               |
-| `ranked_keywords`      | `/v3/dataforseo_labs/google/ranked_keywords/live`      | what they already rank for                           | only if overview shows real rankings (usually skipped for new sites) |
+| Call                   | Endpoint                 | Purpose                                              | When                                                                 |
+| ---------------------- | ------------------------ | ---------------------------------------------------- | -------------------------------------------------------------------- |
+| `domain_rank_overview` | provider domain overview | traffic + # ranking keywords; the archetype detector | always                                                               |
+| `keyword_ideas`        | provider keyword ideas   | starter keyword list, seeded from scraped themes     | always                                                               |
+| `ranked_keywords`      | provider ranked keywords | what they already rank for                           | only if overview shows real rankings (usually skipped for new sites) |
 
 Archetypes (narrative only in v1): **new/pre-traffic**, **established content
 site**, **local business**, **SaaS/product** (core ICP).
@@ -95,14 +101,14 @@ rankings, or expand into new topics?") — agency without a survey.
 
 The whole run is free (paywall is after), so cost-per-signup must be bounded:
 
-- DataForSEO: ~$0.04–0.08 (2 Labs live calls; metered from the real `cost`
+- Keyword provider: ~$0.04–0.08 (2 live calls; metered from the real `cost`
   field in the response envelope, so we can hard-cap).
 - Browser Rendering scrape: ~negligible.
 - LLM synthesis: ~$0.05–0.15 (one call over a few pages of markdown).
 - **Total ≈ $0.10–0.25 per onboarding.**
 
 Guardrails: one run per user, results cached hard, and **email verification
-gates Stage 3** (the DataForSEO spend) to kill drive-by abuse.
+gates Stage 3** (the metered provider spend) to kill drive-by abuse.
 
 ## Project Context artifact (MCP-readable)
 
@@ -142,13 +148,13 @@ a paywall is exactly the bait-and-switch the UX audit warned against).
 Update the `seo-coach` skill (and `onboarding-checklist`) so the coach and the
 onboarding agent are one continuous experience: the coach reads Project Context
 via MCP, picks up where onboarding left off ("here's your strategy — let's work
-the backlog"), and can answer both SEO questions and OpenSEO product questions.
+the backlog"), and can answer both SEO questions and UpgradeSEO product questions.
 The onboarding agent sets the backlog; the coach executes it.
 
 ## Open questions
 
 - Country → `location_code` source: hand-curate a short list for v1, or reuse an
-  existing DataForSEO locations dataset?
+  existing provider locations dataset?
 - Re-run policy: confirmed one strategy per project, regenerate in place; new
   domain = new project (a soft upgrade nudge).
 - Synthesis model choice (cost vs quality) — decide at technical design.

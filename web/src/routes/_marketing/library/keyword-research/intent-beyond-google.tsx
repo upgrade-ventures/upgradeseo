@@ -14,7 +14,7 @@ export const Route = createFileRoute(
       title: "Keyword Research Beyond Google: Pinterest, LinkedIn and AI",
       description: frontmatter.description,
       path: "/library/keyword-research/intent-beyond-google",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (

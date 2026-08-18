@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/saved-keywords")({
       title: "Saved Keyword Lists",
       description: page.description,
       path: "/features/saved-keywords",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

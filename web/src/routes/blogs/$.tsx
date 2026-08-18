@@ -21,13 +21,13 @@ export const Route = createFileRoute("/blogs/$")({
     const data = loaderData as
       | { title?: string; description?: string; url?: string }
       | undefined;
-    const title = data?.title ?? "OpenSEO Blog";
+    const title = data?.title ?? "UpgradeSEO Blog";
     const description = data?.description;
     return buildPageSeo({
       title,
       description,
       path: data?.url ?? "/blogs",
-      titleSuffix: "OpenSEO Blog",
+      titleSuffix: "UpgradeSEO Blog",
       ogType: "article",
     });
   },

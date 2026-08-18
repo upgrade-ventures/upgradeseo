@@ -12,7 +12,7 @@ export const Route = createFileRoute("/terms-and-conditions")({
       title: termsFrontmatter.title,
       description: termsFrontmatter.description,
       path: "/terms-and-conditions",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
     }),
   component: TermsAndConditions,
 });

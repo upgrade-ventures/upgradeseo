@@ -3,7 +3,7 @@ name: competitor-analysis
 description: "Analyze one competitor's organic footprint, ranking keywords, content themes, backlinks, and gaps."
 ---
 
-# OpenSEO Competitor Analysis
+# UpgradeSEO Competitor Analysis
 
 ## Goal
 
@@ -18,7 +18,7 @@ Use this for a named competitor. For identifying the market leaders first, use `
 - User's domain when comparison is requested
 - Optional topic/category/location/language
 
-## OpenSEO MCP tools
+## UpgradeSEO MCP tools
 
 - `get_domain_overview`: baseline organic traffic and keyword count.
 - `get_search_console_performance`: when comparing to the user's own domain and Search Console is connected, use it as the first-party baseline (real clicks/impressions/CTR/position) instead of estimating the user's own performance from third-party data.
@@ -62,7 +62,7 @@ Start with:
 
 Then include:
 
-| Area | Competitor pattern | Evidence | OpenSEO opportunity |
+| Area | Competitor pattern | Evidence | UpgradeSEO opportunity |
 | ---- | ------------------ | -------- | ------------------- |
 
 Include sections for:

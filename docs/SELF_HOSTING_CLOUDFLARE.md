@@ -1,6 +1,10 @@
 # Cloudflare Self-Hosting
 
-Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
+> Before deploying, read [DEPLOYMENT_TRAPS.md](./DEPLOYMENT_TRAPS.md). For
+> mounting under a path prefix see [SUBPATH_DEPLOYMENT.md](./SUBPATH_DEPLOYMENT.md);
+> for keys and their limits see [DATA_SOURCES.md](./DATA_SOURCES.md).
+
+Host UpgradeSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
 
 Related guides:
 
@@ -11,15 +15,15 @@ Related guides:
 
 - **Node 22.6 or newer** and **pnpm** (`corepack enable` sets it up).
 - **A Cloudflare account with R2 enabled.** Activating R2 requires a payment method on file, even within its free tier — if you have never used R2, open `R2` in the Cloudflare dashboard once.
-- **A DataForSEO account** — see [`DATAFORSEO_API_KEY.md`](./DATAFORSEO_API_KEY.md).
+  UpgradeSEO runs on free data sources (Google Ads, Bing Webmaster, Foundery, PageSpeed Insights). Set them up from /help/free-setup in the running app.
 
-## 1) Clone your OpenSEO repo
+## 1) Clone your UpgradeSEO repo
 
-Fork `every-app/open-seo` on GitHub if you want a repo you control, then clone it locally:
+Fork `YOUR_GITHUB_ORG/upgradeseo` on GitHub if you want a repo you control, then clone it locally:
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USER/open-seo.git
-cd open-seo
+git clone https://github.com/YOUR_GITHUB_USER/upgradeseo.git
+cd upgradeseo
 corepack enable
 pnpm install
 ```
@@ -27,8 +31,8 @@ pnpm install
 If you do not need a fork, clone the upstream repo instead:
 
 ```bash
-git clone https://github.com/every-app/open-seo.git
-cd open-seo
+git clone
+cd upgradeseo
 corepack enable
 pnpm install
 ```
@@ -64,11 +68,11 @@ To manage the Access application yourself instead, set `TEAM_DOMAIN` (`https://y
 
 1. Open the Worker URL printed at the end of the deploy.
 2. Sign in with Cloudflare Access.
-3. OpenSEO should load after login.
+3. UpgradeSEO should load after login.
 
 If it doesn't, see Troubleshooting below.
 
-## Updating to the latest OpenSEO version
+## Updating to the latest UpgradeSEO version
 
 ```bash
 git pull        # or: git fetch upstream && git merge upstream/main, if you forked

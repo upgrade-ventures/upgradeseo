@@ -12,7 +12,7 @@ export const Route = createFileRoute("/privacy")({
       title: privacyFrontmatter.title,
       description: privacyFrontmatter.description,
       path: "/privacy",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
     }),
   component: Privacy,
 });

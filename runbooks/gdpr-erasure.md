@@ -1,6 +1,6 @@
 # GDPR user erasure
 
-`pnpm gdpr:erase-user` inventories and erases a hosted user's OpenSEO data. It
+`pnpm gdpr:erase-user` inventories and erases a hosted user's UpgradeSEO data. It
 is Postgres-only and covers the application database, Cloudflare-bound state,
 Google grants, Loops, PostHog, Autumn, and the Stripe customer linked through
 Autumn.
@@ -20,7 +20,7 @@ Add `GDPR_ERASURE_SECRET` to `.env.production`, then deploy the Worker before
 using the command. Keep the secret out of shell history and logs.
 
 Verify the production R2 bucket has a lifecycle rule expiring the
-`dataforseo-cache/` prefix (prod lifecycle rules are dashboard-managed). The
+`provider-cache/` prefix (prod lifecycle rules are dashboard-managed). The
 retention claims below depend on it.
 
 ## Operator environment
@@ -29,7 +29,7 @@ Put these values in a secure, untracked environment file or secret manager:
 
 ```dotenv
 POSTGRES_DATABASE_URL=postgres://...
-BETTER_AUTH_URL=https://app.openseo.so
+BETTER_AUTH_URL=
 GDPR_ERASURE_SECRET=...
 
 LOOPS_API_KEY=...
@@ -95,7 +95,7 @@ Prompt-response cache objects written after this erasure tooling was deployed
 carry an organization tag and are deleted by the command. Older untagged cache
 objects cannot be attributed to a user from their hashed key; they remain
 inaccessible after account deletion and expire under the bucket's
-`dataforseo-cache/` lifecycle rule (see the deployment setup above). Audit
+`provider-cache/` lifecycle rule (see the deployment setup above). Audit
 scratchpad state for audits older than 30 days is skipped by the command
 because those Durable Objects and progress keys already self-destructed via
 their finalize path, 7-day alarm, or 30-minute TTL.

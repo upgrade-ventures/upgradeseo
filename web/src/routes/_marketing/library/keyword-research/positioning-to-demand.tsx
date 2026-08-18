@@ -14,7 +14,7 @@ export const Route = createFileRoute(
       title: "Does Your Positioning Have Search Demand Behind It?",
       description: frontmatter.description,
       path: "/library/keyword-research/positioning-to-demand",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (

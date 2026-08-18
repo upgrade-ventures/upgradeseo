@@ -13,7 +13,7 @@ export const Route = createFileRoute(
       title: "AI Brand Visibility Tool",
       description: page.description,
       path: "/features/ai-brand-visibility",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

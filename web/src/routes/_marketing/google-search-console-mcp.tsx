@@ -12,7 +12,7 @@ const PATH = "/google-search-console-mcp";
 const softwareApplicationLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "OpenSEO Google Search Console MCP",
+  name: "UpgradeSEO Google Search Console MCP",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   url: toCanonicalUrl(PATH),
@@ -31,7 +31,7 @@ const softwareApplicationLd = {
   },
   provider: {
     "@type": "Organization",
-    name: "OpenSEO",
+    name: "UpgradeSEO",
     url: SITE_URL,
   },
 };
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_marketing/google-search-console-mcp")({
       title: "Google Search Console MCP Server: No Google Cloud Setup",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       ogType: "article",
     }),
   component: GoogleSearchConsoleMcpPage,
@@ -65,7 +65,7 @@ function GoogleSearchConsoleMcpPage() {
         ) : null}
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <a
-            href="https://app.openseo.so/sign-up"
+            href=""
             className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
           >
             Get started
@@ -111,7 +111,7 @@ function GoogleSearchConsoleMcpCta() {
       </p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <a
-          href="https://app.openseo.so/sign-up"
+          href=""
           className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
         >
           Get started
@@ -120,7 +120,7 @@ function GoogleSearchConsoleMcpCta() {
           </span>
         </a>
         <a
-          href="https://github.com/every-app/open-seo"
+          href=""
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-white px-4 text-sm font-medium text-neutral-950 transition-colors hover:border-neutral-950"

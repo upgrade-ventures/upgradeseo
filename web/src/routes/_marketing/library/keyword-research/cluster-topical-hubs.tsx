@@ -15,7 +15,7 @@ export const Route = createFileRoute(
         "Keyword Clustering: Turn a Keyword List into Topical Hubs (and Fix Cannibalization)",
       description: frontmatter.description,
       path: "/library/keyword-research/cluster-topical-hubs",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (

@@ -3,7 +3,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      title: <span className="font-semibold">OpenSEO</span>,
+      title: <span className="font-semibold">UpgradeSEO</span>,
     },
     searchToggle: {
       enabled: false,
@@ -20,19 +20,19 @@ export function baseOptions(): BaseLayoutProps {
           },
           {
             text: "MCP",
-            description: "Connect OpenSEO to AI clients.",
+            description: "Connect UpgradeSEO to AI clients.",
             url: "/docs/mcp",
           },
           {
             text: "Skills",
-            description: "Focused OpenSEO workflows.",
+            description: "Focused UpgradeSEO workflows.",
             url: "/docs/skills",
           },
         ],
       },
       {
         text: "GitHub",
-        url: "https://github.com/every-app/open-seo",
+        url: "",
         external: true,
       },
     ],

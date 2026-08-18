@@ -18,7 +18,7 @@ const toolCategories = [
       },
       {
         title: "Save keywords",
-        description: "Keep useful ideas organized in your OpenSEO project.",
+        description: "Keep useful ideas organized in your UpgradeSEO project.",
       },
       {
         title: "Get rank tracker data",
@@ -65,7 +65,7 @@ const workflows = [
   {
     title: "First-pass keyword research",
     description:
-      "Ask the agent to expand seed topics into keyword ideas with volume, difficulty, and CPC, then save the promising ones back to your OpenSEO project for human review.",
+      "Ask the agent to expand seed topics into keyword ideas with volume, difficulty, and CPC, then save the promising ones back to your UpgradeSEO project for human review.",
   },
   {
     title: "Competitor teardown",
@@ -80,7 +80,7 @@ const workflows = [
   {
     title: "Keyword clustering and tagging",
     description:
-      "Let the agent group saved keywords by intent, tag them by page or topic cluster, and hand back a content plan you can act on in the OpenSEO UI.",
+      "Let the agent group saved keywords by intent, tag them by page or topic cluster, and hand back a content plan you can act on in the UpgradeSEO UI.",
   },
 ];
 
@@ -90,7 +90,7 @@ export const Route = createFileRoute("/_marketing/features/mcp")({
       title: "SEO MCP Server: Keyword, SERP & Backlink Tools",
       description: mcpDescription,
       path: "/features/mcp",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
     }),
   component: McpPage,
 });
@@ -98,12 +98,12 @@ export const Route = createFileRoute("/_marketing/features/mcp")({
 function McpPage() {
   return (
     <>
-      <p className="text-sm font-medium text-neutral-500">OpenSEO MCP</p>
+      <p className="text-sm font-medium text-neutral-500">UpgradeSEO MCP</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight leading-tight">
         An SEO MCP server for AI agents
       </h1>
       <p className="mt-4 text-neutral-700 leading-relaxed">
-        OpenSEO is an SEO MCP server that connects Claude, Cursor, Codex, or any
+        UpgradeSEO is an SEO MCP server that connects Claude, Cursor, Codex, or any
         MCP client to real data, so your agent can research keywords, inspect
         live SERPs, compare competitor domains, summarize backlink context, save
         keyword opportunities, review rank-tracking data, and read first-party
@@ -115,13 +115,13 @@ function McpPage() {
           href="/docs/mcp"
           className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
         >
-          Set up OpenSEO MCP
+          Set up UpgradeSEO MCP
         </a>
         <a
           href="/docs/skills"
           className="inline-flex h-10 items-center justify-center rounded-md border border-neutral-300 px-5 text-sm font-medium text-neutral-900 transition-colors hover:border-neutral-900"
         >
-          View OpenSEO skills
+          View UpgradeSEO skills
         </a>
       </div>
 
@@ -132,7 +132,7 @@ function McpPage() {
           external tools. An SEO MCP server exposes SEO data (keyword metrics,
           SERP results, domain and backlink stats) as tools an agent can call
           mid-conversation. Instead of guessing at search volumes or rankings,
-          your agent queries real data from your OpenSEO project, and can save
+          your agent queries real data from your UpgradeSEO project, and can save
           its findings back so you can review them in the UI. Pair it with{" "}
           <a
             href="/features/keyword-research"
@@ -198,9 +198,9 @@ function McpPage() {
           Google Search Console MCP — no Google Cloud setup
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-          OpenSEO MCP can read Search Console performance and URL inspection
+          UpgradeSEO MCP can read Search Console performance and URL inspection
           data from a connected hosted project. No Google Cloud project or OAuth
-          credentials needed. These tools are read-only and do not use OpenSEO
+          credentials needed. These tools are read-only and do not use UpgradeSEO
           credits.
         </p>
         <div className="mt-4">
@@ -220,7 +220,7 @@ function McpPage() {
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
           The MCP server URL, Claude setup, Codex setup, and troubleshooting
           steps are maintained in the docs so this feature page can stay focused
-          on what OpenSEO MCP makes possible.
+          on what UpgradeSEO MCP makes possible.
         </p>
         <div className="mt-4">
           <a

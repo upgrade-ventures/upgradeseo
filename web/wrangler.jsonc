@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "open-seo-landing",
+  "name": "upgradeseo-landing",
   "compatibility_date": "2026-02-19",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
@@ -19,11 +19,11 @@
   },
   "routes": [
     {
-      "pattern": "openseo.so",
+      "pattern": "upgradeseo.so",
       "custom_domain": true,
     },
     {
-      "pattern": "www.openseo.so",
+      "pattern": "www.upgradeseo.so",
       "custom_domain": true,
     },
   ],
@@ -44,7 +44,7 @@
     // Bindings are not inherited by named envs; keep preview's copies in sync.
     // Shared KV id is deliberate: one global daily budget across both workers.
     "preview": {
-      "name": "open-seo-landing-preview",
+      "name": "upgradeseo-landing-preview",
       "workers_dev": true,
       "preview_urls": true,
       "routes": [],

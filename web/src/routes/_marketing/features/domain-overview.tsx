@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/domain-overview")({
       title: "Domain Overview Tool: Traffic, Keywords & Top Pages",
       description: page.description,
       path: "/features/domain-overview",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

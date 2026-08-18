@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/site-audit")({
       title: "SEO Audit Tool",
       description: page.description,
       path: "/features/site-audit",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

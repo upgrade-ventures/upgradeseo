@@ -15,7 +15,7 @@ export const Route = createFileRoute(
         "Seed Keywords from Customer Conversations (Keyword Research Without a Paid Tool)",
       description: frontmatter.description,
       path: "/library/keyword-research/seed-from-conversation",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (

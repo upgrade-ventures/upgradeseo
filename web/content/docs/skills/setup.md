@@ -1,13 +1,13 @@
 ---
-title: "Set up OpenSEO Agent Skills"
-description: "Add OpenSEO skill files to your AI agent after connecting OpenSEO MCP."
+title: "Set up UpgradeSEO Agent Skills"
+description: "Add UpgradeSEO skill files to your AI agent after connecting UpgradeSEO MCP."
 ---
 
-OpenSEO Agent Skills are separate files from OpenSEO MCP.
+UpgradeSEO Agent Skills are separate files from UpgradeSEO MCP.
 
-First, [set up OpenSEO MCP](/docs/mcp). MCP gives your agent access to OpenSEO data.
+First, [set up UpgradeSEO MCP](/docs/mcp). MCP gives your agent access to UpgradeSEO data.
 
-Then add the OpenSEO `SKILL.md` files you want your agent to use. Each skill gives your agent one SEO workflow.
+Then add the UpgradeSEO `SKILL.md` files you want your agent to use. Each skill gives your agent one SEO workflow.
 
 ## Choose an installation option
 
@@ -18,15 +18,15 @@ Pick the option that matches how you want to install the files.
 Use this if you want the installer to show the available skills and agents.
 
 ```bash
-npx skills add every-app/open-seo
+npx skills add YOUR_GITHUB_ORG/upgradeseo
 ```
 
-### Option 2: Install all OpenSEO skills
+### Option 2: Install all UpgradeSEO skills
 
-Use this if you want every OpenSEO skill.
+Use this if you want every UpgradeSEO skill.
 
 ```bash
-npx skills add every-app/open-seo --skill '*'
+npx skills add YOUR_GITHUB_ORG/upgradeseo --skill '*'
 ```
 
 ### Option 3: Install all skills for Claude Code only
@@ -34,7 +34,7 @@ npx skills add every-app/open-seo --skill '*'
 Use this if the skills should be available in Claude Code only.
 
 ```bash
-npx skills add every-app/open-seo --skill '*' --agent claude-code
+npx skills add YOUR_GITHUB_ORG/upgradeseo --skill '*' --agent claude-code
 ```
 
 ### Option 4: Install all skills for OpenAI Codex only
@@ -42,7 +42,7 @@ npx skills add every-app/open-seo --skill '*' --agent claude-code
 Use this if the skills should be available in Codex only.
 
 ```bash
-npx skills add every-app/open-seo --skill '*' --agent codex
+npx skills add YOUR_GITHUB_ORG/upgradeseo --skill '*' --agent codex
 ```
 
 ### Option 5: Copy the skill files manually
@@ -50,20 +50,20 @@ npx skills add every-app/open-seo --skill '*' --agent codex
 Use this if you prefer to copy files into your agent's skills folder.
 
 ```bash
-git clone https://github.com/every-app/open-seo.git
+git clone 
 
 # Codex
 mkdir -p ~/.codex/skills
-cp -R open-seo/.agents/skills/* ~/.codex/skills/
+cp -R upgradeseo/.agents/skills/* ~/.codex/skills/
 
 # Claude Code
 mkdir -p ~/.claude/skills
-cp -R open-seo/.agents/skills/* ~/.claude/skills/
+cp -R upgradeseo/.agents/skills/* ~/.claude/skills/
 ```
 
 You can also review the source skills on GitHub:
 
-- [OpenSEO Agent Skills on GitHub](https://github.com/every-app/open-seo/tree/main/.agents/skills)
+- [UpgradeSEO Agent Skills on GitHub]()
 
 Each skill page also links to its source `SKILL.md`.
 

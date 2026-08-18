@@ -9,7 +9,7 @@ Your repo was created by the deploy button and `wrangler.jsonc` holds your resou
 One-time setup:
 
 ```bash
-git remote add upstream https://github.com/every-app/open-seo.git
+git remote add upstream
 ```
 
 Update steps:
@@ -37,7 +37,7 @@ pnpm run deploy
 
 1. Open Cloudflare Zero Trust.
 2. Go to Access -> Applications.
-3. Open your OpenSEO application.
+3. Open your UpgradeSEO application.
 4. Edit the `Allow` policy.
 5. Add teammate emails (or your company email domain / group).
 6. Save.
@@ -46,20 +46,19 @@ Screenshots: [edit the Access policy](https://github.com/user-attachments/assets
 
 ## Optional: R2 lifecycle rule
 
-DataForSEO API responses are cached in R2 under the `dataforseo-cache/` prefix. Recommended so expired cache objects don't accumulate:
+UpgradeSEO runs on free data sources (Google Ads, Bing Webmaster, Foundery, PageSpeed Insights). Set them up from /help/free-setup in the running app.
 
 ```bash
-pnpm exec wrangler r2 bucket lifecycle add open-seo dataforseo-cache-expiry dataforseo-cache/ --expire-days 7
+pnpm exec wrangler r2 bucket lifecycle add upgradeseo provider-cache-expiry provider-cache/ --expire-days 7
 ```
 
-Replace `open-seo` with your bucket name if you changed it.
+Replace `upgradeseo` with your bucket name if you changed it.
 
 ## Troubleshooting
 
-**Login fails or OpenSEO doesn't load.** Re-check, on your Worker under `Settings`:
+**Login fails or UpgradeSEO doesn't load.** Re-check, on your Worker under `Settings`:
 
 - `Domains & Routes`: `Cloudflare Access` is enabled for the `workers.dev` route.
-- `Variables & Secrets`: `TEAM_DOMAIN` (for example `https://your-team.cloudflareaccess.com`), `POLICY_AUD` (the Access application audience tag), and `DATAFORSEO_API_KEY` are set.
 - Manual Wrangler deployments: the binding IDs in `wrangler.jsonc` match your resources.
 
 `https://<your-worker-hostname>/api/health` reports runtime configuration checks and database status. For server errors, open the Worker `Logs` or run `pnpm exec wrangler tail`.

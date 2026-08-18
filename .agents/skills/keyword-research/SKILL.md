@@ -3,11 +3,11 @@ name: keyword-research
 description: "Discover keyword opportunities, evaluate metrics and SERPs, and save/tag promising terms."
 ---
 
-# OpenSEO Keyword Research
+# UpgradeSEO Keyword Research
 
 ## Goal
 
-Turn seed topics into a prioritized keyword opportunity set using OpenSEO MCP data. The output should help the user decide what to target, what to save, and what to research next.
+Turn seed topics into a prioritized keyword opportunity set using UpgradeSEO MCP data. The output should help the user decide what to target, what to save, and what to research next.
 
 ## Required inputs
 
@@ -17,7 +17,7 @@ Turn seed topics into a prioritized keyword opportunity set using OpenSEO MCP da
 
 If `projectId` is missing, use `list_projects` first. If the target market/location/language is unclear and would materially affect keyword metrics, ask the user; otherwise use the MCP tool defaults.
 
-## OpenSEO MCP tools
+## UpgradeSEO MCP tools
 
 - `research_keywords`: primary discovery tool. Use 1-5 seeds per call and prefer 150 results unless the user asks for exhaustive research.
 - `get_keyword_metrics`: hydrate up to 700 known keywords with volume, keyword difficulty (KD), search intent, CPC, and monthly trends in one call. Use it to score candidate or known terms — including the Search Console striking-distance queries from step 1.
@@ -65,6 +65,6 @@ End with next actions, including whether to run keyword clustering, create a con
 
 ## Guardrails
 
-- Do not invent metrics. If OpenSEO does not return a value, write `unknown`.
+- Do not invent metrics. If UpgradeSEO does not return a value, write `unknown`.
 - Do not call `save_keywords` without explicit confirmation.
 - Prefer business-fit and intent-fit over chasing the largest volume term.

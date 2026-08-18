@@ -3,7 +3,7 @@ name: seo-audit
 description: "Audit a website and deliver a one-page, plain-language SEO report anyone can act on, centered on a single do-this-week action."
 ---
 
-# OpenSEO SEO Audit
+# UpgradeSEO SEO Audit
 
 ## Goal
 
@@ -16,9 +16,9 @@ Use this when asked for an SEO audit or review of a domain, especially when the 
 - Domain to audit
 - `projectId` (use `list_projects`; if no project matches the domain, create one with `create_project`)
 
-## OpenSEO MCP tools
+## UpgradeSEO MCP tools
 
-- `whoami`: confirm connection and remaining credits before spending anything. If OpenSEO is not connected, stop and ask the user to connect it.
+- `whoami`: confirm connection and remaining credits before spending anything. If UpgradeSEO is not connected, stop and ask the user to connect it.
 - `list_projects` / `create_project`: resolve the `projectId`.
 - `run_site_audit`: start the crawl (default page budget), then poll `get_audit_status` and read `get_audit_issues`. Use `get_audit_pages` when per-page evidence helps.
 - `get_backlinks_overview`: backlink and referring-domain picture; usually the deciding data for the "one thing".

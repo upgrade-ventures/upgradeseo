@@ -6,12 +6,12 @@ import { getDocsPageTree, getDocsPosts } from "@/lib/content.functions";
 import { buildPageSeo } from "@/lib/seo";
 
 const docsDescription =
-  "OpenSEO setup and reference docs for MCP, AI clients, and workflow configuration.";
+  "UpgradeSEO setup and reference docs for MCP, AI clients, and workflow configuration.";
 
 export const Route = createFileRoute("/docs/")({
   head: () =>
     buildPageSeo({
-      title: "OpenSEO Docs",
+      title: "UpgradeSEO Docs",
       description: docsDescription,
       path: "/docs",
     }),
@@ -29,7 +29,7 @@ function DocsIndex() {
     <DocsLayout tree={pageTree} {...baseOptions()}>
       <ContentIndex
         eyebrow="Docs"
-        title="OpenSEO Docs"
+        title="UpgradeSEO Docs"
         description={docsDescription}
         emptyLabel="No docs yet. Check back soon."
         items={pages}

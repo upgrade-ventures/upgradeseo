@@ -1,5 +1,11 @@
 # Onboarding agent — implementation plan (chat + seed function)
 
+> **Superseded on the data-source question (16 Aug 2026).** UpgradeSEO now runs
+> entirely on free sources: Microsoft Advertising and Google Ads for keyword
+> volume and CPC, Bing Webmaster, Common Crawl, PageSpeed Insights, Search
+> Console, and Azure AI Foundry for the in-app agent. The decisions below
+> stand; the vendor they were written against is gone.
+
 ## Status
 
 Accepted (June 2026) — technical plan for `specs/0005-onboarding-agent.md`.
@@ -14,7 +20,7 @@ Objects + a Workflow. We dropped all of that (see "Why not Think / Workflows").
 > strategy itself in-stream (see `src/routes/api/onboarding/chat.ts`). Strategy
 > **persistence** (the `project_context_versions` store + R2 versioning) and the
 > `get_project_context` **MCP tool** are deferred to a later PR. Onboarding
-> spend — DataForSEO **and** LLM tokens — draws down the org's onboarding-plan
+> spend — keyword provider **and** LLM tokens — draws down the org's onboarding-plan
 > trial credits via the normal balance gate. The sections below describe the
 > original plan, not what shipped.
 
@@ -23,7 +29,7 @@ Objects + a Workflow. We dropped all of that (see "Why not Think / Workflows").
 Onboarding has two simple pieces, no agent framework:
 
 1. **A seed function** (plain async): discover sitemap → scrape 3–5 pages to
-   markdown (Browser Rendering) → 2 paid DataForSEO calls → one OpenRouter
+   markdown (Browser Rendering) → 2 metered provider calls → one model
    synthesis call → save the result as the project's first **Project Context**
    version. Runs once when onboarding kicks off.
 2. **A normal streaming chat** (Vercel AI SDK `streamText` over OpenRouter):
@@ -36,7 +42,7 @@ via `get_project_context`.
 
 ## Why not Think / Workflows (and why `agents` stays)
 
-- **No durable execution needed.** The paid DataForSEO services are _cache-first_
+- **No durable execution needed.** The metered provider services are _cache-first_
   (`getCached` runs before `createDataforseoClient`/metering), so a crash-and-retry
   of the same domain re-hits the 12h R2 cache → no double-spend. That removed the
   only reason for fibers/Workflows.
@@ -129,9 +135,9 @@ Real providers, no fixture system:
 
 - Add `OPENROUTER_API_KEY` to `.env.local` (the one new key), `wrangler login`
   for the `BROWSER` binding (`remote: true` in dev).
-- DataForSEO creds you already have; the cache makes repeat runs free.
+- Provider creds you already have; the cache makes repeat runs free.
 - Drive the real onboarding UI with the Playwriter skill, screenshotting each
-  step. **Test domain: `openseo.so`.**
+  step. **Test domain: `upgradeseo.so`.**
 
 ## Build order (stacked PRs)
 

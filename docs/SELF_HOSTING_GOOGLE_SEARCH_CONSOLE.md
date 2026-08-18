@@ -1,9 +1,9 @@
 # Self-hosted Google Search Console
 
-Connecting Google Search Console (GSC) lets OpenSEO pull your real clicks,
+Connecting Google Search Console (GSC) lets UpgradeSEO pull your real clicks,
 impressions, positions, and URL inspection data, straight from Google.
 
-It's **optional**: OpenSEO runs fine without it, just without Search Console data.
+It's **optional**: UpgradeSEO runs fine without it, just without Search Console data.
 
 ## What you'll need
 
@@ -39,10 +39,10 @@ Under **APIs & Services → Credentials → Create credentials → OAuth client 
 2. Add an **Authorized redirect URI** that exactly matches your deployment's
    origin plus `/api/gsc/oauth/callback`:
 
-   | Deployment   | Redirect URI                                             |
-   | ------------ | -------------------------------------------------------- |
-   | Deployed     | `https://your-openseo-domain.com/api/gsc/oauth/callback` |
-   | Local Docker | `http://localhost:3001/api/gsc/oauth/callback`           |
+   | Deployment   | Redirect URI                                                |
+   | ------------ | ----------------------------------------------------------- |
+   | Deployed     | `https://your-upgradeseo-domain.com/api/gsc/oauth/callback` |
+   | Local Docker | `http://localhost:3001/api/gsc/oauth/callback`              |
 
    The scheme, host, and port must match exactly, with no trailing slash.
 
@@ -50,7 +50,7 @@ Under **APIs & Services → Credentials → Create credentials → OAuth client 
 
 ## 4) Set environment variables
 
-Set these three values, then restart OpenSEO:
+Set these three values, then restart UpgradeSEO:
 
 | Variable               | Value                                                                   |
 | ---------------------- | ----------------------------------------------------------------------- |
@@ -74,11 +74,11 @@ Where to set them:
 
 ## 5) Restart and connect
 
-Restart OpenSEO so it picks up the new variables. For Docker, changing `.env`
+Restart UpgradeSEO so it picks up the new variables. For Docker, changing `.env`
 means Compose has to recreate the container to reapply it:
 
 ```bash
-docker compose up -d --force-recreate open-seo
+docker compose up -d --force-recreate upgradeseo
 ```
 
 Then open **Integrations**, click **Connect with Google**, authorize the Google
@@ -87,11 +87,11 @@ project.
 
 ## How it works
 
-- OpenSEO uses your Google client to run the OAuth flow and stores the resulting
+- UpgradeSEO uses your Google client to run the OAuth flow and stores the resulting
   grant in its database, with the access and refresh tokens **encrypted at rest**
   (keyed by `BETTER_AUTH_SECRET`).
 - Access tokens are minted and refreshed on demand — you only authorize once.
-- Search Console data comes from your own Google account, so OpenSEO never meters credits for it.
+- Search Console data comes from your own Google account, so UpgradeSEO never meters credits for it.
 
 ## Troubleshooting
 
@@ -106,7 +106,7 @@ shorter than 32 characters. Set all three and restart. On Docker, recreate the
 container so Compose reapplies `.env`:
 
 ```bash
-docker compose up -d --force-recreate open-seo
+docker compose up -d --force-recreate upgradeseo
 ```
 
 **`access_denied` during sign-in** — the Google account isn't listed as a test

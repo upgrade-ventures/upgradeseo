@@ -9,7 +9,7 @@ import { NewsletterSignup } from "@/components/newsletter-signup";
 import { SiteFooter } from "@/components/site-footer";
 import { featureGroups } from "@/lib/feature-pages";
 
-const GITHUB_REPO = "every-app/open-seo";
+const GITHUB_REPO = "YOUR_GITHUB_ORG/upgradeseo";
 // Used if GitHub is unreachable at build time so the header never renders empty.
 const FALLBACK_STAR_COUNT = "2.1k";
 
@@ -25,7 +25,7 @@ async function fetchGithubStarCount(): Promise<string> {
       headers: {
         Accept: "application/vnd.github+json",
         // GitHub rejects requests without a User-Agent.
-        "User-Agent": "openseo-landing",
+        "User-Agent": "upgradeseo-landing",
       },
     });
     if (!res.ok) return FALLBACK_STAR_COUNT;
@@ -70,7 +70,7 @@ function getMobileNavItems(githubStarCount: string) {
       links: [
         {
           label: `GitHub ${githubStarCount}`,
-          href: "https://github.com/every-app/open-seo",
+          href: "",
         },
       ],
     },
@@ -165,7 +165,7 @@ function MarketingLayout() {
               to="/"
               className="text-sm font-semibold hover:opacity-80 transition-opacity"
             >
-              OpenSEO
+              UpgradeSEO
             </Link>
 
             <div className="hidden items-center justify-center gap-5 md:flex">
@@ -196,7 +196,7 @@ function MarketingLayout() {
                 {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
               </button>
               <a
-                href="https://github.com/every-app/open-seo"
+                href=""
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`GitHub, ${githubStarCount} stars`}
@@ -207,7 +207,7 @@ function MarketingLayout() {
                 <span className="text-neutral-500">{githubStarCount}</span>
               </a>
               <a
-                href="https://app.openseo.so/sign-in"
+                href=""
                 className="hidden h-9 items-center rounded-full border border-[var(--color-border-subtle)] px-4 text-sm font-medium text-neutral-900 transition-colors hover:border-neutral-900 md:inline-flex"
               >
                 Sign in
@@ -219,14 +219,14 @@ function MarketingLayout() {
             <div className="absolute left-0 right-0 top-full z-30 mt-3 rounded-2xl border border-[var(--color-border-subtle)] bg-white p-3 shadow-xl shadow-neutral-900/10 md:hidden">
               <div className="grid grid-cols-2 gap-2">
                 <a
-                  href="https://app.openseo.so/sign-in"
+                  href=""
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex h-11 items-center justify-center rounded-xl bg-neutral-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
                 >
-                  Try OpenSEO
+                  Try UpgradeSEO
                 </a>
                 <a
-                  href="https://app.openseo.so/sign-in"
+                  href=""
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex h-11 items-center justify-center rounded-xl border border-[var(--color-border-subtle)] px-3 text-sm font-semibold text-neutral-800 transition-colors hover:border-neutral-900 hover:bg-[#f5f1ec]"
                 >
@@ -287,12 +287,12 @@ function ResourcesDropdown() {
     {
       label: "MCP",
       href: "/docs/mcp",
-      description: "Connect OpenSEO to AI clients.",
+      description: "Connect UpgradeSEO to AI clients.",
     },
     {
       label: "Skills",
       href: "/docs/skills",
-      description: "Focused OpenSEO workflows.",
+      description: "Focused UpgradeSEO workflows.",
     },
   ];
 
@@ -383,7 +383,7 @@ function FeatureDropdown() {
                   className="block rounded-md p-2 transition-colors hover:bg-[#f5f1ec]"
                 >
                   <span className="text-sm font-semibold text-neutral-900">
-                    OpenSEO MCP
+                    UpgradeSEO MCP
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-neutral-600">
                     Connect Claude, Codex, and agents.

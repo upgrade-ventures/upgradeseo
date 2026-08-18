@@ -1,6 +1,6 @@
-const DEFAULT_SITE_URL = "https://openseo.so";
+const DEFAULT_SITE_URL = "";
 const DEFAULT_SOCIAL_IMAGE_PATH = "/social-card.jpg";
-const DEFAULT_SOCIAL_IMAGE_ALT = "OpenSEO product preview";
+const DEFAULT_SOCIAL_IMAGE_ALT = "UpgradeSEO product preview";
 
 export const SITE_URL = (
   process.env.SITE_URL ??
@@ -44,7 +44,7 @@ export function buildPageSeo({
     meta: [
       { title: fullTitle },
       ...(description ? [{ name: "description", content: description }] : []),
-      { property: "og:site_name", content: "OpenSEO" },
+      { property: "og:site_name", content: "UpgradeSEO" },
       { property: "og:type", content: ogType },
       { property: "og:title", content: fullTitle },
       ...(description

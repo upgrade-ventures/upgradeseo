@@ -1,24 +1,30 @@
 # Keyword data source routing and the clickstream default
 
+> **Superseded on the data-source question (16 Aug 2026).** UpgradeSEO now runs
+> entirely on free sources: Microsoft Advertising and Google Ads for keyword
+> volume and CPC, Bing Webmaster, Common Crawl, PageSpeed Insights, Search
+> Console, and Azure AI Foundry for the in-app agent. The decisions below
+> stand; the vendor they were written against is gone.
+
 ## Status
 
 Accepted (June 2026)
 
 ## Context
 
-Keyword research is the largest credit spend for OpenSEO users, and coverage
-has a hard gap: DataForSEO Labs supports 94 countries, so a customer in
+Keyword research is the largest credit spend for UpgradeSEO users, and coverage
+has a hard gap: the primary keyword source covers 94 countries, so a customer in
 Iceland (location 2352) cannot run keyword research at all.
 
 Three data sources were on the table:
 
-- **DataForSEO Labs** — our existing source. Per-row pricing ($0.01/task +
+- **The primary keyword source** — per-row pricing ($0.01/task +
   $0.0001/row), and the only source for keyword difficulty, search intent,
   and SERP-feature context. Its `include_clickstream_data` flag doubles the
   request cost; its only effect is refined volume numbers — the standard
   `keyword_info.search_volume` is the same Google-Ads-derived volume every
   mainstream tool shows.
-- **DataForSEO Keywords Data (Google Ads endpoints)** — same vendor, flat
+- **Ads-network keyword endpoints** — same vendor, flat
   $0.075 per live request (up to 1,000 keywords for `search_volume`, up to
   20 seeds for `keywords_for_keywords`), 217 countries including Iceland. No
   difficulty, intent, or SERP data; volumes are bucketed and aggregate close
@@ -89,7 +95,7 @@ USD × 1.28 markup × 1000):
   (~64 → ~32 credits per seed); the opt-in keeps the refinement available to
   users who want it, priced visibly.
 - The direct Google Ads API is rejected on policy, not effort — revisit only
-  if OpenSEO ships campaign management.
+  if UpgradeSEO ships campaign management.
 
 ## Consequences
 
@@ -98,7 +104,7 @@ USD × 1.28 markup × 1000):
   ~96 credits.
 - Cross-country volume numbers stay roughly comparable: both providers'
   standard volumes derive from Google Ads data.
-- Google Ads live endpoints allow 12 requests/min per DataForSEO account.
+- Ads live endpoints allow 12 requests/min per provider account.
   Research fans out at most 5 seeds per call, so a single user stays under
   it; sustained multi-user traffic on these countries would queue.
 - `keywords_for_keywords` has no limit parameter (up to 20k suggestions per
@@ -107,4 +113,4 @@ USD × 1.28 markup × 1000):
 - The research cache version was bumped (2→3) so pre-change
   clickstream-priced volumes never mix with standard ones.
 - Reverting the clickstream default is a one-line change per fetcher in
-  `src/server/lib/dataforseo/labs.ts`; the opt-in plumbing stays either way.
+  the provider client; the opt-in plumbing stays either way.

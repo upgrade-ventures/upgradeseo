@@ -12,7 +12,7 @@ export function SiteFooter({ className }: { className?: string }) {
   return (
     <div className={className}>
       <Link to="/" className="text-sm font-semibold text-neutral-900">
-        OpenSEO
+        UpgradeSEO
       </Link>
 
       <div className="mt-6 grid grid-cols-2 gap-8 md:grid-cols-4">
@@ -31,7 +31,7 @@ export function SiteFooter({ className }: { className?: string }) {
         <div>
           <p className="font-semibold text-neutral-900">AI agents</p>
           <div className="mt-2 flex flex-col gap-1.5">
-            <Link to="/features/mcp">OpenSEO MCP</Link>
+            <Link to="/features/mcp">UpgradeSEO MCP</Link>
             <Link to="/google-search-console-mcp">
               Google Search Console MCP
             </Link>
@@ -54,7 +54,7 @@ export function SiteFooter({ className }: { className?: string }) {
             <Link to="/roadmap">Roadmap</Link>
             <Link to="/pricing">Pricing</Link>
             <a
-              href="https://github.com/every-app/open-seo"
+              href=""
               target="_blank"
               rel="noopener noreferrer"
             >

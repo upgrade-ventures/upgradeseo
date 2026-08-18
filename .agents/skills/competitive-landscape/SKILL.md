@@ -3,7 +3,7 @@ name: competitive-landscape
 description: Map SEO market leaders, winning content themes, keyword coverage, backlinks, and strategic gaps.
 ---
 
-# OpenSEO Competitive Landscape
+# UpgradeSEO Competitive Landscape
 
 ## Goal
 
@@ -18,7 +18,7 @@ Use this when the user wants a market-level view across several competitors. For
 - Optional known competitors
 - Optional location/language
 
-## OpenSEO MCP tools
+## UpgradeSEO MCP tools
 
 - `research_keywords`: discover representative market queries.
 - `get_keyword_metrics`: validate known query sets with volume, difficulty, intent, and trends.
@@ -74,7 +74,7 @@ Add:
 ## Guardrails
 
 - Distinguish SEO competitors from business competitors.
-- Do not overstate exact traffic when OpenSEO returns estimates.
+- Do not overstate exact traffic when UpgradeSEO returns estimates.
 - If using a small query set, call the result directional.
 - Do not assume a publisher is a product competitor; label domain types clearly.
 - For local markets, distinguish organic-page winners from Maps/local-pack winners.

@@ -3,7 +3,7 @@ name: seo-project-setup
 description: Set up a durable local SEO workspace with project context, notes, goals, positioning, preferences, MCP checks, and Search Console data intake.
 ---
 
-# OpenSEO SEO Project Setup
+# UpgradeSEO SEO Project Setup
 
 ## Goal
 
@@ -82,15 +82,15 @@ Probe for:
 
 If the user has not done this yet, offer to help research positioning using the company website, competitor pages, reviews, forums, and web search.
 
-### 5. Verify OpenSEO MCP
+### 5. Verify UpgradeSEO MCP
 
-After the user has described the company, website, goals, and positioning, check that OpenSEO MCP is configured and mapped to the right project:
+After the user has described the company, website, goals, and positioning, check that UpgradeSEO MCP is configured and mapped to the right project:
 
 1. Use `whoami` if available.
 2. Use `list_projects` to confirm the user can access projects.
 3. Match the project to the website/domain they want to rank for.
 4. If the project list is ambiguous, ask the user which project should be used.
-5. If the MCP is unavailable, tell the user to connect OpenSEO MCP before continuing with live OpenSEO data.
+5. If the MCP is unavailable, tell the user to connect UpgradeSEO MCP before continuing with live UpgradeSEO data.
 
 Do not run research tools just to test connectivity; `whoami` and `list_projects` are enough.
 
@@ -132,7 +132,7 @@ Ask for or discover:
 
 ### 8. Recommend first workflow
 
-After intake, recommend one next OpenSEO workflow:
+After intake, recommend one next UpgradeSEO workflow:
 
 - `seo-audit`: when the site already exists and the user wants to know what to fix or do first, especially if they are new to SEO
 - `keyword-research`: when the user needs ideas from seed topics
@@ -151,7 +151,7 @@ Use a checklist with statuses:
 Then summarize:
 
 - Working folder
-- OpenSEO MCP/project status
+- UpgradeSEO MCP/project status
 - Sites in scope
 - Goals
 - Known positioning

@@ -14,7 +14,7 @@ export const Route = createFileRoute(
       title: "SEO Forecasting: Size a Keyword Opportunity Before You Build",
       description: frontmatter.description,
       path: "/library/keyword-research/opportunity-sizing-forecasting",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (

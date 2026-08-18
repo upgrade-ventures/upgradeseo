@@ -4,7 +4,7 @@
 
 - Node.js 20+
 - [Corepack](https://nodejs.org/api/corepack.html) (bundled through Node.js 24; install it separately on Node.js 25+)
-- A DataForSEO account/API credentials
+  UpgradeSEO runs on free data sources (Google Ads, Bing Webmaster, Foundery, PageSpeed Insights). Set them up from /help/free-setup in the running app.
 
 ## Local Development Workflow
 
@@ -24,11 +24,10 @@ the repository's lockfile as incompatible.
 Configure `.env.local`:
 
 1. `cp .env.example .env.local`
-2. Add `DATAFORSEO_API_KEY` as a base64-encoded `login:password` value:
 
    `printf '%s' 'YOUR_LOGIN:YOUR_PASSWORD' | base64`
 
-3. Set `AUTH_MODE=local_noauth` for normal local development.
+2. Set `AUTH_MODE=local_noauth` for normal local development.
 
 Run locally:
 
@@ -45,9 +44,9 @@ touch .logs/dev-server.log
 pnpm dev:agents
 ```
 
-`pnpm dev:agents` runs through [portless](https://github.com/vercel-labs/portless) at `http://open-seo.localhost:1355` by default.
+`pnpm dev:agents` runs through [portless](https://github.com/vercel-labs/portless) at `http://upgradeseo.localhost:1355` by default.
 
-When using a git worktree, [portless](https://github.com/vercel-labs/portless) prefixes the branch name, for example `http://feature-name.open-seo.localhost:1355`.
+When using a git worktree, [portless](https://github.com/vercel-labs/portless) prefixes the branch name, for example `http://feature-name.upgradeseo.localhost:1355`.
 
 ## Database Commands
 

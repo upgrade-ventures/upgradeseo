@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_marketing/open-source-seo")({
       title: openSourceSeoFrontmatter.title,
       description: openSourceSeoFrontmatter.description,
       path: "/open-source-seo",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "UpgradeSEO",
       ogType: "article",
     }),
   component: OpenSourceSeoPage,
@@ -48,7 +48,7 @@ function OpenSourceSeoCta() {
   return (
     <section className="mt-14 rounded-xl border border-[var(--color-border-subtle)] bg-white p-6">
       <p className="text-xl font-semibold tracking-tight text-neutral-950">
-        Try OpenSEO, or follow along on GitHub
+        Try UpgradeSEO, or follow along on GitHub
       </p>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-brand-muted)]">
         Try the hosted app if you want to get started right away. Or, check it
@@ -56,16 +56,16 @@ function OpenSourceSeoCta() {
       </p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <a
-          href="https://app.openseo.so/sign-up"
+          href=""
           className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
         >
-          Try OpenSEO
+          Try UpgradeSEO
           <span className="ml-2" aria-hidden="true">
             &rarr;
           </span>
         </a>
         <a
-          href="https://github.com/every-app/open-seo"
+          href=""
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-white px-4 text-sm font-medium text-neutral-950 transition-colors hover:border-neutral-950"

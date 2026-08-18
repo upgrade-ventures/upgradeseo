@@ -14,7 +14,7 @@ export const Route = createFileRoute(
       title: "What Are Long-Tail Keywords? How to Find and Use Them",
       description: frontmatter.description,
       path: "/library/keyword-research/long-tail-question-mining",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (

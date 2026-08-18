@@ -3,7 +3,7 @@ name: keyword-clustering
 description: Cluster keywords by intent and map them to existing or proposed pages.
 ---
 
-# OpenSEO Keyword Clustering
+# UpgradeSEO Keyword Clustering
 
 ## Goal
 
@@ -17,7 +17,7 @@ Group keywords into page-level clusters and decide which existing or new page sh
 
 If keywords are not provided, use `list_saved_keywords` for saved sets, `research_keywords` for seed discovery, or `get_ranked_keywords` when the user starts from a target domain.
 
-## OpenSEO MCP tools
+## UpgradeSEO MCP tools
 
 - `list_saved_keywords`: fetch an existing keyword set, optionally filtered by tags.
 - `research_keywords`: expand a seed when the user starts from a topic.

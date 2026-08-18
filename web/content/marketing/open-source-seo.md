@@ -22,7 +22,7 @@ If you already self-host open source products, you already know the many benefit
 - Saving money
 - Privacy and controlling your own data
 
-### Why does open source matter even if you're using OpenSEO's SaaS?
+### Why does open source matter even if you're using UpgradeSEO's SaaS?
 
 #### Open source products are higher quality
 
@@ -36,7 +36,7 @@ A company open sourcing their code puts a flag in the sand saying, "We are going
 
 ##### Fair pricing
 
-Anyone can [self-host OpenSEO](https://github.com/every-app/open-seo) and use it at cost for themselves.
+Anyone can [self-host UpgradeSEO]() and use it at cost for themselves.
 
 Since our code is open source, other companies could try to provide the same service for cheaper. This is a check, so we cannot just keep charging more and more. We need to offer the hosted service at a fair price so that customers are happy to pay for it because it gives them so much value.
 
@@ -48,13 +48,13 @@ Anyone can read the code. This keeps the company in check to make sure it is pri
 
 The best ideas from the community will bubble back into the application for everyone to benefit.
 
-## Build a custom SEO tool on top of OpenSEO
+## Build a custom SEO tool on top of UpgradeSEO
 
 Now that AI agents like Claude are making coding more accessible and inexpensive, many SEO agencies are deciding to build custom SEO tools for their companies' use cases.
 
 This allows them to save money and tailor the tool to their own workflows. Many are building these from scratch.
 
-I propose that they should instead build on top of OpenSEO. Here's why:
+I propose that they should instead build on top of UpgradeSEO. Here's why:
 
 ### Don't re-invent the wheel
 
@@ -78,33 +78,33 @@ Because of this, many SEO workflows require data that costs money. Otherwise, th
 
 But, since the code for the application is open source, it means that you are not locked into a single data provider. If a better, more affordable data provider comes along, the project can switch.
 
-## Where does OpenSEO get its data?
+## Where does UpgradeSEO get its data?
 
-OpenSEO uses [DataForSEO](https://dataforseo.com/) as its main data source. They have been in business for almost 10 years and are considered the gold standard for pay-by-usage SEO data. They have quality SEO data for almost every workflow and they are very reliable.
+UpgradeSEO runs on free data sources. Keyword volume and CPC come from the Microsoft Advertising API, with the Google Ads API as an optional upgrade. Competitor and backlink data come from Common Crawl, Core Web Vitals from PageSpeed Insights, your real rankings from Google Search Console, and the in-app AI agent from your own Azure AI Foundry deployment.
 
-There are other data providers for more specific tasks like SERP, or search engine results page, which we may support in the future, but for simplicity's sake, DataForSEO is our main provider right now.
+Every one of those keys is free to obtain. Where a free source is a proxy rather than an exact match, such as Bing volume standing in for Google volume, the app says so on the number itself rather than presenting an estimate as a measurement.
 
-## Can you really replace your SEO tool with OpenSEO?
+## Can you really replace your SEO tool with UpgradeSEO?
 
 It depends.
 
 ### For beginners
 
-If you're new to SEO, OpenSEO should definitely be the first tool you select. Good design means the tool is approachable to both beginners and experts. When you connect OpenSEO with an AI agent, it can help coach you through the basics. OpenSEO will grow with you.
+If you're new to SEO, UpgradeSEO should definitely be the first tool you select. Good design means the tool is approachable to both beginners and experts. When you connect UpgradeSEO with an AI agent, it can help coach you through the basics. UpgradeSEO will grow with you.
 
 ### For experts
 
-If you love your current solution, you should probably just stick with that. But, if you think your current tool is bloated, poorly designed, or too expensive, OpenSEO is striving to be an all-in-one replacement for tools like [Semrush](https://www.semrush.com/) and [Ahrefs](https://ahrefs.com/).
+If you love your current solution, you should probably just stick with that. But, if you think your current tool is bloated, poorly designed, or too expensive, UpgradeSEO is striving to be an all-in-one replacement for tools like [Semrush](https://www.semrush.com/) and [Ahrefs](https://ahrefs.com/).
 
 ## AI native: More than a replacement for other SEO tools
 
-OpenSEO is both open source and more affordable than alternatives. But, we do not plan for these to be the only things different about the product.
+UpgradeSEO is both open source and more affordable than alternatives. But, we do not plan for these to be the only things different about the product.
 
 Many AI-native SEO tools strive to automate SEO as a job function. This is hype. SEO is about coming up with a better strategy than your competitors. If every company is using the same AI agent product, there is no edge.
 
-OpenSEO aims to be the best way to collaborate with your AI agent on SEO tasks. OpenSEO was created after AI agents became powerful. The product is not bogged down by features and workflows that only make sense in a pre-AI world.
+UpgradeSEO aims to be the best way to collaborate with your AI agent on SEO tasks. UpgradeSEO was created after AI agents became powerful. The product is not bogged down by features and workflows that only make sense in a pre-AI world.
 
-Right now, this means OpenSEO has an [MCP server](/docs/mcp) which you can use with any other AI product like Claude, Codex, or OpenClaw. For example, you can ask your agent to do keyword research. But instead of blindly trusting its judgment, you can ask it for a link to view the data in OpenSEO.
+Right now, this means UpgradeSEO has an [MCP server](/docs/mcp) which you can use with any other AI product like Claude, Codex, or OpenClaw. For example, you can ask your agent to do keyword research. But instead of blindly trusting its judgment, you can ask it for a link to view the data in UpgradeSEO.
 
 In the future, this collaboration will get even more powerful. You will be able to ask your agent to create a custom dashboard for your business or client with the specific data that you value. Or, you will be able to create bespoke, reusable workflows for routine tasks.
 

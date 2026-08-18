@@ -13,19 +13,19 @@ metadata where possible, then removes duplicate Default projects.
 1. Preview the cleanup:
 
    ```sh
-   pnpm cleanup:default-projects:d1 --database open-seo
+   pnpm cleanup:default-projects:d1 --database upgradeseo
    ```
 
 2. If the output looks right, apply it:
 
    ```sh
-   pnpm cleanup:default-projects:d1 --database open-seo --apply --confirm-remote-apply
+   pnpm cleanup:default-projects:d1 --database upgradeseo --apply --confirm-remote-apply
    ```
 
 3. Validate or re-run validation:
 
    ```sh
-   pnpm cleanup:default-projects:d1 --database open-seo --validate-only
+   pnpm cleanup:default-projects:d1 --database upgradeseo --validate-only
    ```
 
 4. Re-run the normal migration/deploy.
@@ -39,19 +39,19 @@ roughly 60 seconds while the cleanup runs.
 1. Preview the cleanup:
 
    ```sh
-   pnpm cleanup:default-projects:d1 --database open-seo --local
+   pnpm cleanup:default-projects:d1 --database upgradeseo --local
    ```
 
 2. Apply it:
 
    ```sh
-   pnpm cleanup:default-projects:d1 --database open-seo --local --apply
+   pnpm cleanup:default-projects:d1 --database upgradeseo --local --apply
    ```
 
 3. Validate or re-run validation:
 
    ```sh
-   pnpm cleanup:default-projects:d1 --database open-seo --local --validate-only
+   pnpm cleanup:default-projects:d1 --database upgradeseo --local --validate-only
    ```
 
 4. Re-run the normal local migration.

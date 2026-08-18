@@ -230,7 +230,7 @@ function CheckResults({ result }: { result: CheckResult }) {
     {
       label: "Domain rank",
       value: formatCount(summary.rank),
-      tip: "DataForSEO's 0-100 strength score for a domain's link profile. Similar idea to Ahrefs DR or Moz DA, but each tool uses its own index and formula, so numbers differ between tools.",
+      tip: "A 0-100 strength score for a domain's link profile. Similar idea to Ahrefs DR or Moz DA, but each tool uses its own index and formula, so numbers differ between tools.",
     },
     {
       label: "Backlinks",
@@ -381,7 +381,7 @@ function CheckResults({ result }: { result: CheckResult }) {
         </p>
         <div className="mt-3">
           <a
-            href="https://app.openseo.so/sign-up"
+            href=""
             className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
           >
             Explore the full profile — free

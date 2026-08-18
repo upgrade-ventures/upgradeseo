@@ -14,7 +14,7 @@ export const Route = createFileRoute(
       title: "What Is Search Intent? Mapping Keywords Hot, Warm, and Cold",
       description: frontmatter.description,
       path: "/library/keyword-research/search-intent-mapping",
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "UpgradeSEO Library",
       ogType: "article",
     }),
   component: () => (
