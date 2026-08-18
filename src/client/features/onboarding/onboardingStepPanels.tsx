@@ -378,7 +378,7 @@ export function StepsCardSkeleton({ rows }: { rows: number }) {
           style={{
             display: "flex",
             gap: 11,
-            alignItems: "flex-start",
+            alignItems: "stretch",
             padding: "12px 13px",
             borderBottom: "1px solid var(--border-muted)",
           }}

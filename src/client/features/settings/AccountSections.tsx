@@ -46,7 +46,7 @@ export function AnalyticsSection() {
       <div
         style={{
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: "stretch",
           justifyContent: "space-between",
           gap: 20,
         }}

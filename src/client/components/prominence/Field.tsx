@@ -67,54 +67,77 @@ export function Field({
   const muted = disabled ? "var(--text-3)" : undefined;
 
   return (
-    <div style={style}>
-      <label
-        htmlFor={id}
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 6,
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: muted,
-        }}
-      >
-        {label}
-        {required ? (
-          <span
-            style={{
-              fontSize: 11.5,
-              fontWeight: 400,
-              color: "var(--text-3)",
-            }}
-          >
-            Required
-          </span>
-        ) : null}
-      </label>
-
-      {description ? (
-        <div
-          id={descriptionId}
+    // Full-height column, control pushed to the bottom. A row of Fields whose
+    // labels wrap to different line counts would otherwise put each control at
+    // a different height: "Brand or domain to look up" has a one-line
+    // description and its neighbour has two, so their inputs sat 20px apart.
+    // Stretching every Field to the tallest in the row and bottom-anchoring
+    // the control makes them share a baseline without hard-coding a label
+    // height that longer copy would then break.
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        // Deliberately no height. An explicit one overrides the row's
+        // align-items:stretch, so the Field sizes to its own content and the
+        // margin-top below has no free space to push into. Measured: with
+        // height:100% a one-line-description Field stayed 75px in a 92px row.
+        ...style,
+      }}
+    >
+      {/* Label and description grow together so a one-line description and a
+          two-line one still hand their control the same starting line. */}
+      <div style={{ flexGrow: 1 }}>
+        <label
+          htmlFor={id}
           style={{
-            fontSize: 12,
-            color: muted ?? "var(--text-2)",
-            margin: "2px 0 6px",
+            display: "flex",
+            alignItems: "baseline",
+            gap: 6,
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: muted,
           }}
         >
-          {description}
-        </div>
-      ) : null}
+          {label}
+          {required ? (
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 400,
+                color: "var(--text-3)",
+              }}
+            >
+              Required
+            </span>
+          ) : null}
+        </label>
 
-      {children({
-        id,
-        "aria-describedby":
-          [description ? descriptionId : null, error ? errorId : null]
-            .filter(Boolean)
-            .join(" ") || undefined,
-        "aria-invalid": error ? true : undefined,
-        disabled,
-      })}
+        {description ? (
+          <div
+            id={descriptionId}
+            style={{
+              fontSize: 12,
+              color: muted ?? "var(--text-2)",
+              margin: "2px 0 6px",
+            }}
+          >
+            {description}
+          </div>
+        ) : null}
+      </div>
+
+      <div>
+        {children({
+          id,
+          "aria-describedby":
+            [description ? descriptionId : null, error ? errorId : null]
+              .filter(Boolean)
+              .join(" ") || undefined,
+          "aria-invalid": error ? true : undefined,
+          disabled,
+        })}
+      </div>
 
       {/* Always mounted so a message appearing on blur is an update to a live
           region rather than a new node the reader is never told about. */}
@@ -140,9 +163,16 @@ export function Field({
         ) : null}
       </div>
 
-      {!error && (hint || counter) ? (
+      {!error ? (
         <div
           style={{
+            // One line is always reserved here, whether or not this field has
+            // anything to say. Two reasons: a field carrying "0 / 500" would
+            // otherwise be a line taller below its control than its neighbour,
+            // which pushes the growable headers above to different heights and
+            // splits the row again; and an error appearing on blur no longer
+            // shoves everything below it down a line.
+            minHeight: "1lh",
             marginTop: 5,
             display: "flex",
             justifyContent: "space-between",
@@ -170,6 +200,29 @@ export function Field({
 }
 
 /** The design's inline "Available" / "Valid" confirmation, for a `hint`. */
+/**
+ * A control that sits in a Field row but is not a Field — a submit button,
+ * usually.
+ *
+ * It mirrors Field's own shape: a growable block where the label and
+ * description would be, then the control, then the same reserved line
+ * underneath. Without that, `align-items: flex-end` drops the button to the
+ * bottom of the row and it lands a line below the inputs it belongs beside;
+ * `center` puts it somewhere between the two. Matching the structure is what
+ * puts it on their line.
+ */
+export function FieldAlignedAction({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ flexGrow: 1 }} />
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {children}
+      </div>
+      <div style={{ minHeight: "1lh", marginTop: 5 }} aria-hidden="true" />
+    </div>
+  );
+}
+
 export function FieldSuccess({ children }: { children: ReactNode }) {
   return (
     <span

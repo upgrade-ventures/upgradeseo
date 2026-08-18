@@ -116,7 +116,7 @@ export function ApiKeySettings() {
       <div
         style={{
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: "stretch",
           justifyContent: "space-between",
           gap: 14,
           flexWrap: "wrap",

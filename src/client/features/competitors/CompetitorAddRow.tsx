@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from "react";
 
 import { PrimaryButton } from "@/client/components/prominence/Primitives";
-import { Field, TextInput } from "@/client/components/prominence/Field";
+import {
+  Field,
+  TextInput,
+  FieldAlignedAction,
+} from "@/client/components/prominence/Field";
 
 /**
  * The add-a-competitor control row.
@@ -84,7 +88,7 @@ export function CompetitorAddRow({
         display: "flex",
         gap: 12,
         flexWrap: "wrap",
-        alignItems: "flex-start",
+        alignItems: "stretch",
         padding: "14px var(--pad, 24px)",
         borderBottom: "1px solid var(--line)",
       }}
@@ -112,7 +116,7 @@ export function CompetitorAddRow({
 
       {/* Aligns with the control line of the field, which sits under a label
           and a description. */}
-      <div style={{ paddingTop: 37 }}>
+      <FieldAlignedAction>
         <PrimaryButton
           type="submit"
           icon="i-plus"
@@ -124,7 +128,7 @@ export function CompetitorAddRow({
         >
           {isAdding ? "Adding…" : "Add competitor"}
         </PrimaryButton>
-      </div>
+      </FieldAlignedAction>
     </form>
   );
 }

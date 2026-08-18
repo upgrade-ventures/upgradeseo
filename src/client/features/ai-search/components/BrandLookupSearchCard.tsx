@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { SecondaryButton } from "@/client/components/prominence/Primitives";
-import { Field, TextInput } from "@/client/components/prominence/Field";
+import {
+  Field,
+  TextInput,
+  FieldAlignedAction,
+} from "@/client/components/prominence/Field";
 import { RunButton } from "@/client/features/ai-search/components/aiControls";
 import { BRAND_LOOKUP_MAX_INPUT_LENGTH } from "@/types/schemas/ai-search";
 
@@ -80,7 +84,7 @@ export function BrandLookupSearchCard({
           display: "flex",
           gap: 12,
           flexWrap: "wrap",
-          alignItems: "flex-start",
+          alignItems: "stretch",
         }}
       >
         <Field
@@ -123,16 +127,7 @@ export function BrandLookupSearchCard({
           )}
         </Field>
 
-        {/* Aligns with the control line of the fields, which sit under a label
-            and a description. */}
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            paddingTop: 37,
-          }}
-        >
+        <FieldAlignedAction>
           <RunButton
             running={isLoading}
             idleLabel="Look up"
@@ -141,7 +136,7 @@ export function BrandLookupSearchCard({
           {onClear ? (
             <SecondaryButton onClick={onClear}>Recent lookups</SecondaryButton>
           ) : null}
-        </div>
+        </FieldAlignedAction>
       </div>
     </form>
   );

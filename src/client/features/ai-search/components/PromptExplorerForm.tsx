@@ -5,7 +5,11 @@ import {
   RunButton,
   useFocusRing,
 } from "@/client/features/ai-search/components/aiControls";
-import { Field, TextInput } from "@/client/components/prominence/Field";
+import {
+  Field,
+  TextInput,
+  FieldAlignedAction,
+} from "@/client/components/prominence/Field";
 import {
   formatCountryLabel,
   formatModelLabel,
@@ -92,7 +96,7 @@ export function PromptExplorerForm({
           display: "flex",
           gap: 12,
           flexWrap: "wrap",
-          alignItems: "flex-start",
+          alignItems: "stretch",
           marginBottom: 10,
         }}
       >
@@ -140,14 +144,14 @@ export function PromptExplorerForm({
 
         {/* Aligns with the control line of the two fields above, which sit
             under a label and a description. */}
-        <div style={{ paddingTop: 37 }}>
+        <FieldAlignedAction>
           <RunButton
             running={isLoading}
             idleLabel="Run prompt"
             runningLabel={`Running ${form.models.length} model${form.models.length === 1 ? "" : "s"}…`}
             disabled={form.models.length === 0}
           />
-        </div>
+        </FieldAlignedAction>
       </div>
 
       <div
