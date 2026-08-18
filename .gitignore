@@ -49,3 +49,6 @@ dist-sourcemaps/
 # instead of pulling the published image. Local-only by design — tracking it
 # would force every clone to build from source.
 compose.override.yaml
+
+# Scratch project, not part of this repository.
+badseo/

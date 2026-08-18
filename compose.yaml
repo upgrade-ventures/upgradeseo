@@ -1,6 +1,6 @@
 services:
   upgradeseo:
-    image: ${OPEN_SEO_IMAGE:-ghcr.io/YOUR_GITHUB_ORG/upgradeseo:latest}
+    image: ${UPGRADESEO_IMAGE:-ghcr.io/YOUR_GITHUB_ORG/upgradeseo:latest}
     restart: unless-stopped
     # Forward EVERY .env value into the container. The explicit `environment:`
     # list below still wins for the values it names — without this, any .env

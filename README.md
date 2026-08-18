@@ -3,6 +3,9 @@
 > Keyword research, rank tracking, backlinks, site audit and AI visibility.
 > No subscription, no seat pricing, and no paid data API required.
 
+**[Try the live demo](https://upgrade.ventures/UpgradeSEO)** · sign in with
+Google, no card, nothing to install.
+
 UpgradeSEO is a self-hosted alternative to Semrush and Ahrefs. It runs on data
 sources that cost nothing per call, so there is no meter and nothing to bill:
 Google Search Console and Google Analytics for your own site, Google
@@ -96,3 +99,8 @@ Follow along for updates:
 
 - Follow on X: https://x.com/UpgradeVentures
 - Live demo: https://upgrade.ventures/UpgradeSEO
+
+## License
+
+MIT for the code. The name and logo are Upgrade Ventures trademarks — see
+[TRADEMARK.md](./TRADEMARK.md). Fork it freely; rename it if you ship it.

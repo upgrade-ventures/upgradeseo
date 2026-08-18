@@ -1,6 +1,5 @@
 minimumReleaseAge: 11520
 minimumReleaseAgeExclude:
-  - "@every-app/*"
   # TEMPORARY (remove after 2026-09-15): @ai-sdk/openai-compatible 2.0.68 is
   # the `ai-v6` dist-tag, published 2026-08-14. It is the ONLY line compatible
   # with ai@6 (`latest` 3.0.30 returns LanguageModelV4, which ai@6 rejects).

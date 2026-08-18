@@ -18,7 +18,7 @@ Cut a release for this repo end to end. The deliverables are a version bump in `
 
 - Find the latest tag: `git tag --sort=-creatordate | head -1`. Verify the branch is up to date with `origin/main` (`git fetch origin main && git log HEAD..origin/main --oneline` should be empty; flag it if not).
 - List commits: `git log <last-tag>..HEAD --oneline`. You can also run `pnpm release:notes` for a raw commit inventory — use it only as a checklist of candidate changes, never as the draft's structure (its Improved/Changed/Docs sections must not appear in the notes).
-- For each commit, fetch the PR body and author (`gh pr view <num> --repo <repo> --json title,body,author`) — squash-commit subjects can be stale. The `(#NN)` in commit subjects can reference **either** repo: try `bensenescu/upgradeseo` (origin) first and fall back to `YOUR_GITHUB_ORG/upgradeseo` (public) — outside contributors' PRs and their handles live on the public repo. Commits with no `(#NN)` may still be an outside contribution with a public PR (`gh pr list --repo YOUR_GITHUB_ORG/upgradeseo --state merged --author <login>`); check `git log --format=%an` for the author. Verify claims against the final code when a PR body and commit subject disagree (features get reverted before merge).
+- For each commit, fetch the PR body and author (`gh pr view <num> --repo <repo> --json title,body,author`) — squash-commit subjects can be stale. The `(#NN)` in commit subjects can reference **either** repo: try `upgrade-ventures/upgradeseo` (origin) first and fall back to `upgrade-ventures/upgradeseo` (public) — outside contributors' PRs and their handles live on the public repo. Commits with no `(#NN)` may still be an outside contribution with a public PR (`gh pr list --repo upgrade-ventures/upgradeseo --state merged --author <login>`); check `git log --format=%an` for the author. Verify claims against the final code when a PR body and commit subject disagree (features get reverted before merge).
 - Record the PR author's GitHub handle alongside each change so the bullet can credit them.
 
 ## 3. Draft the notes
@@ -33,7 +33,7 @@ Format:
 - At most **one sub-bullet per feature**, one short line: the single most useful detail, a requirement ("Requires `OPENROUTER_API_KEY`"), or an expectation-setter.
 - **Label rough features "(Beta)"** and set expectations honestly, including pointing at the better alternative for now. The expectation-setter rides the top-level line after a dash ("(Beta) In app agent - MCP is still recommended, but we'll be working to improve this during the summer."), keeping the sub-bullet slot free for a requirement or detail.
 - Fixed: 3–5 bullets, one plain sentence each, only bugs a user plausibly hit and would recognize ("Claude answers in AI search work again."). No error codes, status codes, schema/infra vocabulary, or mechanism. If more than four qualify, keep the ones hit in core flows (searches, audits, tracking, MCP answers) and drop fixes for recovering self-inflicted state (re-adding, un-archiving, refreshing) first.
-- **Credit the contributor.** End the bullet with `— thanks @handle` for outside contributors only — never for the maintainer's own PRs (`bensenescu`). Credit goes on the top-level bullet, not sub-bullets. Multiple contributors: `— thanks @a, @b`.
+- **Credit the contributor.** End the bullet with `— thanks @handle` for outside contributors only — never for the maintainer's own PRs (`UpgradeVentures`). Credit goes on the top-level bullet, not sub-bullets. Multiple contributors: `— thanks @a, @b`.
 - End with: `Full Changelog: `
 
 Curation — this is where the work is. Cut aggressively; the Full Changelog link covers the long tail:
@@ -59,12 +59,12 @@ Curation — this is where the work is. Cut aggressively; the Full Changelog lin
 
 - Commit the version bump, release notes, and any skill changes on a branch named `claude/v<version>` (use the current branch if it already follows this pattern).
 - Push to `origin` and open a PR against `main` titled exactly `release: v<version>`. PR body: the release notes content.
-- Do not tag or publish the GitHub release — that happens after merge. After merge, run `pnpm release:publish`. It reads the version from `package.json` and publishes the matching `release-notes/v<version>.md` to `YOUR_GITHUB_ORG/upgradeseo`.
+- Do not tag or publish the GitHub release — that happens after merge. After merge, run `pnpm release:publish`. It reads the version from `package.json` and publishes the matching `release-notes/v<version>.md` to `upgrade-ventures/upgradeseo`.
 - The equivalent command is:
 
   ```sh
   gh release create v<version> \
-    --repo YOUR_GITHUB_ORG/upgradeseo \
+    --repo upgrade-ventures/upgradeseo \
     --title v<version> \
     --notes-file release-notes/v<version>.md
   ```

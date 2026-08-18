@@ -30,7 +30,7 @@ Optional env values:
 - `PORT` (defaults to `3001`)
 - `ALLOWED_HOST` (single reverse-proxy hostname to allow in Vite preview)
 - `AUTH_MODE=local_noauth` (already set in compose)
-- `OPEN_SEO_IMAGE` (defaults to `ghcr.io/YOUR_GITHUB_ORG/upgradeseo:latest`)
+- `UPGRADESEO_IMAGE` (defaults to `ghcr.io/YOUR_GITHUB_ORG/upgradeseo:latest`)
 - `OPENROUTER_API_KEY` (required for AI features such as the onboarding agent; see [OpenRouter](https://openrouter.ai/settings/keys))
 
 If you are putting Docker behind a reverse proxy or a temporary tunnel, remember that Docker self-hosting runs with app auth disabled. Only expose it behind your own auth-protected reverse proxy, tunnel, or private network, and add the public hostname before restarting:
@@ -49,10 +49,10 @@ To disable it, set `UPGRADESEO_TELEMETRY_DISABLED=1` (or `DO_NOT_TRACK=1`) in `.
 
 ## Pin to a specific image tag
 
-Set `OPEN_SEO_IMAGE` in `.env` and restart:
+Set `UPGRADESEO_IMAGE` in `.env` and restart:
 
 ```bash
-OPEN_SEO_IMAGE=ghcr.io/YOUR_GITHUB_ORG/upgradeseo:v1.2.3
+UPGRADESEO_IMAGE=ghcr.io/YOUR_GITHUB_ORG/upgradeseo:v1.2.3
 docker compose up -d
 ```
 
@@ -62,7 +62,7 @@ If you are testing local code changes, build and run a local tag:
 
 ```bash
 docker build -f Dockerfile.selfhost -t upgradeseo:local .
-OPEN_SEO_IMAGE=upgradeseo:local docker compose up -d
+UPGRADESEO_IMAGE=upgradeseo:local docker compose up -d
 ```
 
 ## Common commands

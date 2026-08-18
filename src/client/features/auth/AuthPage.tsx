@@ -4,6 +4,7 @@ import {
   getOAuthSignedQuery,
 } from "@/lib/auth-redirect";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
+import { AuthSiteFooter } from "@/client/features/auth/AuthSiteFooter";
 import { withBasePath } from "@/shared/base-path";
 
 export const authRedirectSearchSchema = z.object({
@@ -128,7 +129,13 @@ export function AuthPageShell({ children }: { children: React.ReactNode }) {
     // bottom) when it's taller than the viewport. Plain `justify-center` clips
     // the overflow with no way to scroll to it.
     <div className="h-[100dvh] flex flex-col items-center overflow-y-auto p-4 bg-base-200">
-      <div className="m-auto flex w-full flex-col items-center">{children}</div>
+      <div className="m-auto flex w-full flex-col items-center">
+        {children}
+        {/* Every signed-out route renders through this shell, so sign-in,
+            sign-up and password reset all carry the site footer without each
+            one remembering to. */}
+        <AuthSiteFooter />
+      </div>
     </div>
   );
 }

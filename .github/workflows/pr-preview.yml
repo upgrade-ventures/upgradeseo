@@ -45,7 +45,7 @@ env:
 jobs:
   preview:
     if: >-
-      github.repository == 'bensenescu/upgradeseo' &&
+      github.repository == 'upgrade-ventures/upgradeseo' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
