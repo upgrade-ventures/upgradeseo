@@ -17,49 +17,6 @@ const PRODUCT_HUNT_URL =
   "https://www.producthunt.com/products/upgradeseo?launch=upgradeseo";
 const GITHUB_URL = "";
 
-type Testimonial = {
-  quote: string;
-  name: string;
-  initial: string;
-  handle: string;
-  href: string;
-  network: "x" | "linkedin" | "web";
-  avatarSrc?: string;
-};
-
-const TESTIMONIALS: Testimonial[] = [
-  {
-    quote:
-      "All of the value, none of the bloat. UpgradeSEO is a no-brainer compared to the expensive alternatives!",
-    name: "Fed",
-    initial: "F",
-    handle: "@foliofed",
-    href: "https://x.com/foliofed",
-    network: "x",
-    avatarSrc: "/avatars/fed-avatar.jpg",
-  },
-  {
-    quote:
-      "I've been using UpgradeSEO for the past 3 months, Ben keeps launching features to make it the best. I use it every day to find where my competitors are ranking.",
-    name: "Samik",
-    initial: "S",
-    handle: "Subclip",
-    href: "https://www.subclip.app/",
-    network: "web",
-    avatarSrc: "/avatars/samik-avatar.jpg",
-  },
-  {
-    quote:
-      "It's so straightforward and incredibly easy to get started. UpgradeSEO gives you the complete setup, stripped of all the fluff that you get elsewhere.",
-    name: "Tom Raine",
-    initial: "T",
-    handle: "LinkedIn",
-    href: "https://www.linkedin.com/in/tom-raine-hk/",
-    network: "linkedin",
-    avatarSrc: "/avatars/tom-avatar.jpeg",
-  },
-];
-
 // ─── Icons (inline SVG only, per project convention) ─────────────────
 
 type IconProps = { size?: number; className?: string };
@@ -103,44 +60,8 @@ function IconGithub({ size = 16, className }: IconProps) {
   );
 }
 
-function IconX({ size = 14, className }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  );
-}
 
-function IconLinkedIn({ size = 14, className }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 110-4.14 2.07 2.07 0 010 4.14zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.22.79 24 1.77 24h20.45c.98 0 1.78-.78 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />
-    </svg>
-  );
-}
 
-function IconLink({ size = 14, className }: IconProps) {
-  return (
-    <svg {...strokeProps(size, className)}>
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-  );
-}
 
 function IconMail({ size = 18, className }: IconProps) {
   return (
@@ -229,66 +150,6 @@ function Hero() {
           <div className="itc-hero-cta-group">
             <ArrowCta size="lg" />
             <p className="itc-hero-cta-note">No credit card required</p>
-          </div>
-        </div>
-      </Container>
-    </section>
-  );
-}
-
-// ─── Testimonial (true-black inverse strip) ──────────────────────────
-
-function Testimonial() {
-  return (
-    <section className="itc-inverse">
-      <Container>
-        <div className="itc-testimonials">
-          <h2
-            className="itc-display-md itc-testimonials-title"
-            style={{ margin: "0 auto 32px" }}
-          >
-            Trusted by hundreds of customers worldwide
-          </h2>
-          <div className="itc-quote-grid">
-            {TESTIMONIALS.map((t) => (
-              <figure className="itc-quote-card" key={t.name}>
-                <div className="itc-quote-mark" aria-hidden="true">
-                  &ldquo;
-                </div>
-                <blockquote className="itc-quote-text">{t.quote}</blockquote>
-                <figcaption className="itc-quote-attr">
-                  <span className="itc-quote-avatar" aria-hidden="true">
-                    {t.avatarSrc ? (
-                      <img
-                        src={t.avatarSrc}
-                        alt=""
-                        className="itc-quote-avatar-img"
-                      />
-                    ) : (
-                      t.initial
-                    )}
-                  </span>
-                  <span className="itc-quote-meta">
-                    <span className="itc-quote-name">{t.name}</span>
-                    <a
-                      href={t.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="itc-quote-handle"
-                    >
-                      {t.network === "x" ? (
-                        <IconX size={11} />
-                      ) : t.network === "linkedin" ? (
-                        <IconLinkedIn size={12} />
-                      ) : (
-                        <IconLink size={12} />
-                      )}
-                      {t.handle}
-                    </a>
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
           </div>
         </div>
       </Container>
@@ -898,7 +759,6 @@ export function LandingPage() {
     <div className="itc">
       <Hero />
       <McpSection />
-      <Testimonial />
       <OpenSourceSection />
       <ProductSection />
       <Footer />

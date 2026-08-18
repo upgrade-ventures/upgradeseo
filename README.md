@@ -77,5 +77,5 @@ Questions or feedback: [support@upgrade.ventures](mailto:support@upgrade.venture
 
 Follow along for updates:
 
-- Follow on X: https://x.com/bensenescu
+- Follow on X: https://x.com/UpgradeVentures
 - Sign up for the mailing list on our website: [upgradeseo.so]()

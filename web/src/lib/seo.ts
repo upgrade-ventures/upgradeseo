@@ -57,6 +57,8 @@ export function buildPageSeo({
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
+      // Without this, X renders the card with no account attached to it.
+      { name: "twitter:site", content: "@UpgradeVentures" },
       { name: "twitter:title", content: fullTitle },
       ...(description
         ? [{ name: "twitter:description", content: description }]
