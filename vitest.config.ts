@@ -6,6 +6,13 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Pin the suite to a root mount. VITE_BASE_PATH is a per-deploy value, and
+    // with it set in .env the MCP route and both OAuth callback paths pick up
+    // the prefix, so tests asserting "/mcp" or "/api/gsc/oauth/callback" fail
+    // on a developer machine configured for the sub-path deploy and pass in
+    // CI. The prefix is a deployment concern and is verified against a running
+    // server, not here.
+    env: { VITE_BASE_PATH: "" },
     restoreMocks: true,
     clearMocks: true,
     server: {

@@ -44,7 +44,7 @@ const args = [
   "create",
   tag,
   "--repo",
-  "every-app/open-seo",
+  "YOUR_GITHUB_ORG/upgradeseo",
   "--title",
   tag,
   "--notes-file",

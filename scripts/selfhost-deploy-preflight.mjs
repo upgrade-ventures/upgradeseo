@@ -43,9 +43,19 @@ for (const line of readFileSync(envFile, "utf8").split("\n")) {
   const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
   if (match) env[match[1]] = match[2].replace(/^(["'])(.*)\1$/, "$2");
 }
+// LOCAL MODIFICATION (Upgrade Ventures, 15 Aug 2026) — downgraded from fail to
+// warn. Owner ruling: run this deployment on free data sources only. The key is
+// genuinely optional at RUNTIME — src/lib/selfhost-preflight.ts classifies it as
+// a per-feature warning ("all SEO data features will be unavailable until it is"),
+// not a boot failure, and the Docker instance runs without it. Only this
+// deploy-time gate treated it as mandatory. Google Search Console, the site
+// audit and the GA4 tools are unaffected and need no DataForSEO account.
+// NOTE: `git pull` will revert this hunk; re-apply it after updating.
 if (!env.DATAFORSEO_API_KEY) {
-  fail(
-    `${em("DATAFORSEO_API_KEY")} is not set in ${envFile} — see docs/DATAFORSEO_API_KEY.md for how to get one.`,
+  console.warn(
+    `  ${em("DATAFORSEO_API_KEY")} is not set — deploying without it on purpose.` +
+      " Search Console, site audit and GA4 work; keyword volume, backlinks," +
+      " SERP tracking and rank tracking will report themselves unconfigured.",
   );
 }
 // When both are set, the deploy provisions no Access resources (hand-managed

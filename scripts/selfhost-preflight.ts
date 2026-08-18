@@ -20,7 +20,7 @@ const SELF_HOST_POSTHOG_HOST = "https://us.i.posthog.com";
 
 function telemetryDisabled(): boolean {
   return (
-    isTelemetryOptOutValue(process.env.OPENSEO_TELEMETRY_DISABLED) ||
+    isTelemetryOptOutValue(process.env.UPGRADESEO_TELEMETRY_DISABLED) ||
     isTelemetryOptOutValue(process.env.DO_NOT_TRACK)
   );
 }
@@ -54,7 +54,7 @@ async function sendPreflightFailedBeacon(failedChecks: string[]) {
 
 const result = runSelfhostPreflight(process.env);
 
-console.log("--- OpenSEO self-host preflight ---");
+console.log("--- UpgradeSEO self-host preflight ---");
 console.log(formatPreflightReport(result));
 
 if (result.failed) {

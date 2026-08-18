@@ -1,6 +1,14 @@
 minimumReleaseAge: 11520
 minimumReleaseAgeExclude:
   - "@every-app/*"
+  # TEMPORARY (remove after 2026-09-15): @ai-sdk/openai-compatible 2.0.68 is
+  # the `ai-v6` dist-tag, published 2026-08-14. It is the ONLY line compatible
+  # with ai@6 (`latest` 3.0.30 returns LanguageModelV4, which ai@6 rejects).
+  # Required to run the chat agents on Azure AI Foundry instead of a paid AI
+  # vendor, per the no-paid-AI mandate.
+  - "@ai-sdk/openai-compatible"
+  - "@ai-sdk/provider"
+  - "@ai-sdk/provider-utils"
   # TEMPORARY (remove after 2026-08-15): workers-oauth-provider 0.10.2 was
   # published 2026-08-07; needed for the MCP SDK v2 migration plus the
   # ChatGPT DCR client-auth-negotiation fix.

@@ -13,7 +13,6 @@
  * this process. See runbooks/gdpr-erasure.md for required operator variables.
  */
 import process from "node:process";
-import { Autumn } from "autumn-js";
 import {
   and,
   count,
@@ -145,12 +144,6 @@ async function buildInventory(db: Db, user: UserRow) {
           .where(inArray(schema.projects.organizationId, organizationIds))
           .orderBy(schema.projects.id);
   const projectIds = projects.map((row) => row.id);
-
-  const samSessions = await db
-    .select({ id: schema.samSessions.id })
-    .from(schema.samSessions)
-    .where(eq(schema.samSessions.userId, user.id))
-    .orderBy(schema.samSessions.id);
 
   // Scratchpad DOs self-destroy at finalize and via a 7-day alarm, and the
   // audit-progress KV key has a 30-minute TTL, so older audits have no
@@ -292,7 +285,6 @@ async function buildInventory(db: Db, user: UserRow) {
             )
             .where(inArray(schema.rankCheckRuns.projectId, projectIds))
             .then((rows) => rows[0]?.value ?? 0),
-    sam_sessions: samSessions.length,
     attributed_audits: await db.$count(
       schema.audits,
       eq(schema.audits.startedByUserId, user.id),
@@ -314,7 +306,6 @@ async function buildInventory(db: Db, user: UserRow) {
   return {
     organizations,
     projectIds,
-    samSessionIds: samSessions.map((row) => row.id),
     auditIds: audits.map((row) => row.id),
     r2Keys,
     googleAccounts,
@@ -399,38 +390,6 @@ async function deletePostHogPerson(userId: string) {
     }
   }
   return people.length;
-}
-
-/**
- * The Autumn key prefix encodes which environment it targets. A sandbox key
- * against production data would 404 every delete and leave the live Stripe
- * subscription running — surface the environment in the dry run so the
- * operator can catch that before executing.
- */
-function autumnEnvironment(): string {
-  const key = process.env.AUTUMN_SECRET_KEY?.trim() ?? "";
-  if (key.startsWith("am_sk_live_")) return "live";
-  if (key.startsWith("am_sk_test_")) return "sandbox";
-  return "unset-or-unknown";
-}
-
-async function deleteAutumnCustomer(organizationIds: string[]) {
-  const autumn = new Autumn({ secretKey: requiredEnv("AUTUMN_SECRET_KEY") });
-  let deleted = 0;
-  let absent = 0;
-  for (const organizationId of organizationIds) {
-    try {
-      await autumn.customers.delete({
-        customerId: organizationId,
-        deleteInStripe: true,
-      });
-      deleted += 1;
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-      absent += 1;
-    }
-  }
-  return { deleted, absent };
 }
 
 async function eraseWorkerStorage(payload: GdprStorageErasurePayload) {
@@ -582,7 +541,6 @@ async function main() {
       databaseCounts: inventory.databaseCounts,
       cloudflare: {
         onboardingChats: inventory.projectIds.length,
-        samChats: inventory.samSessionIds.length,
         auditScratchpads: inventory.auditIds.length,
         r2Objects: inventory.r2Keys.length,
         activeAuditWorkflows: inventory.activeAuditWorkflowIds.length,
@@ -592,8 +550,6 @@ async function main() {
         googleAccounts: inventory.googleAccounts.length,
         loopsContact: true,
         postHogDistinctId: user.id,
-        autumnCustomersAndStripeCustomers: inventory.organizations.length,
-        autumnEnvironment: autumnEnvironment(),
       },
     };
     console.log(JSON.stringify(summary, null, 2));
@@ -619,13 +575,11 @@ async function main() {
     );
     const loops = await deleteLoopsContact(user.id, user.email);
     const postHogPeopleQueued = await deletePostHogPerson(user.id);
-    const autumnResult = await deleteAutumnCustomer(organizationIds);
     const storage = await eraseWorkerStorage({
       userId: user.id,
       email: user.email,
       organizationIds,
       projectIds: inventory.projectIds,
-      samSessionIds: inventory.samSessionIds,
       auditIds: inventory.auditIds,
       activeAuditWorkflowIds: inventory.activeAuditWorkflowIds,
       activeRankWorkflowIds: inventory.activeRankWorkflowIds,
@@ -645,7 +599,7 @@ async function main() {
           completedAt: new Date().toISOString(),
           userId: user.id,
           email: user.email,
-          vendors: { loops, postHogPeopleQueued, autumn: autumnResult },
+          vendors: { loops, postHogPeopleQueued },
           storage,
           postgres: postgresVerification,
           retentionNotes: [

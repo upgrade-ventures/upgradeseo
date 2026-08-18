@@ -1,7 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "open-seo",
+  "name": "upgradeseo",
   "main": "src/server.ts",
+  // Mounted under the marketing site rather than its own hostname. The trailing
+  // * is required: without it only the exact path matches and every asset and
+  // API call below it falls through to Ghost.
+  "routes": [
+    {
+      "pattern": "upgrade.ventures/UpgradeSEO*",
+      "zone_name": "upgrade.ventures",
+    },
+  ],
+  // Explicit, never inferred. The fallback for an unset value is
+  // "cloudflare_access", but "local_noauth" disables authentication entirely,
+  // so the mode that gates every request is stated rather than defaulted.
+  "vars": { "AUTH_MODE": "hosted", "BYPASS_EMAIL_VERIFICATION": "true" },
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": {
@@ -38,16 +51,6 @@
   // deploys derive SQLite backing on their own.
   "durable_objects": {
     "bindings": [
-      {
-        "name": "ONBOARDING_CHAT",
-        "class_name": "OnboardingChatAgent",
-      },
-      // SAM in-app agent. One instance per chat session; messages persist in the
-      // DO's SQLite. SQLite-backed classes must be declared in `migrations`.
-      {
-        "name": "SAM_CHAT",
-        "class_name": "SamChatAgent",
-      },
       // Per-audit crawl scratchpad: frontier, link edges, and a slim page
       // mirror in the DO's SQLite. Destroyed at finalize; self-cleans via
       // alarm if the audit dies.
@@ -70,10 +73,38 @@
       "tag": "v3",
       "new_sqlite_classes": ["AuditScratchpad"],
     },
+    // The SAM chat surface was removed from the product. Dropping the binding
+    // alone leaves workerd/Cloudflare with a class that no longer exists in the
+    // bundle, which fails the deploy — the class has to be deleted through a
+    // migration, which also discards its stored SQLite transcripts.
+    {
+      "tag": "v4",
+      "deleted_classes": ["SamChatAgent"],
+    },
+    // The onboarding strategy chat went the same way: the design has no chat
+    // surface, so its Durable Object has to be deleted through a migration
+    // rather than merely unbound, which also discards its stored transcripts.
+    {
+      "tag": "v5",
+      "deleted_classes": ["OnboardingChatAgent"],
+    },
   ],
   "triggers": {
     // Every 5 min: rank checks + stale-audit reconcile. Daily: OAuth KV GC.
     // Dispatched on controller.cron in src/server.ts `scheduled`.
+    //
+    // ⚠️ ACCOUNT CAP, not a config error. Workers Free allows 5 cron triggers
+    // PER ACCOUNT, across every worker. Once that is reached the deploy fails
+    // on PUT .../schedules and wrangler reports only "A request to the
+    // Cloudflare API failed" / "non-user error" — it never surfaces the limit,
+    // and the failure is identical for one cron or two, so it reads like a
+    // broken schedule rather than a quota. Only the dashboard states the real
+    // reason. If schedules stop deploying, check the account cron count before
+    // touching anything here.
+    //
+    // The daily entry is a no-op outside hosted auth mode: `scheduled` gates it
+    // on isHostedAuthMode(), so a cloudflare_access deploy that is short on
+    // slots should register the 5-minute one first.
     "crons": ["*/5 * * * *", "17 3 * * *"],
   },
   // This config serves local dev and Docker self-host only. All Cloudflare
@@ -88,18 +119,18 @@
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "4abd52f3f2c549ac83cc2cb4ceec8620",
+      "id": "ceaa1d0011c9461f9b619ecfc329e575",
     },
     {
       "binding": "OAUTH_KV",
-      "id": "bd1759494309474a9b423b029967b0db",
+      "id": "88a50a640a0e4dc1b8e845fba7274c0c",
     },
   ],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "open-seo",
-      "database_id": "37bee90a-e1aa-404f-b01e-b0d1d479bda1",
+      "database_name": "upgradeseo",
+      "database_id": "918c71a0-c91b-4917-99b7-8b652fea7748",
       "migrations_dir": "drizzle",
     },
   ],
@@ -109,19 +140,19 @@
   // docs/LOCAL_POSTGRES.md, and nothing connects to it unless
   // DATABASE_PROVIDER=postgres is set in .env.local.
   //
-  // Kept commented out: the id lives in OpenSEO's account, and only local
+  // Kept commented out: the id lives in UpgradeSEO's account, and only local
   // Postgres dev reads this block (Alchemy deploys and the Docker image never
   // do). Uncomment when running local Postgres dev per docs/LOCAL_POSTGRES.md.
   // "hyperdrive": [
   //   {
   //     "binding": "HYPERDRIVE",
   //     "id": "9d64ccfb559f44449ce52a143912f898",
-  //     "localConnectionString": "postgres://openseo:openseo@localhost:5433/openseo",
+  //     "localConnectionString": "postgres://upgradeseo:upgradeseo@localhost:5433/upgradeseo",
   //   },
   // ],
   "r2_buckets": [
     {
-      "bucket_name": "open-seo",
+      "bucket_name": "upgradeseo",
       "binding": "R2",
     },
   ],
