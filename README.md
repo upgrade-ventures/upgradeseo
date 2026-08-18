@@ -1,29 +1,46 @@
-# UpgradeSEO
+# UpgradeSEO — free, open-source SEO tools you self-host
 
-> Open source alternative to Semrush and Ahrefs
+> Keyword research, rank tracking, backlinks, site audit and AI visibility.
+> No subscription, no seat pricing, and no paid data API required.
 
-UpgradeSEO is an SEO tool for _the people_. If tools like Semrush or Ahrefs are too expensive or bloated, UpgradeSEO is a free alternative that you actually control.
+UpgradeSEO is a self-hosted alternative to Semrush and Ahrefs. It runs on data
+sources that cost nothing per call, so there is no meter and nothing to bill:
+Google Search Console and Google Analytics for your own site, Google
+Autocomplete for keyword ideas, Bing Webmaster and OpenPageRank for volume and
+authority, Common Crawl for competitor pages.
+
+**Bring your own free keys and the bill is zero.** That is the whole point, and
+it is the one thing this fork changes about the project it came from: the
+upstream needs a paid DataForSEO key to answer a keyword query, and this does
+not.
 
 > All-in-one SEO tool for you and your AI agent.
 
-Connect with any agent like Claude Code, OpenClaw or Hermes. We have pre-built skills, but you can build your own to tailor UpgradeSEO to your needs.
+Connect any MCP client — Claude Code, Claude Desktop, Codex — and it can run
+keyword research, SERP checks, domain lookups, backlinks and site audits mid
+conversation. Pre-built skills ship with the repo, and you can write your own.
 
-<img width="1385" height="794" alt="Image" src="https://github.com/user-attachments/assets/fd208249-44ea-4849-bb4b-5fc896aeab73" />
+## What it does
 
-## Hosted Version
+|                  | Runs on                                                   | Costs                         |
+| ---------------- | --------------------------------------------------------- | ----------------------------- |
+| Keyword research | Google Autocomplete, Bing Webmaster, Microsoft/Google Ads | free, no key needed for ideas |
+| Rank tracking    | your own Search Console, optional SERP provider           | free                          |
+| Site audit       | our own crawler, PageSpeed Insights                       | free                          |
+| Backlinks        | Bing Webmaster, OpenPageRank                              | free                          |
+| Competitors      | Common Crawl                                              | free, no key                  |
+| AI visibility    | your own Azure AI Foundry deployment                      | your Azure credit             |
 
-UpgradeSEO is free. It runs on data sources that do not charge per call, so there is nothing to meter and nothing to bill.
-
-[upgradeseo.so]()
+Numbers no free source can supply are shown as "no data", never as zero. A dash
+here means nobody measured it, not that the answer is nothing.
 
 ## Why use UpgradeSEO?
 
-- Best in class MCP and AI Skills.
-- Modern, simple UI.
-  - Focused workflows instead of a bloated, complex SEO suite.
-- No subscriptions.
-  UpgradeSEO runs on free data sources. See the in-app free setup guide at /help/free-setup.
-- Fork and vibe code your own custom tool.
+- Genuinely free. No subscription, no per-call charge, no card on file.
+- Best in class MCP and AI skills.
+- Modern, focused UI instead of a bloated suite.
+- Self-hosted: your keys, your data, your infrastructure.
+- Fork it and build your own tool.
 
 ## Main SEO Workflows
 
@@ -78,4 +95,4 @@ Questions or feedback: [support@upgrade.ventures](mailto:support@upgrade.venture
 Follow along for updates:
 
 - Follow on X: https://x.com/UpgradeVentures
-- Sign up for the mailing list on our website: [upgradeseo.so]()
+- Live demo: https://upgrade.ventures/UpgradeSEO
