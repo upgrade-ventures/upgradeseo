@@ -976,3 +976,70 @@ body {
   outline: none;
   box-shadow: var(--focus);
 }
+
+/* ---------------------------------------------------------------------------
+ * One control height, for every form control on every screen.
+ *
+ * Seven components were never ported off DaisyUI and kept its own sizing:
+ * `.select-bordered` renders 40px tall at 14px type while every Prominence
+ * control is 30px at 12.5px. Put one of each in a row — which the search bar
+ * on Keyword Research, Domain Overview, Competitors, Brand Lookup, Prompt
+ * Explorer and Rank Tracking all do — and the row has two heights and two
+ * baselines, sitting 5px apart.
+ *
+ * Rather than convert seven components mid-flight, the token below is the
+ * single source of truth and the DaisyUI holdouts are pinned to it. Anything
+ * new should use the Prominence primitives directly.
+ * ------------------------------------------------------------------------- */
+:root {
+  --control-h: 30px;
+}
+
+.prominence-button-secondary,
+.prominence-button-primary,
+.prominence-select,
+.prominence-input {
+  min-height: var(--control-h);
+}
+
+/* DaisyUI holdouts: LocationSelect, SerpLocationCombobox, SitePicker,
+ * Ga4PropertyPicker, ProjectMarketFields, CreateProjectPanel,
+ * ProjectSettings. Height, type scale and radius forced to match. */
+.select.select-bordered,
+.input.input-bordered,
+select.select,
+input.input {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  font-size: 12.5px;
+  border-radius: 6px;
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Several screens render a bare, class-free <input> styled inline by the
+ * design (Domain Overview, Competitors, Brand Lookup). Those carry 4px
+ * padding and no height, landing at 27px next to a 30px button. A floor —
+ * not a fixed height — raises them without touching anything deliberately
+ * larger, like a multi-line textarea. */
+main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+main select,
+main textarea {
+  min-height: var(--control-h);
+}
+
+/* A row of controls aligns on its bottom edge, so a labelled control and a
+ * bare one still share a baseline when their labels differ in height. */
+.prominence-control-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --control-h: 44px;
+  }
+}

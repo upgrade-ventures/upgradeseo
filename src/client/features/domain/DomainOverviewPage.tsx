@@ -661,6 +661,7 @@ export function DomainOverviewPage({
             </>
           ) : null
         }
+        tabsFlush={false}
         tabs={
           <>
             <DomainSearchCard

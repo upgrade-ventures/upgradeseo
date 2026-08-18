@@ -41,7 +41,7 @@ export function SettingsScreen({ version }: { version: string }) {
         subtitle="Account-wide preferences. Anything site-specific lives on the site itself."
         // The band's padding stops at the tab strip; this screen has no tabs,
         // so the design's 14px of breathing room is added here.
-        tabs={<div aria-hidden style={{ height: 14 }} />}
+        tabsFlush={false}
       />
 
       <div

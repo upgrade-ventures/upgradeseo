@@ -28,17 +28,26 @@ export function PageHeaderBand({
   subtitle,
   actions,
   tabs,
+  tabsFlush = true,
 }: {
   title: React.ReactNode;
   badge?: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   tabs?: React.ReactNode;
+  /**
+   * A TabStrip is drawn sitting ON the band's bottom border — that is what
+   * makes the active tab read as continuous with the panel below it, and it
+   * supplies its own 14px top margin. Any other content in that slot, in
+   * practice a search form, needs the same 14px as clearance BELOW it instead,
+   * or the controls butt straight into the rule with a one-pixel gap.
+   */
+  tabsFlush?: boolean;
 }) {
   return (
     <div
       style={{
-        padding: "18px var(--pad, 24px) 0",
+        padding: `18px var(--pad, 24px) ${tabsFlush ? 0 : 14}px`,
         borderBottom: "1px solid var(--line)",
         background: "var(--surface)",
       }}

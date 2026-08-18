@@ -73,7 +73,7 @@ function AiPage() {
       <PageHeaderBand
         title="AI & MCP"
         subtitle="Connect your AI agent to UpgradeSEO. Keyword research, SERP checks, domain lookups, backlinks and site audits, from your editor or your chat window."
-        tabs={<div aria-hidden style={{ height: 14 }} />}
+        tabsFlush={false}
       />
 
       <ScreenBody

@@ -208,6 +208,7 @@ export function KeywordResearchPage(input: Props) {
         title="Keyword Research"
         subtitle="Find what people search for, then save the ones worth writing about."
         actions={<HeaderActions controller={controller} />}
+        tabsFlush={false}
         tabs={
           <>
             <KeywordResearchSearchBar controller={controller} />
