@@ -50,7 +50,7 @@ export interface RankTrackingRow {
 const devicesEnum = z.enum(rankTrackingConfigs.devices.enumValues);
 const scheduleEnum = z.enum(rankTrackingConfigs.scheduleInterval.enumValues);
 // Rank tracking runs against the SERP API, which serves any language in any
-// country — but an unknown code is a *charged* DataForSEO failure, so reject
+// country — but an unknown code is a wasted request, so reject
 // it here at cost 0.
 const languageCodeField = z
   .string()
@@ -101,11 +101,6 @@ export const getLatestResultsSchema = z.object({
 });
 
 export const getLatestRunSchema = z.object({
-  projectId: z.string().uuid(),
-  configId: z.string().uuid(),
-});
-
-export const estimateCostSchema = z.object({
   projectId: z.string().uuid(),
   configId: z.string().uuid(),
 });

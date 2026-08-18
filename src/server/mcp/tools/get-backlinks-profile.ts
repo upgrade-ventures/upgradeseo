@@ -57,17 +57,13 @@ const inputSchema = {
   filters: backlinksRowsFiltersSchema
     .default({})
     .describe(
-      "Backlink row filters: include/exclude source URL terms, authority/spam ranges, dofollow/nofollow, lost/broken visibility, or exact domainFrom.",
+      "Backlink row filters: include/exclude source URL terms, or an exact domainFrom. Filters on spam score, link authority and follow status address columns no free source fills, so they are refused with an explanation rather than silently ignored.",
     ),
   mode: backlinksRowsModeSchema
     .default("one_per_domain")
     .describe(
-      "DataForSEO backlink grouping: one_per_domain returns each referring domain's strongest link; as_is returns individual backlink rows.",
+      "Backlink grouping: one_per_domain returns each referring domain's strongest link; as_is returns individual backlink rows.",
     ),
-  hideSpam: z
-    .boolean()
-    .optional()
-    .describe("Filter out spammy backlinks. Defaults to true."),
 } as const;
 
 type Args = z.infer<z.ZodObject<typeof inputSchema>>;
@@ -121,7 +117,7 @@ export const getBacklinksProfileTool = {
   config: {
     title: "Get backlinks profile",
     description:
-      "Returns one bounded page of detailed backlink rows for a domain or page: linking URLs, target URLs, anchors, dofollow/nofollow, authority/spam signals, and lost/broken status. Supports filters, sorting, one_per_domain/as_is mode, and pagination. Charges credits (~30 per page typical). Self-hosted deployments need the Backlinks API enabled on their DataForSEO account.",
+      "Returns one bounded page of individual backlink rows for a domain or page: linking URLs, target URLs, anchors, and the linking domain's authority. Supports include/exclude filters, sorting, one_per_domain/as_is mode, and pagination. Rows come from Bing Webmaster Tools, which reports links only for a site verified in your own Bing account, so this answers 'who links to my site' and not 'who links to a competitor'. Follow status, spam score and per-link rank are unavailable from every free source and are returned as unknown, never zero.",
     inputSchema,
     outputSchema: {
       backlinks: backlinksProfileOutputSchema,
@@ -150,7 +146,6 @@ export const getBacklinksProfileTool = {
     const backlinks = await BacklinksService.profileBacklinksPage(
       request,
       context.billing,
-      { hideSpam: args.hideSpam ?? true },
     );
     const text = [
       `Backlinks profile for ${request.target} (${request.scope ?? "domain"}):`,

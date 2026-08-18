@@ -1,6 +1,7 @@
+import { withBasePath } from "@/shared/base-path";
 import type { ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { buildDashboardUrl } from "@/server/mcp/urls";
 
 export type ToolAuthContext = {
@@ -16,8 +17,10 @@ export type ToolContext = {
   auth: ToolAuthContext;
 };
 
-export const MCP_AUTH_CONTEXT_PROP = "openSeoAuth";
-export const MCP_ROUTE = "/mcp";
+export const MCP_AUTH_CONTEXT_PROP = "upgradeSeoAuth";
+// Prefixed so an agent pointed at a sub-path deploy reaches the server
+// rather than the 404 page of whatever serves that hostname's root.
+export const MCP_ROUTE = withBasePath("/mcp");
 
 const applicationAuthContextSchema = z.object({
   userId: z.string().min(1),
@@ -70,7 +73,7 @@ export function createMcpToolContext(
   }
 
   // Scope enforcement happens once, at the hosted transport boundary
-  // (handleAuthenticatedOpenSeoMcpRequest); this only assembles identity.
+  // (handleAuthenticatedUpgradeSeoMcpRequest); this only assembles identity.
   const applicationAuth = result.data[MCP_AUTH_CONTEXT_PROP];
   const authInfo = context.http?.authInfo;
   const clientId = authInfo?.clientId ?? applicationAuth.clientId ?? null;
@@ -88,7 +91,7 @@ export function createMcpToolContext(
 export function buildBillingCustomer(
   auth: Pick<ToolAuthContext, "userId" | "userEmail" | "organizationId">,
   projectId: string,
-): BillingCustomerContext {
+): OrganizationContext {
   return {
     userId: auth.userId,
     userEmail: auth.userEmail,

@@ -4,7 +4,7 @@ import { buildLighthouseExportFile } from "@/server/lib/lighthousePayload";
 
 const storedPayloadJson = JSON.stringify({
   version: 2,
-  source: "dataforseo-lighthouse",
+  source: "lighthouse",
   hasIssueDetails: true,
   metadata: {
     requestedUrl: "https://everyapp.dev/blog/enable-mfa-rdp-ssh",

@@ -58,7 +58,7 @@ describe("withMcpProjectAuth", () => {
           clientId: "client_123",
           scopes: ["mcp"],
         },
-        baseUrl: "https://open-seo.test",
+        baseUrl: "https://upgradeseo.test",
         billing: {
           userId: "user_123",
           userEmail: "alice@example.com",

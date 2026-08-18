@@ -2,7 +2,7 @@
  * Validate a URL string against an http(s) scheme allow-list.
  *
  * AI Search renders citation and top-page URLs as `<a href>` in the UI. The
- * URLs come from either DataForSEO (mostly safe but still external) or LLM
+ * URLs come from either a data provider (mostly safe but still external) or LLM
  * responses (untrusted — a crafted prompt can coax a model into emitting
  * `javascript:`/`data:` payloads). Without this filter, those links are
  * clickable from inside an authenticated session.

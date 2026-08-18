@@ -176,13 +176,13 @@ describe("claimDueConfig", () => {
       projectId: "proj_1",
       observedNextCheckAt: "2026-07-01T05:00:00.000Z",
       nextCheckAt: "2026-08-02T05:00:00.000Z",
-      lastSkipReason: "plan_required",
+      lastSkipReason: "no_keywords",
     });
 
     expect(claimed).toBe(true);
     expect(await getConfigRow("cfg_1")).toEqual({
       nextCheckAt: "2026-08-02T05:00:00.000Z",
-      lastSkipReason: "plan_required",
+      lastSkipReason: "no_keywords",
     });
   });
 
@@ -191,7 +191,7 @@ describe("claimDueConfig", () => {
     await seedConfig({
       id: "cfg_1",
       nextCheckAt: "2026-07-20T05:00:00.000Z",
-      lastSkipReason: "insufficient_credits",
+      lastSkipReason: "no_keywords",
     });
 
     const claimed = await RankTrackingRepository.claimDueConfig({
@@ -205,7 +205,7 @@ describe("claimDueConfig", () => {
     expect(claimed).toBe(false);
     expect(await getConfigRow("cfg_1")).toEqual({
       nextCheckAt: "2026-07-20T05:00:00.000Z",
-      lastSkipReason: "insufficient_credits",
+      lastSkipReason: "no_keywords",
     });
   });
 
@@ -215,7 +215,7 @@ describe("claimDueConfig", () => {
     await seedConfig({
       id: "cfg_restore",
       nextCheckAt: "2026-08-02T05:00:00.000Z",
-      lastSkipReason: "insufficient_credits",
+      lastSkipReason: "no_keywords",
     });
 
     expect(
@@ -238,7 +238,7 @@ describe("claimDueConfig", () => {
     ).toBe(true);
     expect(await getConfigRow("cfg_restore")).toEqual({
       nextCheckAt: "2026-07-01T05:00:00.000Z",
-      lastSkipReason: "insufficient_credits",
+      lastSkipReason: "no_keywords",
     });
   });
 });

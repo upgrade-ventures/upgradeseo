@@ -3,7 +3,7 @@ import { waitUntil } from "cloudflare:workers";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { RankTrackingService } from "@/server/features/rank-tracking/services/RankTrackingService";
 import { getLatestResults } from "@/server/features/rank-tracking/services/rankTrackingResults";
-import { AppError, asAppError } from "@/server/lib/errors";
+import { AppError } from "@/server/lib/errors";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { requireProjectContext } from "@/serverFunctions/middleware";
 import {
@@ -13,7 +13,6 @@ import {
   triggerCheckSchema,
   getLatestResultsSchema,
   getLatestRunSchema,
-  estimateCostSchema,
   addKeywordsSchema,
   removeKeywordsSchema,
   refreshMetricsSchema,
@@ -166,22 +165,8 @@ export const getLatestRankRun = createServerFn({ method: "POST" })
     return RankTrackingService.getLatestRun(data.configId, context.projectId);
   });
 
-export const estimateRankCheckCost = createServerFn({ method: "POST" })
-  .middleware(requireProjectContext)
-  .validator(estimateCostSchema)
-  .handler(async ({ data, context }) => {
-    return RankTrackingService.estimateCost(data.configId, context.projectId);
-  });
-
 function logAutoActionFailure(action: string, err: unknown) {
-  const appErr = asAppError(err);
-  if (appErr?.code === "PAYMENT_REQUIRED") {
-    console.info(`[rank-tracking] ${action} skipped: paid plan required`);
-  } else if (appErr?.code === "INSUFFICIENT_CREDITS") {
-    console.info(`[rank-tracking] ${action} skipped: insufficient credits`);
-  } else {
-    console.error(`[rank-tracking] ${action} failed:`, err);
-  }
+  console.error(`[rank-tracking] ${action} failed:`, err);
 }
 
 export const addTrackingKeywords = createServerFn({ method: "POST" })
@@ -192,7 +177,6 @@ export const addTrackingKeywords = createServerFn({ method: "POST" })
       data.configId,
       context.projectId,
       data.keywords,
-      { kind: "direct_user_action" },
     );
 
     let checkTriggered = false;

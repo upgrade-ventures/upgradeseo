@@ -5,28 +5,28 @@ import {
 } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
 import { withPgClient } from "@/db";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { failRunIfActive } from "@/server/features/rank-tracking/services/rankCheckRunGuards";
-import {
-  runLiveCheck,
-  runQueuedCheck,
-  type QueuedCheckStats,
-} from "@/server/workflows/rankCheckPaths";
+import { runFreeRankCheck } from "@/server/features/rank-tracking/services/freeRankSource";
 import { pgStep } from "@/server/workflows/pgStep";
-import { createDataforseoClient } from "@/server/lib/dataforseo";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { AppError } from "@/server/lib/errors";
-import { autumn } from "@/server/billing/autumn";
-import {
-  AUTUMN_SEO_DATA_BALANCE_FEATURE_ID,
-  AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
-} from "@/shared/billing";
-import {
-  estimateRankCheckCredits,
-  rankCheckCostApprovalError,
-} from "@/shared/rank-tracking";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+
+/**
+ * Scheduled rank checks.
+ *
+ * This workflow used to pace and poll a paid SERP task queue: post one task per
+ * keyword/device pair, sleep, collect, fall back to the live endpoint. The free
+ * sources answer for a whole tracked domain in one or two calls, so all of that
+ * is gone and one step does the work. What the workflow still buys the cron
+ * handler is durable execution per config: a tick claims the config, starts an
+ * instance and moves on, and a failure here fails that config's run rather than
+ * the whole tick.
+ *
+ * Manual checks do not come through here at all. RankTrackingService runs them
+ * inline, because there is nothing left to pace.
+ */
 
 const SINGLE_ATTEMPT_STEP_CONFIG = {
   retries: { limit: 0, delay: "1 second" as const },
@@ -36,29 +36,37 @@ const SINGLE_ATTEMPT_STEP_CONFIG = {
 interface RankCheckParams {
   runId: string;
   configId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   projectId: string;
   domain: string;
   locationCode: number;
-  languageCode: string;
-  locationName?: string;
   devices: "both" | "desktop" | "mobile";
-  serpDepth: number;
   trigger: "manual" | "scheduled";
   keywordIds?: string[];
-  maxCostCredits?: number;
+  // Inert, and kept only because beginRankCheckRun still populates them from
+  // the config row. The free sources take no SERP depth, filter Search Console
+  // by country rather than language, and are unmetered, so none of these
+  // reaches an upstream call. Dropping them here would break that caller's
+  // object literal, which is outside this file.
+  languageCode: string;
+  locationName?: string;
+  serpDepth: number;
 }
 
-export async function prepareRankCheckKeywords(input: {
+/**
+ * Load the tracked keywords, ask the free sources for their positions, and
+ * persist the snapshots. Returns the notice that has to travel with the run.
+ */
+async function runFreeCheckStep(input: {
   runId: string;
   configId: string;
-  billingCustomer: BillingCustomerContext;
+  projectId: string;
+  organizationId: string;
+  domain: string;
+  locationCode: number;
   devices: RankCheckParams["devices"];
-  serpDepth: number;
-  trigger: RankCheckParams["trigger"];
   keywordIds?: string[];
-  maxCostCredits?: number;
-}) {
+}): Promise<{ notice: string }> {
   // If stale-cleanup marked our run failed before we got here, bail out
   // rather than resurrecting a superseded run.
   const run = await RankTrackingRepository.getRunById(input.runId);
@@ -68,81 +76,66 @@ export async function prepareRankCheckKeywords(input: {
     );
   }
 
-  await RankTrackingRepository.updateRun(input.runId, {
-    status: "running",
-  });
+  await RankTrackingRepository.updateRun(input.runId, { status: "running" });
 
   let trackingKeywords = await RankTrackingRepository.getKeywordsForConfig(
     input.configId,
   );
-
   if (input.keywordIds && input.keywordIds.length > 0) {
     const idSet = new Set(input.keywordIds);
     trackingKeywords = trackingKeywords.filter((kw) => idSet.has(kw.id));
   }
-
   if (trackingKeywords.length === 0) {
     throw new AppError("INTERNAL_ERROR", "No keywords to track");
-  }
-
-  const { costCredits } = estimateRankCheckCredits(
-    trackingKeywords.length,
-    input.devices,
-    input.serpDepth,
-    input.trigger === "scheduled" ? "queued" : "live",
-  );
-  if (input.maxCostCredits != null && costCredits > input.maxCostCredits) {
-    throw new AppError(
-      "VALIDATION_ERROR",
-      rankCheckCostApprovalError(costCredits, input.maxCostCredits),
-    );
-  }
-
-  // Verify the user has enough credits for the full check before starting.
-  // Scheduled checks go through the cheaper task queue, so estimate at queued
-  // pricing — a live-price estimate would skip checks the user can afford.
-  if (await isHostedServerAuthMode()) {
-    const [monthlyCheck, topupCheck] = await Promise.all([
-      autumn.check({
-        customerId: input.billingCustomer.organizationId,
-        featureId: AUTUMN_SEO_DATA_BALANCE_FEATURE_ID,
-      }),
-      autumn.check({
-        customerId: input.billingCustomer.organizationId,
-        featureId: AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
-      }),
-    ]);
-    const available =
-      (monthlyCheck.balance?.remaining ?? 0) +
-      (topupCheck.balance?.remaining ?? 0);
-    if (available < costCredits) {
-      throw new AppError(
-        "INSUFFICIENT_CREDITS",
-        "Insufficient credits for rank check",
-      );
-    }
   }
 
   await RankTrackingRepository.updateRun(input.runId, {
     keywordsTotal: trackingKeywords.length,
   });
 
-  return {
+  const result = await runFreeRankCheck({
+    projectId: input.projectId,
+    organizationId: input.organizationId,
+    domain: input.domain,
+    locationCode: input.locationCode,
+    devices: input.devices,
     keywords: trackingKeywords.map((kw) => ({
       id: kw.id,
       keyword: kw.keyword,
     })),
-  };
+  });
+  if (!result) {
+    // null is the free helper's leftover "let the paid client answer" signal,
+    // and there is no paid client any more. Say what to connect instead of
+    // completing a run with nothing in it.
+    throw new AppError(
+      "DATA_SOURCE_NOT_CONFIGURED",
+      "No rank source is connected. Connect a Google Search Console property covering this domain for Google positions, or add a free Bing Webmaster key for Bing positions.",
+    );
+  }
+
+  if (result.rows.length > 0) {
+    await RankTrackingRepository.insertSnapshots(
+      // Free sources report no SERP features. Null is "unknown", where an empty
+      // array would claim the SERP has none.
+      result.rows.map((row) => ({
+        ...row,
+        runId: input.runId,
+        serpFeatures: null,
+      })),
+    );
+  }
+
+  return { notice: result.notice };
 }
 
 async function finalizeRankCheckRun(input: {
   runId: string;
   configId: string;
   projectId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   trigger: RankCheckParams["trigger"];
-  batchError: string | null;
-  queueStats: QueuedCheckStats | null;
+  notice: string;
 }) {
   // If stale-cleanup already marked our run failed, don't overwrite that
   // decision with a completed status — a replacement run may already be
@@ -157,23 +150,14 @@ async function finalizeRankCheckRun(input: {
 
   const nowIso = new Date().toISOString();
 
-  // Snapshots were written incrementally by each batch step.
-  // Count from DB to get the authoritative keyword count.
+  // Snapshots were written by the check step. Count from DB to get the
+  // authoritative keyword count.
   const snapshots = await RankTrackingRepository.getSnapshotsForRun(
     input.runId,
   );
   const keywordsChecked = new Set(snapshots.map((s) => s.trackingKeywordId))
     .size;
-
   const keywordsTotal = run.keywordsTotal || keywordsChecked;
-  const incompleteCount = keywordsTotal - keywordsChecked;
-
-  let errorMessage: string | undefined;
-  if (input.batchError) {
-    errorMessage = `Completed ${keywordsChecked} of ${keywordsTotal} keyword(s). Error: ${input.batchError}`;
-  } else if (incompleteCount > 0) {
-    errorMessage = `${incompleteCount} keyword(s) could not be checked`;
-  }
 
   // Flipping status away from 'pending'/'running' is what releases the
   // partial-index slot for the next run.
@@ -181,7 +165,13 @@ async function finalizeRankCheckRun(input: {
     status: "completed",
     keywordsChecked,
     completedAt: nowIso,
-    ...(errorMessage ? { errorMessage } : {}),
+    // The source label rides on errorMessage: rank_check_runs has no label
+    // column and this field is already the run's free-text notice channel.
+    // Nobody may read a Search Console window average as a live SERP position,
+    // so the sentence has to travel with the run. It also explains any keyword
+    // the source had no data for, which is why no separate "N could not be
+    // checked" message is written here.
+    errorMessage: input.notice,
   });
 
   // Clear any previous skip reason on success.
@@ -192,17 +182,10 @@ async function finalizeRankCheckRun(input: {
     lastSkipReason: null,
   });
 
-  // One-line summary per run so fallback rates are visible in Workers Logs.
+  // One-line summary per run so coverage is visible in Workers Logs.
   // Keys match the PostHog event properties for log/event correlation.
-  const queueSummary = input.queueStats
-    ? ` queue_tasks=${input.queueStats.queueTasks} queue_collected=${input.queueStats.queueCollected} fallback_tasks=${input.queueStats.fallbackTasks} fallback_checked=${input.queueStats.fallbackChecked}`
-    : "";
-  // Error text can echo vendor/user content — keep it one line and bounded.
-  const errorSummary = errorMessage
-    ? ` error="${errorMessage.replace(/\s+/g, " ").slice(0, 200)}"`
-    : "";
   console.log(
-    `[rank-check] ${input.runId} completed org=${input.billingCustomer.organizationId} project=${input.projectId} trigger=${input.trigger} keywords=${keywordsChecked}/${keywordsTotal}${queueSummary}${errorSummary}`,
+    `[rank-check] ${input.runId} completed org=${input.billingCustomer.organizationId} project=${input.projectId} trigger=${input.trigger} keywords=${keywordsChecked}/${keywordsTotal}`,
   );
 
   await captureServerEvent({
@@ -214,38 +197,19 @@ async function finalizeRankCheckRun(input: {
       status: "completed",
       trigger: input.trigger,
       keywords_checked: keywordsChecked,
-      ...(input.queueStats
-        ? {
-            queue_tasks: input.queueStats.queueTasks,
-            queue_collected: input.queueStats.queueCollected,
-            fallback_tasks: input.queueStats.fallbackTasks,
-            fallback_checked: input.queueStats.fallbackChecked,
-          }
-        : {}),
     },
   });
 }
 
 async function markRankCheckRunFailed(input: {
   runId: string;
-  configId: string;
+  billingCustomer: OrganizationContext;
   projectId: string;
-  billingCustomer: BillingCustomerContext;
   error: unknown;
 }) {
   const errorMessage =
     input.error instanceof Error ? input.error.message : "Unknown error";
   await failRunIfActive(input.runId, errorMessage);
-
-  // Flag the config so the UI can show why the scheduled check was skipped
-  const isInsufficientCredits =
-    input.error instanceof AppError &&
-    input.error.code === "INSUFFICIENT_CREDITS";
-  if (isInsufficientCredits) {
-    await RankTrackingRepository.updateConfig(input.configId, input.projectId, {
-      lastSkipReason: "insufficient_credits",
-    });
-  }
 
   await captureServerEvent({
     distinctId: input.billingCustomer.userId,
@@ -281,13 +245,9 @@ export class RankCheckWorkflow extends WorkflowEntrypoint<
       projectId,
       domain,
       locationCode,
-      languageCode,
-      locationName,
       devices,
-      serpDepth,
       trigger,
       keywordIds,
-      maxCostCredits,
     } = event.payload;
 
     // Guard: skip if config was archived after the workflow was triggered
@@ -313,56 +273,22 @@ export class RankCheckWorkflow extends WorkflowEntrypoint<
         `[rank-check] ${runId} starting (trigger=${trigger}, devices=${devices})`,
       );
 
-      const prepareResult = await pgStep(
+      const { notice } = await pgStep(
         step,
-        "prepare",
-        { retries: { limit: 0, delay: "1 second" } },
+        "free-check",
+        SINGLE_ATTEMPT_STEP_CONFIG,
         async () =>
-          prepareRankCheckKeywords({
+          runFreeCheckStep({
             runId,
             configId,
-            billingCustomer,
+            projectId,
+            organizationId: billingCustomer.organizationId,
+            domain,
+            locationCode,
             devices,
-            serpDepth,
-            trigger,
             keywordIds,
-            maxCostCredits,
           }),
       );
-
-      const keywords = prepareResult.keywords;
-      const client = createDataforseoClient(billingCustomer);
-
-      console.log(`[rank-check] ${runId} loaded ${keywords.length} keywords`);
-
-      let batchError: string | null = null;
-      let queueStats: QueuedCheckStats | null = null;
-
-      try {
-        const checkContext = {
-          client,
-          keywords,
-          devices,
-          serpDepth,
-          domain,
-          locationCode,
-          languageCode,
-          locationName,
-          runId,
-        };
-        // Scheduled checks use DataForSEO's task queue (~30% of live cost);
-        // manual checks stay on the live endpoint for instant results.
-        if (trigger === "scheduled") {
-          queueStats = await runQueuedCheck(step, checkContext);
-        } else {
-          await runLiveCheck(step, checkContext);
-        }
-      } catch (error) {
-        // Batch failure — snapshots for completed batches are already
-        // persisted incrementally. Continue to finalization.
-        batchError = error instanceof Error ? error.message : String(error);
-        console.warn(`[rank-check] ${runId} partial failure: ${batchError}`);
-      }
 
       await pgStep(step, "finalize", SINGLE_ATTEMPT_STEP_CONFIG, async () =>
         finalizeRankCheckRun({
@@ -371,8 +297,7 @@ export class RankCheckWorkflow extends WorkflowEntrypoint<
           projectId,
           billingCustomer,
           trigger,
-          batchError,
-          queueStats,
+          notice,
         }),
       );
     } catch (error) {
@@ -380,7 +305,6 @@ export class RankCheckWorkflow extends WorkflowEntrypoint<
       await pgStep(step, "mark-failed", SINGLE_ATTEMPT_STEP_CONFIG, async () =>
         markRankCheckRunFailed({
           runId,
-          configId,
           projectId,
           billingCustomer,
           error,

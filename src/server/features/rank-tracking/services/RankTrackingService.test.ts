@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => ({
   updateConfig: vi.fn(),
 }));
 
+// rankCheckRunGuards reaches the workflow binding at import time.
 vi.mock("cloudflare:workers", () => ({ env: {} }));
-vi.mock("@/server/lib/dataforseo", () => ({ createDataforseoClient: vi.fn() }));
 vi.mock(
   "@/server/features/rank-tracking/repositories/RankTrackingRepository",
   () => ({ RankTrackingRepository: mocks }),
@@ -27,7 +27,7 @@ const archivedConfig = {
   serpDepth: 20,
   scheduleInterval: "weekly" as const,
   isActive: false,
-  lastSkipReason: "insufficient_credits",
+  lastSkipReason: "no_keywords",
 };
 
 const baseInput = {

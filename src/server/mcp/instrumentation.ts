@@ -71,7 +71,7 @@ function captureMcpToolCall(
  * middleware, so tool failures are otherwise invisible in error reporting.
  *
  * This captures two classes of failure:
- *  - Exceptions thrown by the handler (DataForSEO outages, auth failures, …),
+ *  - Exceptions thrown by the handler (provider outages, auth failures, …),
  *    gated by shouldCaptureAppErrorCode to keep expected errors out of PostHog.
  *  - Output-schema validation failures. The SDK validates structuredContent
  *    against the output schema *after* the handler returns and converts a
@@ -162,7 +162,7 @@ export function instrumentMcpToolHandler<TArgs>(
             },
       );
       // Dashboard activation milestone: a successful call from an external
-      // MCP client (OAuth clientId; SAM and the self-hosted transport are
+      // MCP client (OAuth clientId; the self-hosted transport is
       // first-party with clientId null). Awaited so the write stays inside
       // the request's DB scope; a per-isolate memo keeps this off the hot
       // path after the first call.

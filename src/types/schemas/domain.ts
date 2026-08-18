@@ -15,7 +15,7 @@ export function normalizeDomain(input: string): string {
 
 /**
  * True when `host` resolves to a real registrable domain (public-suffix list),
- * rejecting IPs and fake TLDs like `example.por` before they reach DataForSEO.
+ * rejecting IPs and fake TLDs like `example.por` before they reach the provider.
  */
 export function isValidDomainHost(host: string): boolean {
   const parsed = parseTld(host, { allowPrivateDomains: true });
@@ -80,7 +80,7 @@ export const domainKeywordSuggestionsSchema = z.object({
 
 export const DOMAIN_KEYWORDS_PAGE_SIZES = [50, 100, 200] as const;
 export const DEFAULT_DOMAIN_KEYWORDS_PAGE_SIZE = 100;
-export const MAX_DATAFORSEO_FILTER_CONDITIONS = 8;
+export const MAX_FILTER_CONDITIONS = 8;
 
 const optionalNumber = z
   .union([

@@ -10,11 +10,11 @@ export async function getOptionalEnvValue(
 
 /**
  * Sync variant for callers that already hold an env record (e.g. a Durable
- * Object's `this.env`, needed because Think's `getModel()` hook is sync).
- * Same policy as the async form: process.env first (where local `.env.local`
- * secrets land in dev), skipping empty strings, then the given env.
+ * Object's `this.env`). Same policy as the async form: process.env first
+ * (where local `.env.local` secrets land in dev), skipping empty strings,
+ * then the given env.
  */
-export function getEnvValueSync(
+function getEnvValueSync(
   // `object` so interface-typed envs (e.g. Cloudflare.Env) are accepted
   // without a cast.
   env: object,
@@ -27,14 +27,6 @@ export function getEnvValueSync(
   }
   const value: unknown = Reflect.get(env, name);
   return typeof value === "string" && value !== "" ? value : undefined;
-}
-
-export async function getRequiredEnvValue(name: string): Promise<string> {
-  const value = await getOptionalEnvValue(name);
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
 }
 
 export async function isHostedServerAuthMode(): Promise<boolean> {

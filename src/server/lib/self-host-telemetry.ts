@@ -8,7 +8,6 @@ import {
   gscConnections,
   projects,
   rankTrackingKeywords,
-  samSessions,
   savedKeywords,
   telemetryState,
   user,
@@ -66,7 +65,6 @@ type HeartbeatCounts = {
   rankTrackingKeywordCount: number;
   savedKeywordCount: number;
   gscConnected: boolean;
-  samChatUsed: boolean;
 };
 
 type HeartbeatProperties = HeartbeatCounts & {
@@ -77,7 +75,7 @@ type HeartbeatProperties = HeartbeatCounts & {
   firstRun: boolean;
   minutesSinceInstall?: number;
   mcpToolCalls: number;
-  // Unhealthy setup checks as "check:status" pairs (e.g. "dataforseo:error").
+  // Unhealthy setup checks as "check:status" pairs (e.g. "keyword_source:warn").
   // Enumerable values only — never free-text detail.
   setupIssues: string[];
   $process_person_profile: false;
@@ -123,7 +121,7 @@ async function telemetryIsDisabled() {
   if (await isHostedServerAuthMode()) return true;
   if (
     isTelemetryOptOutValue(
-      await getOptionalEnvValue("OPENSEO_TELEMETRY_DISABLED"),
+      await getOptionalEnvValue("UPGRADESEO_TELEMETRY_DISABLED"),
     )
   ) {
     return true;
@@ -200,7 +198,6 @@ async function collectCounts(): Promise<HeartbeatCounts> {
     [rankKeywordRow],
     [savedKeywordRow],
     [gscRow],
-    [samRow],
   ] = await Promise.all([
     db.select({ value: count() }).from(user),
     db.select({ value: count() }).from(projects),
@@ -208,7 +205,6 @@ async function collectCounts(): Promise<HeartbeatCounts> {
     db.select({ value: count() }).from(rankTrackingKeywords),
     db.select({ value: count() }).from(savedKeywords),
     db.select({ value: count() }).from(gscConnections),
-    db.select({ value: count() }).from(samSessions),
   ]);
 
   return {
@@ -218,7 +214,6 @@ async function collectCounts(): Promise<HeartbeatCounts> {
     rankTrackingKeywordCount: rankKeywordRow?.value ?? 0,
     savedKeywordCount: savedKeywordRow?.value ?? 0,
     gscConnected: (gscRow?.value ?? 0) > 0,
-    samChatUsed: (samRow?.value ?? 0) > 0,
   };
 }
 

@@ -1,8 +1,9 @@
 import { detectUrlTemplate, canonicalUrlKey } from "./url-utils";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import { createDataforseoClient } from "@/server/lib/dataforseo";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import type { LighthouseResult, LighthouseStrategy } from "./types";
 import { putTextToR2 } from "@/server/lib/r2";
+import { createPageSpeedClient } from "@/server/lib/free-seo/pagespeed";
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 
 interface LighthouseSamplePage {
   url: string;
@@ -26,28 +27,55 @@ export async function fetchLighthouseResult(
   url: string,
   pageId: string,
   strategy: "mobile" | "desktop",
-  billingCustomer: BillingCustomerContext,
+  _billingCustomer: OrganizationContext,
+  /**
+   * Uploads the raw payload before this function returns. A Lighthouse report
+   * is routinely larger than the 1MiB ceiling on a Workflow step's output, and
+   * a mobile+desktop pair doubles it, so returning `payloadJson` across the
+   * step boundary failed the whole run with `step_output_too_large` — Lighthouse
+   * audits could never complete. Uploading here keeps the checkpoint small
+   * while preserving the reason the fetch is its own step: a later storage
+   * failure must not replay the PageSpeed call.
+   */
+  storage?: { projectId: string; auditId: string },
 ): Promise<LighthouseFetchResult> {
-  const dataforseo = createDataforseoClient(billingCustomer);
   try {
-    const data = await dataforseo.lighthouse.live({ url, strategy });
-
-    return {
-      result: {
-        url,
-        pageId,
-        strategy,
-        performanceScore: data.scores.performance,
-        accessibilityScore: data.scores.accessibility,
-        bestPracticesScore: data.scores["best-practices"],
-        seoScore: data.scores.seo,
-        lcpMs: data.metrics.largestContentfulPaint.numericValue,
-        cls: data.metrics.cumulativeLayoutShift.numericValue,
-        inpMs: data.metrics.interactionToNextPaint.numericValue,
-        ttfbMs: data.metrics.serverResponseTime.numericValue,
-      },
-      payloadJson: JSON.stringify(data),
-    };
+    // PageSpeed Insights runs the same Lighthouse engine on Google's own
+    // infrastructure, free. It is the only path.
+    {
+      const psi = createPageSpeedClient({
+        apiKey: await getOptionalEnvValue("PAGESPEED_API_KEY"),
+      });
+      const { scores, payload } = await psi.analyse({ url, strategy });
+      const payloadJson = JSON.stringify(payload);
+      const uploaded = storage
+        ? await putTextToR2(
+            lighthousePayloadKey(storage, pageId, strategy),
+            payloadJson,
+          )
+        : null;
+      return {
+        result: {
+          url,
+          pageId,
+          strategy,
+          performanceScore: scores.performance,
+          accessibilityScore: scores.accessibility,
+          bestPracticesScore: scores.bestPractices,
+          seoScore: scores.seo,
+          lcpMs: scores.lcpMs,
+          cls: scores.cls,
+          inpMs: scores.inpMs,
+          ttfbMs: scores.ttfbMs,
+          ...(uploaded
+            ? { r2Key: uploaded.key, payloadSizeBytes: uploaded.sizeBytes }
+            : {}),
+        },
+        // Held back only when nobody uploaded it, so callers without an
+        // uploader keep the previous behaviour.
+        payloadJson: uploaded ? null : payloadJson,
+      };
+    }
   } catch (error) {
     const failed = error instanceof Error ? error : new Error(String(error));
     console.error(`Lighthouse failed for ${url}:`, failed.message);
@@ -71,17 +99,27 @@ export async function fetchLighthouseResult(
   }
 }
 
+function lighthousePayloadKey(
+  storage: { projectId: string; auditId: string },
+  pageId: string,
+  strategy: string,
+): string {
+  return `site-audit/${storage.projectId}/${storage.auditId}/${pageId}-${strategy}.json`;
+}
+
 export async function storeLighthouseResult(input: {
   projectId: string;
   auditId: string;
   fetched: LighthouseFetchResult;
 }): Promise<LighthouseResult> {
+  // Null once the fetch step uploaded the payload itself; the result already
+  // carries r2Key, so re-uploading here would only repeat the write.
   if (!input.fetched.payloadJson) {
     return input.fetched.result;
   }
 
   const { pageId, strategy } = input.fetched.result;
-  const key = `site-audit/${input.projectId}/${input.auditId}/${pageId}-${strategy}.json`;
+  const key = lighthousePayloadKey(input, pageId, strategy);
   const uploaded = await putTextToR2(key, input.fetched.payloadJson);
 
   return {

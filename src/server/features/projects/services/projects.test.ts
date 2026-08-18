@@ -112,7 +112,7 @@ describe("project service", () => {
       );
     });
 
-    it("rejects a language DataForSEO does not serve for the location", async () => {
+    it("rejects a language not served for the location", async () => {
       const { createProject } = await import("./projects");
 
       await expect(

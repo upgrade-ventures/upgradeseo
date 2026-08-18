@@ -10,7 +10,7 @@ import {
   type WorkflowStep,
 } from "cloudflare:workers";
 import { withPgClient } from "@/db";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import { classifyAuditError } from "@/server/lib/audit/audit-errors";
 import type { AuditConfig } from "@/server/lib/audit/types";
@@ -21,7 +21,7 @@ import { DB_STEP } from "@/server/workflows/auditStepConfigs";
 
 interface AuditParams {
   auditId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   projectId: string;
   startUrl: string;
   config: AuditConfig;

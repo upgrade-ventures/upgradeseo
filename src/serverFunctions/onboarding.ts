@@ -112,25 +112,3 @@ export const saveOnboardingAnswers = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
-
-// Records that the one-time "connect Search Console" nudge has been shown and
-// resolved (dismissed or acted on) so it never reappears for this user.
-export const dismissGscNudge = createServerFn({ method: "POST" })
-  .middleware(requireAuthenticatedContext)
-  .handler(async ({ context }) => {
-    const now = new Date().toISOString();
-    await db
-      .insert(userOnboardingAnswers)
-      .values({
-        userId: context.userId,
-        organizationId: context.organizationId,
-        gscNudgeDismissedAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: userOnboardingAnswers.userId,
-        set: { gscNudgeDismissedAt: now, updatedAt: now },
-      });
-
-    return { ok: true };
-  });

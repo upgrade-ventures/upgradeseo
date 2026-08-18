@@ -8,9 +8,16 @@ import {
 import { captureClientEvent, resetAnalyticsUser } from "@/client/lib/posthog";
 import { userAdditionalFields } from "@/lib/auth-options";
 import { getSignInHrefForLocation } from "@/lib/auth-redirect";
+import { withBasePath } from "@/shared/base-path";
 
 export const authClient = createAuthClient({
   baseURL: typeof window !== "undefined" ? window.location.origin : "",
+  // Must match the server's basePath in lib/auth.ts. baseURL is the origin, so
+  // without this the client calls upgrade.ventures/api/auth — the root of the
+  // hostname, which Ghost serves — and every session lookup hangs. The visible
+  // symptom is a blank auth page, because the layout renders null while the
+  // session query is pending and that query never settles.
+  basePath: withBasePath("/api/auth"),
   plugins: [
     apiKeyClient(),
     organizationClient(),

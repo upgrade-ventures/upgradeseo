@@ -50,10 +50,44 @@ export function normalizeGa4Response(
   const expectedMetrics = request.metrics.map(({ name }) => name);
   const dimensions = (response.dimensionHeaders ?? []).map(({ name }) => name);
   const metrics = (response.metricHeaders ?? []).map(({ name }) => name);
+  // A property with no processed data yet answers with a bare object: no
+  // headers, no rows, sometimes no rowCount. Seen in production the day a
+  // property was created. That is an EMPTY report, not a malformed one —
+  // treating it as an error turned "your analytics has no data yet" into
+  // INTERNAL_ERROR on the dashboard. Headers are only checked when Google
+  // sent any.
+  if (
+    dimensions.length === 0 &&
+    metrics.length === 0 &&
+    !response.rows?.length
+  ) {
+    return {
+      rows: [],
+      totalRowCount: 0,
+      reportMetadata: {
+        dataLossFromOtherRow: false,
+        subjectToThresholding: false,
+        sampling: [],
+        restrictedMetrics: [],
+        emptyReason:
+          response.metadata?.emptyReason ?? "no data in the report window",
+        hasLimitedData: false,
+      },
+      quota: response.propertyQuota ?? null,
+    };
+  }
   if (
     dimensions.join("\0") !== expectedDimensions.join("\0") ||
     metrics.join("\0") !== expectedMetrics.join("\0")
   ) {
+    // Which side disagreed, or the whole diagnosis is guesswork.
+    console.error(
+      "[ga4] header mismatch. expected dims=%s metrics=%s, got dims=%s metrics=%s",
+      expectedDimensions.join(","),
+      expectedMetrics.join(","),
+      dimensions.join(","),
+      metrics.join(","),
+    );
     throw new Ga4MalformedResponseError();
   }
 

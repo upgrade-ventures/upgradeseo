@@ -1,0 +1,68 @@
+import {
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { projects } from "./app.schema";
+
+// Competitor targeting footprints harvested from Common Crawl. Stored rather
+// than fetched on demand: a CDX query takes 8-20s and 504s roughly half the
+// time, so a page load can never wait on it. `harvestedAt` drives the
+// refresh, and `unavailable` records a failed harvest so the UI can say "we
+// could not reach Common Crawl" instead of "this competitor has no pages".
+export const competitorProfiles = sqliteTable(
+  "competitor_profiles",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    domain: text("domain").notNull(),
+    crawlId: text("crawl_id"),
+    harvestedAt: text("harvested_at"),
+    // Common Crawl returned exactly the row limit, so the inventory is a
+    // lower bound and its absent markets prove nothing.
+    truncated: integer("truncated", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    unavailable: integer("unavailable", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    // location codes inferred from distinctive-language pages.
+    targetsMarkets: text("targets_markets").notNull().default("[]"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(current_timestamp)`),
+  },
+  (table) => [
+    uniqueIndex("competitor_profiles_project_domain_uidx").on(
+      table.projectId,
+      table.domain,
+    ),
+  ],
+);
+
+// One row per page the competitor publishes. `title`/`h1` are null when only
+// the URL inventory was harvested and page content was not fetched.
+export const competitorPages = sqliteTable(
+  "competitor_pages",
+  {
+    id: text("id").primaryKey(),
+    competitorId: text("competitor_id")
+      .notNull()
+      .references(() => competitorProfiles.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    languages: text("languages"),
+    slug: text("slug"),
+    title: text("title"),
+    h1: text("h1"),
+  },
+  (table) => [
+    uniqueIndex("competitor_pages_competitor_url_uidx").on(
+      table.competitorId,
+      table.url,
+    ),
+  ],
+);

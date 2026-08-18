@@ -1,37 +1,25 @@
-import { env } from "cloudflare:workers";
-import {
-  customerHasPaidPlan,
-  type BillingCustomerContext,
-} from "@/server/billing/subscription";
-import {
-  createDataforseoClient,
-  fetchKeywordMetricsForList,
-} from "@/server/lib/dataforseo";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { AppError } from "@/server/lib/errors";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import type {
   RankTrackingConfig,
   RankCheckTriggerResult,
 } from "@/types/schemas/rank-tracking";
+import { reconcileActiveRankCheckRun } from "./rankCheckRunGuards";
 import {
-  beginRankCheckRun,
-  reconcileActiveRankCheckRun,
-} from "./rankCheckRunGuards";
-import {
-  estimateRankCheckCredits,
   computeNextCheckAt,
   isScheduledRankTrackingInterval,
   MAX_CONFIGS_PER_PROJECT,
-  rankCheckCostApprovalError,
 } from "@/shared/rank-tracking";
-import {
-  resolveKeywordDataLanguage,
-  resolveMarket,
-} from "@/shared/keyword-locations";
+import { resolveMarket } from "@/shared/keyword-locations";
 import { getLatestResults } from "./rankTrackingResults";
 import { toSqliteTimestamp } from "@/server/features/rank-tracking/rankTrackingTimestamps";
 import { RankTrackingKeywordService } from "./RankTrackingKeywordService";
+import { runFreeRankCheck } from "./freeRankSource";
+import {
+  fetchFreeTrackedKeywordMetrics,
+  recordFreeRankCheck,
+} from "./recordFreeRankCheck";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -179,13 +167,15 @@ async function updateConfig(
 async function triggerCheck(input: {
   configId: string;
   projectId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   keywordIds?: string[];
-  maxCostCredits?: number;
+  /**
+   * Accepted and ignored. The free rank sources are unmetered, so any
+   * approved ceiling is met. The MCP tool still collects one, and enforcing a
+   * ceiling would mean inventing a price for a check that costs nothing.
+   */
 }): Promise<RankCheckTriggerResult> {
   const config = await getValidatedConfig(input.configId, input.projectId);
-
-  await requireRankCheckAccess(input.billingCustomer.organizationId);
 
   const keywords = await RankTrackingRepository.getKeywordsForConfig(config.id);
   if (keywords.length === 0) {
@@ -195,36 +185,40 @@ async function triggerCheck(input: {
     );
   }
 
-  if (input.maxCostCredits != null) {
-    const { costCredits } = estimateRankCheckCredits(
-      keywords.length,
-      config.devices,
-      config.serpDepth,
-      "live",
+  // Free sources answer for the whole keyword set in one or two API calls, so a
+  // manual check runs inline instead of through the workflow: nothing to meter
+  // per keyword and nothing to poll.
+  const selectedIds = input.keywordIds ? new Set(input.keywordIds) : null;
+  const selectedKeywords = selectedIds
+    ? keywords.filter((kw) => selectedIds.has(kw.id))
+    : keywords;
+  const freeResult = await runFreeRankCheck({
+    projectId: input.projectId,
+    organizationId: input.billingCustomer.organizationId,
+    domain: config.domain,
+    locationCode: config.locationCode,
+    devices: config.devices,
+    keywords: selectedKeywords.map((kw) => ({
+      id: kw.id,
+      keyword: kw.keyword,
+    })),
+  });
+  if (!freeResult) {
+    // null is the free helper's leftover "let the paid client answer" signal,
+    // and there is no paid client any more. Name what to connect rather than
+    // recording a run with nothing in it.
+    throw new AppError(
+      "DATA_SOURCE_NOT_CONFIGURED",
+      "No rank source is connected. Connect a Google Search Console property covering this domain for Google positions, or add a free Bing Webmaster key for Bing positions.",
     );
-    if (costCredits > input.maxCostCredits) {
-      throw new AppError(
-        "VALIDATION_ERROR",
-        rankCheckCostApprovalError(costCredits, input.maxCostCredits),
-      );
-    }
   }
 
-  return beginRankCheckRun({
-    workflow: env.RANK_CHECK_WORKFLOW,
-    config,
+  return recordFreeRankCheck({
+    configId: config.id,
     projectId: input.projectId,
-    billingCustomer: {
-      userId: input.billingCustomer.userId,
-      userEmail: input.billingCustomer.userEmail,
-      organizationId: input.billingCustomer.organizationId,
-      projectId: input.billingCustomer.projectId,
-    },
-    keywordsTotal: input.keywordIds ? input.keywordIds.length : keywords.length,
-    keywordIds: input.keywordIds,
-    maxCostCredits: input.maxCostCredits,
-    trigger: "manual",
-    workflowStartErrorMessage: "Failed to start rank check workflow",
+    keywordsTotal: selectedKeywords.length,
+    isSubsetRun: (input.keywordIds?.length ?? 0) > 0,
+    result: freeResult,
   });
 }
 
@@ -256,28 +250,26 @@ async function getLatestRun(configId: string, projectId: string) {
 async function refreshKeywordMetrics(
   configId: string,
   projectId: string,
-  billingCustomer: BillingCustomerContext,
+  billingCustomer: OrganizationContext,
 ): Promise<{ updated: number }> {
   const config = await getValidatedConfig(configId, projectId);
-  await requireRankCheckAccess(billingCustomer.organizationId);
   const keywords = await RankTrackingRepository.getKeywordsForConfig(configId);
   if (keywords.length === 0) return { updated: 0 };
 
-  const client = createDataforseoClient(billingCustomer);
-  const metrics = await fetchKeywordMetricsForList(client, {
+  const metrics = await fetchFreeTrackedKeywordMetrics({
     keywords: keywords.map((kw) => kw.keyword),
     locationCode: config.locationCode,
-    // Trackers can pair any SERP language with any country; the keyword-data
-    // APIs only serve the country's own languages.
-    languageCode: resolveKeywordDataLanguage(
-      config.locationCode,
-      config.languageCode,
-    ),
-    // Local configs get volume/CPC scoped to the tracked city; national
-    // numbers can overstate local demand by orders of magnitude.
-    locationName: config.locationName ?? undefined,
-    creditFeature: "rank_tracking",
+    organizationId: billingCustomer.organizationId,
   });
+  if (!metrics) {
+    // Same leftover null as in triggerCheck: it used to defer to the paid
+    // client. Reporting "0 updated" would read as "these keywords have no
+    // volume", which is a different claim.
+    throw new AppError(
+      "DATA_SOURCE_NOT_CONFIGURED",
+      "No keyword data source is connected. Add Microsoft Advertising for volume and CPC with no approval wait, Google Ads for Google's own numbers, or a Bing Webmaster key. All three are free.",
+    );
+  }
   const byKeyword = new Map(
     metrics.map((metric) => [metric.keyword.toLowerCase(), metric]),
   );
@@ -315,15 +307,6 @@ async function getTracker(configId: string, projectId: string) {
   const config = await getValidatedConfig(configId, projectId);
   const results = await getLatestResults(configId, projectId);
   return { config, results };
-}
-
-async function requireRankCheckAccess(organizationId: string) {
-  if (!(await isHostedServerAuthMode())) return;
-  if (await customerHasPaidPlan(organizationId)) return;
-  throw new AppError(
-    "PAYMENT_REQUIRED",
-    "Upgrade to the paid plan to run rank checks",
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -386,9 +369,7 @@ export const RankTrackingService = {
   removeKeywords: RankTrackingKeywordService.removeKeywords,
   triggerCheck,
   getLatestRun,
-  estimateCost: RankTrackingKeywordService.estimateCost,
   refreshKeywordMetrics,
   getConfigs,
   getTracker,
-  requireRankCheckAccess,
 };

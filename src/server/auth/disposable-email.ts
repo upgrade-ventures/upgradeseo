@@ -1,8 +1,8 @@
 // A curated blocklist of the highest-volume disposable / throwaway email
-// providers. The free plan grants real credit spend off nothing but a verified
-// email, so the cheapest way to farm it is a temp-inbox service that can still
-// receive the verification link. Blocking the busiest of those raises the cost
-// of mass signups without touching legitimate users.
+// providers. An account costs nothing but a verified email, so the cheapest way
+// to farm our provider quotas is a temp-inbox service that can still receive the
+// verification link. Blocking the busiest of those raises the cost of mass
+// signups without touching legitimate users.
 //
 // This is deliberately a small, zero-dependency list — it is not exhaustive.
 // For comprehensive coverage, swap this for the `disposable-email-domains`

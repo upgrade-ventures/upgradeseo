@@ -49,7 +49,7 @@ const inputSchema = {
     .enum(["manual", "daily", "weekly", "monthly"])
     .optional()
     .describe(
-      "Check schedule. Defaults to manual so creating a tracker cannot cause future credit spend. Scheduled checks may use credits later.",
+      "Check schedule. Defaults to manual, so creating a tracker starts nothing on its own.",
     ),
 } as const;
 
@@ -60,7 +60,7 @@ export const createRankTrackerTool = {
   config: {
     title: "Create rank tracker",
     description:
-      "Create a rank tracking configuration for a project. Creating an empty tracker uses no credits and starts no check, but daily, weekly, and monthly trackers will spend credits after keywords are added. The domain defaults to the project's domain; market defaults to the project's market; devices default to mobile, search depth to 40, and schedule to manual. Use estimate_rank_tracker_cost before adding keywords to a scheduled tracker or starting a live run. Call get_rank_tracker first to avoid duplicates.",
+      "Create a rank tracking configuration for a project. Creating an empty tracker starts no check; daily, weekly and monthly trackers begin running once keywords are added. The domain defaults to the project's domain; market defaults to the project's market; devices default to mobile, search depth to 40, and schedule to manual. Call get_rank_tracker first to avoid duplicates.",
     inputSchema,
     outputSchema: z
       .object({
@@ -111,7 +111,7 @@ export const createRankTrackerTool = {
     );
 
     return mcpResponse({
-      text: `Created rank tracker ${config.id} for ${config.domain} (${config.devices}, top ${config.serpDepth}, ${config.scheduleInterval}). No keywords were added, no check was started, and no credits were used.${config.scheduleInterval === "manual" ? "" : " Scheduled checks will spend credits after keywords are added; estimate and obtain approval before adding them."}`,
+      text: `Created rank tracker ${config.id} for ${config.domain} (${config.devices}, top ${config.serpDepth}, ${config.scheduleInterval}). No keywords were added and no check was started.${config.scheduleInterval === "manual" ? "" : " Scheduled checks begin once keywords are added."}`,
       meta: buildProjectMeta(
         context,
         args.projectId,

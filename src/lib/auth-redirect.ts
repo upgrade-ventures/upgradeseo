@@ -1,6 +1,17 @@
+import { withBasePath } from "@/shared/base-path";
 const OAUTH_AUTHORIZE_PATH = "/api/auth/oauth2/authorize";
 const OAUTH_SIGNED_QUERY_END = "sig";
 const OAUTH_AUTHORIZE_MARKERS = ["response_type", "client_id", "redirect_uri"];
+
+/**
+ * The app's own home, which is NOT "/" on a sub-path deploy.
+ *
+ * "/" is the origin root, and on upgrade.ventures that is the Ghost marketing
+ * site. Returning it as the post-login destination signs a user in correctly
+ * and then throws them out of the product — the session is fine, the landing
+ * is just somebody else's page.
+ */
+const APP_HOME = withBasePath("/");
 
 export function normalizeAuthRedirect(value: string | null | undefined) {
   // Backslashes are rejected because URL parsers treat them as slashes:
@@ -12,7 +23,7 @@ export function normalizeAuthRedirect(value: string | null | undefined) {
     value.startsWith("//") ||
     value.includes("\\")
   ) {
-    return "/";
+    return APP_HOME;
   }
 
   return value;
@@ -69,12 +80,12 @@ export function getCurrentAuthRedirect(
 }
 
 export function getCurrentAuthRedirectFromHref(href: string) {
-  const url = new URL(href, "https://openseo.local");
+  const url = new URL(href, "https://upgradeseo.local");
   return normalizeAuthRedirect(`${url.pathname}${url.search}${url.hash}`);
 }
 
 export function getSignInSearch(redirectTo: string) {
-  return redirectTo === "/" ? {} : { redirect: redirectTo };
+  return redirectTo === APP_HOME ? {} : { redirect: redirectTo };
 }
 
 export function getVerifyEmailSearch(
@@ -83,17 +94,19 @@ export function getVerifyEmailSearch(
 ) {
   const search: { email?: string; redirect?: string } = {};
   if (email) search.email = email;
-  if (redirectTo !== "/") search.redirect = redirectTo;
+  if (redirectTo !== APP_HOME) search.redirect = redirectTo;
   return search;
 }
 
 export function getSignInHref(redirectTo: string) {
   const search = getSignInSearch(redirectTo);
   if (!("redirect" in search)) {
-    return "/sign-in";
+    return withBasePath("/sign-in");
   }
 
-  return `/sign-in?redirect=${encodeURIComponent(search.redirect ?? "/")}`;
+  return `${withBasePath("/sign-in")}?redirect=${encodeURIComponent(
+    search.redirect ?? APP_HOME,
+  )}`;
 }
 
 export function getSignInHrefForLocation(location: {

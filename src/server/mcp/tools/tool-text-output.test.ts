@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as researchTools from "./dataforseo-research-tools";
 import { getBacklinksOverviewTool } from "./get-backlinks-overview";
 import { getBacklinksProfileTool } from "./get-backlinks-profile";
 import { getDomainKeywordSuggestionsTool } from "./get-domain-keyword-suggestions";
@@ -9,13 +8,13 @@ import { researchKeywordsTool } from "./research-keywords";
 import { makeToolContext, textContent } from "./tool-test-support";
 
 // Verifies that each tool renders its actual row data into the text content
-// block (not just a count), across the tools whose data comes from OpenSEO
+// block (not just a count), across the tools whose data comes from UpgradeSEO
 // services rather than the DataForSEO client. Guards against a column wired to
 // the wrong field, which would render a table of only "—".
 
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
-  createDataforseoClient: vi.fn(),
+  getSerpAnalysis: vi.fn(),
   research: vi.fn(),
   profileOverview: vi.fn(),
   profileReferringDomainsPage: vi.fn(),
@@ -29,16 +28,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("cloudflare:workers", () => ({ env: {} }));
-vi.mock("@/server/lib/dataforseo", () => ({
-  createDataforseoClient: mocks.createDataforseoClient,
-}));
 vi.mock("@/server/features/projects/services/ProjectService", () => ({
   ProjectService: {
     getProjectForOrganization: mocks.getProjectForOrganization,
   },
 }));
 vi.mock("@/server/features/keywords/services/KeywordResearchService", () => ({
-  KeywordResearchService: { research: mocks.research },
+  KeywordResearchService: {
+    research: mocks.research,
+    getSerpAnalysis: mocks.getSerpAnalysis,
+  },
 }));
 vi.mock("@/server/features/backlinks/services/BacklinksService", () => ({
   BacklinksService: {
@@ -288,50 +287,23 @@ describe("MCP tool text output (service-backed tools)", () => {
     ).toBe(true);
   });
 
-  it("get_ranked_keywords renders nested provider rows as a text table", async () => {
-    const rankedKeywords = vi.fn().mockResolvedValue({
+  // The tool no longer claims to return the wider SERP: no free source gives
+  // the ten organic results for an arbitrary keyword, so it answers "where do I
+  // rank for this" from Search Console instead.
+  it("get_serp_results renders your own ranking pages as a text table", async () => {
+    mocks.getSerpAnalysis.mockResolvedValue({
       items: [
         {
-          keyword_data: {
-            keyword: "seo tools",
-            keyword_info: { search_volume: 1000, cpc: 3.2 },
-          },
-          ranked_serp_element: {
-            serp_item: { rank_absolute: 4, url: "https://example.com/tools" },
-          },
+          rank: 1,
+          title: "Best SEO Tools",
+          url: "https://example.com/best",
+          domain: "example.com",
+          description: "desc",
         },
       ],
-      totalCount: 1,
+      source: "search_console",
+      notice: null,
     });
-    mocks.createDataforseoClient.mockReturnValue({
-      domain: { rankedKeywords },
-    });
-    const { getRankedKeywordsTool } = researchTools;
-
-    const result = await getRankedKeywordsTool.handler(
-      { projectId: "project_1", target: "example.com" },
-      toolContext,
-    );
-
-    const out = textContent(result);
-    expect(out).toContain("keyword | rank | volume | CPC | url");
-    expect(out).toContain(
-      "seo tools | 4 | 1000 | 3.20 | https://example.com/tools",
-    );
-  });
-
-  it("get_serp_results renders each query's items as a text table", async () => {
-    const live = vi.fn().mockResolvedValue([
-      {
-        type: "organic",
-        rank_absolute: 1,
-        title: "Best SEO Tools",
-        url: "https://example.com/best",
-        domain: "example.com",
-        description: "desc",
-      },
-    ]);
-    mocks.createDataforseoClient.mockReturnValue({ serp: { live } });
 
     const result = await getSerpResultsTool.handler(
       { projectId: "project_1", queries: [{ keyword: "seo tools" }] },
@@ -339,9 +311,9 @@ describe("MCP tool text output (service-backed tools)", () => {
     );
 
     const out = textContent(result);
-    expect(out).toContain("rank | domain | title | url");
+    expect(out).toContain("position | domain | url | detail");
     expect(out).toContain(
-      "1 | example.com | Best SEO Tools | https://example.com/best",
+      "1 | example.com | https://example.com/best | Best SEO Tools",
     );
   });
 });

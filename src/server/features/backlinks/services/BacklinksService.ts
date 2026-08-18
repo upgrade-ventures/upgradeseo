@@ -1,5 +1,5 @@
 import { buildCacheKey, getCached, setCached } from "@/server/lib/r2-cache";
-import { normalizeBacklinksTarget } from "@/server/lib/dataforseo";
+import { normalizeBacklinksTarget } from "@/server/lib/backlinksTarget";
 import {
   normalizeBacklinksSpamFilterOptions,
   type BacklinksLookupInput,
@@ -15,8 +15,7 @@ import {
   type ReferringDomainsPageServiceInput,
   type TopPagesPageServiceInput,
 } from "@/server/features/backlinks/services/backlinksServiceData";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import type { CreditFeature } from "@/shared/billing-credit-features";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 
 const defaultCache: BacklinksCache = {
   get: getCached,
@@ -31,7 +30,7 @@ type BacklinksPageCacheInput = {
   sortField: string;
   sortOrder: string;
   filters: Record<string, unknown>;
-  /** Backlinks rows only: DataForSEO result grouping. */
+  /** Backlinks rows only: `one_per_domain` or `as_is` result grouping. */
   mode?: string;
 };
 
@@ -39,27 +38,19 @@ function createBacklinksService(cache: BacklinksCache = defaultCache) {
   return {
     async profileOverview(
       input: BacklinksLookupInput,
-      billingCustomer: BillingCustomerContext,
-      // Lets a caller (e.g. onboarding) attribute the spend to its own credit
-      // feature. Applied to the DataForSEO calls, not the cache key, so cached
-      // results stay shared across callers.
-      creditFeature?: CreditFeature,
+      billingCustomer: OrganizationContext,
+      // (e.g. onboarding) keep compiling. The free sources behind this lookup
+      // are unmetered, so there is nothing left to charge.
     ) {
       const cacheKey = await buildCacheKey("backlinks:overview", {
         ...buildTargetCacheInput(input, billingCustomer),
       });
 
-      return profileBacklinksOverview(
-        cache,
-        cacheKey,
-        input,
-        billingCustomer,
-        creditFeature,
-      );
+      return profileBacklinksOverview(cache, cacheKey, input, billingCustomer);
     },
     async profileBacklinksPage(
       input: BacklinksRowsPageServiceInput,
-      billingCustomer: BillingCustomerContext,
+      billingCustomer: OrganizationContext,
       options?: BacklinksSpamFilterOptions,
     ) {
       const cacheKey = await buildPageCacheKey(
@@ -69,17 +60,11 @@ function createBacklinksService(cache: BacklinksCache = defaultCache) {
         options,
       );
 
-      return profileBacklinksRowsPage(
-        cache,
-        cacheKey,
-        input,
-        billingCustomer,
-        options,
-      );
+      return profileBacklinksRowsPage(cache, cacheKey, input, billingCustomer);
     },
     async profileReferringDomainsPage(
       input: ReferringDomainsPageServiceInput,
-      billingCustomer: BillingCustomerContext,
+      billingCustomer: OrganizationContext,
       options?: BacklinksSpamFilterOptions,
     ) {
       const cacheKey = await buildPageCacheKey(
@@ -94,12 +79,11 @@ function createBacklinksService(cache: BacklinksCache = defaultCache) {
         cacheKey,
         input,
         billingCustomer,
-        options,
       );
     },
     async profileTopPagesPage(
       input: TopPagesPageServiceInput,
-      billingCustomer: BillingCustomerContext,
+      billingCustomer: OrganizationContext,
     ) {
       const cacheKey = await buildPageCacheKey(
         "backlinks:top-pages-page",
@@ -114,7 +98,7 @@ function createBacklinksService(cache: BacklinksCache = defaultCache) {
 
 function buildTargetCacheInput(
   input: BacklinksLookupInput,
-  billingCustomer: BillingCustomerContext,
+  billingCustomer: OrganizationContext,
 ) {
   const normalizedTarget = normalizeBacklinksTarget(input.target, {
     scope: input.scope,
@@ -130,9 +114,13 @@ function buildTargetCacheInput(
 async function buildPageCacheKey(
   prefix: string,
   input: BacklinksPageCacheInput,
-  billingCustomer: BillingCustomerContext,
+  billingCustomer: OrganizationContext,
   options?: BacklinksSpamFilterOptions,
 ): Promise<string> {
+  // Kept in the key, not passed to the tabs: no free source publishes a spam
+  // score, so the rows cannot be spam-filtered and every row's spamScore is
+  // null. Keying on it still keeps a caller's entries separate from another's
+  // for the day a spam source exists.
   const spamFilterOptions = normalizeBacklinksSpamFilterOptions(options);
 
   return buildCacheKey(prefix, {
@@ -151,4 +139,3 @@ async function buildPageCacheKey(
 }
 
 export const BacklinksService = createBacklinksService();
-export { createBacklinksService };

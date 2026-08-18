@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import type {
   RankCheckTriggerResult,
@@ -141,10 +141,9 @@ export async function beginRankCheckRun(input: {
   workflow: Env["RANK_CHECK_WORKFLOW"];
   config: RankCheckConfigForStart;
   projectId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   keywordsTotal: number;
   keywordIds?: string[];
-  maxCostCredits?: number;
   trigger: "manual" | "scheduled";
   workflowStartErrorMessage: string;
 }): Promise<RankCheckTriggerResult> {
@@ -176,7 +175,6 @@ export async function beginRankCheckRun(input: {
             serpDepth: input.config.serpDepth,
             trigger: input.trigger,
             keywordIds: input.keywordIds,
-            maxCostCredits: input.maxCostCredits,
           },
         });
       } catch (error) {

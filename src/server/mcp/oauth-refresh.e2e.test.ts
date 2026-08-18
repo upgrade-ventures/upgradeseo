@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import type { createOpenSeoOAuthProvider } from "./oauth-provider";
+import type { createUpgradeSeoOAuthProvider } from "./oauth-provider";
 
 // End-to-end OAuth lifecycle against the REAL @cloudflare/workers-oauth-provider
 // (only the Workers runtime shims and app session resolution are mocked),
@@ -11,7 +11,7 @@ import type { createOpenSeoOAuthProvider } from "./oauth-provider";
 // clients before (PR #420); these tests pin the full register → authorize →
 // consent → token → use → refresh → rotate chain.
 
-const BASE = "https://app.openseo.so";
+const BASE = "https://app.upgradeseo.test";
 const MCP_RESOURCE = `${BASE}/mcp`;
 
 vi.mock("cloudflare:workers", () => ({
@@ -26,7 +26,7 @@ vi.mock("cloudflare:workers", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getHostedBaseUrl: () => "https://app.openseo.so",
+  getHostedBaseUrl: () => "https://app.upgradeseo.test",
 }));
 
 vi.mock("@/middleware/ensure-user/hosted", () => ({
@@ -49,7 +49,7 @@ vi.mock("@/server/lib/posthog", () => ({
 // The API side of the provider: echo the decrypted grant props back so tests
 // can assert what a tool call would actually see after each token exchange.
 vi.mock("@/server/mcp/transport", () => ({
-  handleAuthenticatedOpenSeoMcpRequest: (
+  handleAuthenticatedUpgradeSeoMcpRequest: (
     _request: Request,
     props: unknown,
   ): Promise<Response> => Promise.resolve(Response.json({ props })),
@@ -127,7 +127,7 @@ const ctx: ExecutionContext = {
   props: {},
 };
 
-type Provider = ReturnType<typeof createOpenSeoOAuthProvider>;
+type Provider = ReturnType<typeof createUpgradeSeoOAuthProvider>;
 type Env = Parameters<Provider["fetch"]>[1];
 
 let provider: Provider;
@@ -135,8 +135,8 @@ let env: Env;
 
 beforeEach(async () => {
   vi.useRealTimers();
-  const { createOpenSeoOAuthProvider } = await import("./oauth-provider");
-  provider = createOpenSeoOAuthProvider(() => new Response("app"));
+  const { createUpgradeSeoOAuthProvider } = await import("./oauth-provider");
+  provider = createUpgradeSeoOAuthProvider(() => new Response("app"));
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the provider touches only OAUTH_KV
   env = { OAUTH_KV: createKvFake() } as unknown as Env;
 });
@@ -159,7 +159,7 @@ const tokenErrorSchema = z.looseObject({
 
 const propsEchoSchema = z.object({
   props: z.object({
-    openSeoAuth: z.looseObject({
+    upgradeSeoAuth: z.looseObject({
       userId: z.string(),
       organizationId: z.string(),
       clientId: z.string(),
@@ -279,7 +279,7 @@ async function callMcp(accessToken: string) {
     }),
   );
   expect(response.status).toBe(200);
-  return propsEchoSchema.parse(await response.json()).props.openSeoAuth;
+  return propsEchoSchema.parse(await response.json()).props.upgradeSeoAuth;
 }
 
 async function setupSession() {

@@ -25,7 +25,6 @@ const emptyCounts = {
   rankTrackingKeywordCount: 0,
   savedKeywordCount: 0,
   gscConnected: false,
-  samChatUsed: false,
 };
 
 function createHarness(
@@ -123,7 +122,7 @@ describe("maybeSendSelfHostHeartbeat", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     vi.stubEnv("AUTH_MODE", "cloudflare_access");
-    vi.stubEnv("OPENSEO_TELEMETRY_DISABLED", "");
+    vi.stubEnv("UPGRADESEO_TELEMETRY_DISABLED", "");
     vi.stubEnv("DO_NOT_TRACK", "");
   });
 
@@ -137,8 +136,8 @@ describe("maybeSendSelfHostHeartbeat", () => {
     expect(harness.sendHeartbeat).not.toHaveBeenCalled();
   });
 
-  it("does not send when OPENSEO_TELEMETRY_DISABLED is set", async () => {
-    vi.stubEnv("OPENSEO_TELEMETRY_DISABLED", "1");
+  it("does not send when UPGRADESEO_TELEMETRY_DISABLED is set", async () => {
+    vi.stubEnv("UPGRADESEO_TELEMETRY_DISABLED", "1");
     const harness = createHarness();
 
     await runHeartbeat(harness);
@@ -158,7 +157,7 @@ describe("maybeSendSelfHostHeartbeat", () => {
   });
 
   it('still sends when the disable flags are explicitly "0"/"false"', async () => {
-    vi.stubEnv("OPENSEO_TELEMETRY_DISABLED", "0");
+    vi.stubEnv("UPGRADESEO_TELEMETRY_DISABLED", "0");
     vi.stubEnv("DO_NOT_TRACK", "false");
     const harness = createHarness();
 
@@ -169,12 +168,14 @@ describe("maybeSendSelfHostHeartbeat", () => {
 
   it("includes the setup-issue summary in heartbeat properties", async () => {
     const harness = createHarness();
-    harness.dependencies.collectSetupIssues = async () => ["dataforseo:error"];
+    harness.dependencies.collectSetupIssues = async () => [
+      "keyword_source:warn",
+    ];
 
     await runHeartbeat(harness);
 
     expect(harness.sendHeartbeat.mock.calls[0]?.[1]).toMatchObject({
-      setupIssues: ["dataforseo:error"],
+      setupIssues: ["keyword_source:warn"],
     });
   });
 

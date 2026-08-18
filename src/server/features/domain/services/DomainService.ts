@@ -1,23 +1,26 @@
 import { waitUntil } from "cloudflare:workers";
 import { buildCacheKey, getCached, setCached } from "@/server/lib/r2-cache";
 import { z } from "zod";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import type { CreditFeature } from "@/shared/billing-credit-features";
-import { createDataforseoClient } from "@/server/lib/dataforseo";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { normalizeDomainInput } from "@/server/lib/domainUtils";
-import { mapKeywordItem } from "@/server/features/domain/services/domainKeywordMapper";
 import { getKeywordsPage } from "@/server/features/domain/services/domainKeywordsPage";
 import { getPagesPage } from "@/server/features/domain/services/domainPagesPage";
+import {
+  applyFreeKeywordQuery,
+  freeDomainOverviewSchema,
+  tryFreeDomainKeywords,
+  tryFreeDomainOverview,
+} from "@/server/features/domain/services/freeDomainOverview";
 
-// Lets a caller attribute spend to its own feature (e.g. onboarding). Applied
-// to the DataForSEO call, not the cache key, so cached results are shared
+// to the provider call, not the cache key, so cached results are shared
 // across callers.
-type MeteringOverrides = {
-  creditFeature?: CreditFeature;
-};
+type MeteringOverrides = {};
 
 /** Domain overview data is refreshed every 12 hours. */
 const DOMAIN_OVERVIEW_TTL_SECONDS = 12 * 60 * 60;
+
+/** How many keywords the overview's suggestion list shows, on either stack. */
+const SUGGESTED_KEYWORDS_LIMIT = 100;
 
 const domainOverviewResultSchema = z.object({
   domain: z.string(),
@@ -27,6 +30,14 @@ const domainOverviewResultSchema = z.object({
   referringDomains: z.number().nullable(),
   hasData: z.boolean(),
   fetchedAt: z.string(),
+  /**
+   * Present only on the free stack. Carries the numbers a free source CAN
+   * produce (OpenPageRank authority, keywords the domain targets) plus the
+   * user-facing reason for every field above that is null because no free
+   * source publishes it. Optional so a payload cached by the paid path still
+   * parses.
+   */
+  free: freeDomainOverviewSchema.optional(),
 });
 
 type DomainOverviewResult = z.infer<typeof domainOverviewResultSchema>;
@@ -39,8 +50,8 @@ async function getOverview(
     locationCode: number;
     languageCode: string;
   },
-  billingCustomer: BillingCustomerContext,
-  metering: MeteringOverrides = {},
+  billingCustomer: OrganizationContext,
+  _metering: MeteringOverrides = {},
 ): Promise<DomainOverviewResult> {
   const domain = normalizeDomainInput(input.domain, input.includeSubdomains);
 
@@ -60,36 +71,35 @@ async function getOverview(
   }
 
   const nowIso = new Date().toISOString();
-  const dataforseo = createDataforseoClient(billingCustomer);
 
-  const metricsResponse = await dataforseo.domain.rankOverview({
-    target: domain,
-    locationCode: input.locationCode,
-    languageCode: input.languageCode,
-    ...metering,
-  });
-
-  const metrics = metricsResponse[0];
-
-  const organicTraffic =
-    metrics?.metrics?.organic?.etv != null
-      ? Math.round(metrics.metrics.organic.etv)
-      : null;
-  const organicKeywords =
-    metrics?.metrics?.organic?.count != null
-      ? Math.round(metrics.metrics.organic.count)
-      : null;
-
-  const result: DomainOverviewResult = {
+  const free = await tryFreeDomainOverview({
     domain,
-    organicTraffic,
-    organicKeywords,
-    backlinks: null,
-    referringDomains: null,
-    hasData: organicKeywords != null && organicKeywords > 0,
-    fetchedAt: nowIso,
-  };
+    locationCode: input.locationCode,
+    organizationId: billingCustomer.organizationId,
+  });
+  {
+    return persistOverview(cacheKey, {
+      domain,
+      // All four are modelled from a licensed rank index on the paid stack.
+      // They stay null rather than 0, and `free.unavailable` carries the
+      // reason the UI shows in their place.
+      organicTraffic: null,
+      organicKeywords: null,
+      backlinks: null,
+      referringDomains: null,
+      hasData:
+        free.openPageRankAuthority !== null ||
+        free.googleAdsTargetedKeywords !== null,
+      fetchedAt: nowIso,
+      free,
+    });
+  }
+}
 
+function persistOverview(
+  cacheKey: string,
+  result: DomainOverviewResult,
+): DomainOverviewResult {
   if (result.hasData) {
     // waitUntil, not void: workerd cancels unregistered pending I/O once the
     // response is sent, so a fire-and-forget put never persists the cache.
@@ -113,8 +123,8 @@ async function getSuggestedKeywords(
     organizationId: string;
     projectId: string;
   },
-  billingCustomer: BillingCustomerContext,
-  metering: MeteringOverrides = {},
+  billingCustomer: OrganizationContext,
+  _metering: MeteringOverrides = {},
 ): Promise<
   Array<{
     keyword: string;
@@ -152,46 +162,45 @@ async function getSuggestedKeywords(
     return cached.data;
   }
 
-  const dataforseo = createDataforseoClient(billingCustomer);
-
-  const rankedKeywordsResponse = await dataforseo.domain.rankedKeywords({
-    target: domain,
+  const free = await tryFreeDomainKeywords({
+    domain,
     locationCode: input.locationCode,
-    languageCode: input.languageCode,
-    limit: 100,
-    orderBy: ["ranked_serp_element.serp_item.etv,desc"],
-    ...metering,
+    organizationId: input.organizationId,
   });
+  {
+    // This entry point returns a bare array, so there is nowhere to hang the
+    // "why is this null" copy. The overview result carries it for the same
+    // screen, and the MCP tool prints "?" for a null rather than a zero.
+    const suggestions = applyFreeKeywordQuery(free.rows, {
+      filters: {},
+      sortMode: "volume",
+      sortOrder: "desc",
+    }).rows.slice(0, SUGGESTED_KEYWORDS_LIMIT);
 
-  const keywords = rankedKeywordsResponse.items
-    .map((item) => mapKeywordItem(item))
-    .filter(
-      (item): item is NonNullable<ReturnType<typeof mapKeywordItem>> =>
-        item != null,
-    )
-    .map((item) => ({
-      keyword: item.keyword,
-      position: item.position,
-      searchVolume: item.searchVolume,
-      traffic: item.traffic,
-      cpc: item.cpc,
-      keywordDifficulty: item.keywordDifficulty,
+    const keywords = suggestions.map((row) => ({
+      keyword: row.keyword,
+      position: row.position,
+      searchVolume: row.searchVolume,
+      traffic: row.traffic,
+      cpc: row.cpc,
+      keywordDifficulty: row.keywordDifficulty,
     }));
 
-  if (keywords.length > 0) {
-    waitUntil(
-      setCached(cacheKey, keywords, DOMAIN_OVERVIEW_TTL_SECONDS).catch(
-        (error) => {
-          console.error(
-            "domain.keyword-suggestions.cache-write failed:",
-            error,
-          );
-        },
-      ),
-    );
-  }
+    if (keywords.length > 0) {
+      waitUntil(
+        setCached(cacheKey, keywords, DOMAIN_OVERVIEW_TTL_SECONDS).catch(
+          (error) => {
+            console.error(
+              "domain.keyword-suggestions.cache-write failed:",
+              error,
+            );
+          },
+        ),
+      );
+    }
 
-  return keywords;
+    return keywords;
+  }
 }
 
 export const DomainService = {

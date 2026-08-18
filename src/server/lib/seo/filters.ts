@@ -1,8 +1,8 @@
 import { AppError } from "@/server/lib/errors";
-import { MAX_DATAFORSEO_FILTER_CONDITIONS } from "@/types/schemas/domain";
+import { MAX_FILTER_CONDITIONS } from "@/types/schemas/domain";
 
 /**
- * Building blocks for DataForSEO `filters` expressions, shared by the
+ * Building blocks for provider `filters` expressions, shared by the
  * feature-specific builders (domain keywords, backlinks). A "clause" is one
  * condition tuple like ["field", "ilike", "%term%"] or a nested group.
  */
@@ -39,9 +39,9 @@ export function collectNumericRange(
 /**
  * One ilike condition per include term, joined with "or" into a single nested
  * group (match-any semantics). Returns the group clause plus how many of the
- * DataForSEO condition budget it consumes.
+ * filter-condition budget it consumes.
  */
-export function buildIncludeOrGroup(
+function _buildIncludeOrGroup(
   field: string,
   include: string | undefined,
 ): { clause: FilterClause; conditionCount: number } | null {
@@ -62,16 +62,16 @@ export function buildIncludeOrGroup(
 }
 
 /**
- * DataForSEO accepts up to 8 filter conditions per request. The clients
+ * The providers accept up to 8 filter conditions per request. The clients
  * surface the same condition count and disable Apply when over budget, so
  * reaching the cap here indicates a misbehaving client — we throw rather
  * than silently truncate.
  */
 export function assertFilterConditionBudget(conditionCount: number): void {
-  if (conditionCount > MAX_DATAFORSEO_FILTER_CONDITIONS) {
+  if (conditionCount > MAX_FILTER_CONDITIONS) {
     throw new AppError(
       "VALIDATION_ERROR",
-      `Too many filter conditions (${conditionCount} of ${MAX_DATAFORSEO_FILTER_CONDITIONS} max).`,
+      `Too many filter conditions (${conditionCount} of ${MAX_FILTER_CONDITIONS} max).`,
     );
   }
 }

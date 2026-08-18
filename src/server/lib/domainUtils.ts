@@ -38,7 +38,7 @@ export function normalizeDomainInput(
   }
 
   // Reject fake TLDs / non-registrable hosts (e.g. "example.por") before they
-  // reach DataForSEO and come back as an opaque "Invalid Field: 'target'".
+  // reach the provider and come back as an opaque "Invalid Field: 'target'".
   if (!isValidDomainHost(host)) {
     throw new AppError(
       "VALIDATION_ERROR",

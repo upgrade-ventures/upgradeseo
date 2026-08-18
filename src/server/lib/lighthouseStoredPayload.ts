@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { LIGHTHOUSE_CATEGORIES } from "@/shared/lighthouse";
 
-export type RawLighthouseAudit = {
+type RawLighthouseAudit = {
   title?: string;
   description?: string;
   score?: number | null;
@@ -15,7 +15,7 @@ export type RawLighthouseAudit = {
   };
 };
 
-export type RawLighthouseCategory = {
+type RawLighthouseCategory = {
   score?: number | null;
   auditRefs?: Array<{
     id?: string;
@@ -55,7 +55,7 @@ const storedLighthouseIssueSchema = z.object({
 
 export const storedLighthousePayloadSchema = z.object({
   version: z.literal(2),
-  source: z.literal("dataforseo-lighthouse"),
+  source: z.literal("lighthouse"),
   hasIssueDetails: z.boolean(),
   metadata: z.object({
     requestedUrl: z.string(),
@@ -83,9 +83,7 @@ export type StoredLighthousePayload = z.infer<
   typeof storedLighthousePayloadSchema
 >;
 
-export function scoreToPercent(
-  score: number | null | undefined,
-): number | null {
+function scoreToPercent(score: number | null | undefined): number | null {
   if (score == null || Number.isNaN(score)) return null;
   return Math.round(score * 100);
 }

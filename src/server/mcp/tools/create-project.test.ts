@@ -44,7 +44,7 @@ describe("create_project MCP tool", () => {
       domain: "acme.com",
       locationCode: 2840,
       languageCode: "en",
-      url: "https://open-seo.test/p/project_new",
+      url: "https://upgradeseo.test/p/project_new",
     });
     const first = result.content?.[0];
     expect(first?.type).toBe("text");

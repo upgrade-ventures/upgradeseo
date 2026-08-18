@@ -74,23 +74,6 @@ describe("beginRankCheckRun", () => {
     expect(mocks.getRunById).not.toHaveBeenCalled();
   });
 
-  it("passes the approved credit ceiling into the workflow payload", async () => {
-    mocks.tryCreateRun.mockResolvedValue(true);
-    const create = vi
-      .fn<(input: { params: { maxCostCredits?: number } }) => Promise<void>>()
-      .mockResolvedValue(undefined);
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only create is exercised by this unit test
-    const workflow = { create } as unknown as Env["RANK_CHECK_WORKFLOW"];
-
-    await beginRankCheckRun({
-      ...input,
-      workflow,
-      maxCostCredits: 12,
-    });
-
-    expect(create.mock.calls[0]?.[0].params.maxCostCredits).toBe(12);
-  });
-
   it("does not create another workflow when a run is already active", async () => {
     const blocker = { ...run, id: "run_0", status: "running" as const };
     mocks.tryCreateRun.mockResolvedValue(false);

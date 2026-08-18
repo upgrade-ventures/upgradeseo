@@ -2,10 +2,9 @@
 /**
  * Supported keyword-data countries and their data provider.
  *
- * Default provider is DataForSEO Labs (94 countries; source:
- * https://api.dataforseo.com/v3/dataforseo_labs/locations_and_languages).
+ * The Labs location set covers 94 countries.
  * Countries Labs does not cover are marked `googleAdsOnly` and are served by
- * the DataForSEO Keywords Data API (Google Ads endpoints), which covers the
+ * the Keywords Data API (Google Ads endpoints), which covers the
  * full Google geotarget list — see specs/0004-keyword-data-source-routing.md.
  * Google-Ads-only rows have no keyword difficulty or search intent.
  *
@@ -22,7 +21,7 @@
 export const DEFAULT_LOCATION_CODE = 2840;
 
 /**
- * Human-readable form of a canonical DataForSEO location_name, whose segments
+ * Human-readable form of a canonical location_name, whose segments
  * are comma-separated with inconsistent spacing ("Portland-Auburn, ME,United
  * States"). Trims each segment; `maxSegments` truncates for compact display
  * ("Enid, Oklahoma").
@@ -43,7 +42,7 @@ const ISO_COUNTRY_OVERRIDES: Record<string, string> = { UK: "GB" };
 
 /**
  * Lowercase ISO 3166-1 alpha-2 code for a country location_code — the format
- * DataForSEO's per-country endpoints (e.g. SERP locations) require.
+ * per-country endpoints (e.g. SERP locations) require.
  */
 export function getIsoCountryCode(locationCode: number): string {
   const shortLabel =
@@ -59,7 +58,7 @@ type LocationOption = {
   label: string;
   shortLabel: string;
   languageCode: string;
-  /** Set when DataForSEO Labs does not support this country. */
+  /** Set when the Labs location set does not cover this country. */
   googleAdsOnly?: true;
 };
 
@@ -522,14 +521,14 @@ export const LOCATION_OPTIONS: readonly LocationOption[] = [
 ] as const;
 
 /**
- * Languages selectable for rank tracking, which runs against the DataForSEO
+ * Languages selectable for rank tracking, which runs against the
  * SERP (Google) API. This is the full set of language codes that API accepts;
  * source/refresh it from the live endpoint (auth required):
- *   GET https://api.dataforseo.com/v3/serp/google/languages
+ *   GET /v3/serp/google/languages
  * (Country list above comes from the sibling Labs endpoint cited at the top of
- * this file: /v3/dataforseo_labs/locations_and_languages.)
+ * this file: /v3/labs/locations_and_languages.)
  *
- * `code` is the DataForSEO `language_code` (authoritative); `label` is its
+ * `code` is the `language_code` (authoritative); `label` is its
  * `language_name`, lightly cleaned for display. Deviations from the raw
  * endpoint: the deprecated `iw` Hebrew alias and the redundant `no` are
  * dropped (Norway uses `nb`, which both SERP and Labs accept). Every country
@@ -669,7 +668,7 @@ export const SERP_LANGUAGE_OPTIONS = [
   { code: "yo", label: "Yoruba" },
   { code: "zu", label: "Zulu" },
 ] as const;
-/** Countries usable by DataForSEO Labs features (domain overview etc.). */
+/** Countries usable by Labs-style features (domain overview etc.). */
 export const LABS_LOCATION_OPTIONS = LOCATION_OPTIONS.filter(
   (option) => !option.googleAdsOnly,
 );
@@ -720,7 +719,7 @@ export function resolveMarket(
 }
 
 /**
- * Whether DataForSEO serves this language for this location. Only Labs
+ * Whether this language is served for this location. Only Labs
  * locations have authoritative per-location language lists; Google Ads
  * locations are left to the metering safety net.
  */
@@ -738,8 +737,8 @@ export function isLanguageServedForLocation(
  * Resolves the market for a Labs-only tool. Same as resolveMarket, except a
  * project default Labs cannot serve is replaced by the United States: the
  * caller never chose that market, so rejecting the call would dead-end on a
- * value it can't see — and passing the pair through would spend credits on a
- * task DataForSEO rejects. An explicit location is left alone, so a caller that
+ * value it can't see — and passing the pair through would burn quota on a
+ * task the provider rejects. An explicit location is left alone, so a caller that
  * names an unserved country still fails loudly on its own assert.
  */
 export function resolveLabsMarket(
@@ -759,9 +758,9 @@ export function resolveLabsMarket(
 }
 
 /**
- * Language codes DataForSEO accepts — the master SERP_LANGUAGE_OPTIONS list.
+ * Language codes accepted — the master SERP_LANGUAGE_OPTIONS list.
  * Callers (e.g. MCP tools) can pass an arbitrary `language_code`; an
- * unsupported one is otherwise rejected by DataForSEO as an opaque *charged*
+ * unsupported one is otherwise rejected as an opaque
  * "Invalid Field: 'language_code'." failure, so we validate against this set
  * first (cost 0).
  */
@@ -770,7 +769,7 @@ export function isSupportedLanguageCode(languageCode: string): boolean {
 }
 
 /**
- * Countries where DataForSEO offers more than one language, from the Labs
+ * Countries offering more than one language, from the Labs
  * locations_and_languages endpoint (each country's default is included).
  * Every other country offers just its single default (see getLanguageOptions);
  * googleAdsOnly countries have no per-country language data, so they fall back
@@ -801,7 +800,7 @@ const MULTI_LANGUAGE_LOCATIONS: Record<number, readonly string[]> = {
 
 /**
  * Languages to offer for a location. Restricts the global SERP_LANGUAGE_OPTIONS
- * list to the languages DataForSEO supports for that country, so a picker
+ * list to the languages supported for that country, so a picker
  * isn't a wall of irrelevant options.
  */
 export function getLanguageOptions(
@@ -841,7 +840,7 @@ export function isLabsLocationCode(locationCode: number): boolean {
 }
 
 /**
- * Which DataForSEO API serves keyword data for this location. Unknown codes
+ * Which API serves keyword data for this location. Unknown codes
  * fall back to Labs so behavior for arbitrary codes is unchanged (Labs
  * rejects unsupported locations with its own error).
  */

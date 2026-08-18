@@ -9,7 +9,7 @@ import {
 } from "@/types/schemas/backlinks";
 
 // The web UI exposes spam score as a regular user filter, so the implicit
-// DataForSEO spam-score cutoff stays off for all web requests.
+// The spam-score cutoff stays off for all web requests: no free source scores spam.
 const WEB_SPAM_OPTIONS = { hideSpam: false };
 
 export const getBacklinksOverview = createServerFn({

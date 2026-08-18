@@ -39,7 +39,7 @@ const inputSchema = {
     .boolean()
     .optional()
     .describe(
-      "Refine search volumes with clickstream data, which disaggregates Google Ads' grouped close-variant volumes (plurals/misspellings). DOUBLES the credit cost of each seed. Default false (standard Google-Ads-derived volumes). No effect for countries served from Google Ads data.",
+      "Refine search volumes with clickstream data, which disaggregates Google Ads' grouped close-variant volumes (plurals/misspellings). Roughly doubles the work per seed. Default false (standard Google-Ads-derived volumes). No effect for countries served from Google Ads data.",
     ),
 } as const;
 
@@ -71,7 +71,7 @@ export const researchKeywordsTool = {
   config: {
     title: "Research keywords (bulk)",
     description:
-      "Research keyword data (search volume, difficulty, CPC, related ideas) for 1-5 seed keywords in one call. Charges credits per seed (~30-100 credits each, varies by source; flat ~96 for countries served from Google Ads data, where difficulty/intent are unavailable). Returns per-seed results — a single bad seed won't fail the batch.",
+      "Research keyword data (search volume, difficulty, CPC, related ideas) for 1-5 seed keywords in one call. Returns per-seed results — a single bad seed won't fail the batch.",
     inputSchema,
     outputSchema: {
       results: z.array(

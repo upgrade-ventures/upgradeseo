@@ -1,54 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  computeNextCheckAt,
-  estimateRankCheckCredits,
-  scheduleLabel,
-} from "./rank-tracking";
-
-describe("rank tracking cost estimates", () => {
-  it.each([
-    {
-      method: "live" as const,
-      keywordCount: 4,
-      devices: "desktop" as const,
-      depth: 10,
-      costUsd: 0.01024,
-      costCredits: 12,
-    },
-    {
-      method: "live" as const,
-      keywordCount: 1000,
-      devices: "both" as const,
-      depth: 40,
-      costUsd: 16.64,
-      costCredits: 18_000,
-    },
-    {
-      method: "queued" as const,
-      keywordCount: 104,
-      devices: "desktop" as const,
-      depth: 10,
-      costUsd: 0.07987,
-      costCredits: 81,
-    },
-    {
-      method: "queued" as const,
-      keywordCount: 1000,
-      devices: "both" as const,
-      depth: 40,
-      costUsd: 4.992,
-      costCredits: 5_000,
-    },
-  ])(
-    "matches per-call billing for $method checks",
-    ({ keywordCount, devices, depth, method, costUsd, costCredits }) => {
-      expect(
-        estimateRankCheckCredits(keywordCount, devices, depth, method),
-      ).toEqual({ costUsd, costCredits });
-    },
-  );
-});
-
+import { computeNextCheckAt, scheduleLabel } from "./rank-tracking";
 describe("rank tracking schedules", () => {
   afterEach(() => {
     vi.useRealTimers();

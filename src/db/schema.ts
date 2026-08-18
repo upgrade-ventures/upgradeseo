@@ -1,19 +1,17 @@
 import { getDatabaseProvider } from "./provider";
 import * as sqliteApp from "./app.schema";
 import * as sqliteAudit from "./audit.schema";
-import * as sqliteSam from "./sam.schema";
 import * as sqliteAuth from "./better-auth-schema";
-import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
+import * as sqliteCompetitors from "./competitors.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgAudit from "./pg/audit.schema";
-import * as pgSam from "./pg/sam.schema";
 import * as pgAuth from "./pg/better-auth-schema";
-import * as pgBilling from "./pg/billing.schema";
 import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
+import * as pgCompetitors from "./pg/competitors.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 
 // Canonical schema barrel. Repositories import their tables from here and the
@@ -28,11 +26,10 @@ import * as pgTelemetry from "./pg/telemetry.schema";
 // parity test is its drift guard.
 type AppSchema = typeof sqliteApp &
   typeof sqliteAudit &
-  typeof sqliteSam &
   typeof sqliteAuth &
-  typeof sqliteBilling &
   typeof sqliteGa4 &
   typeof sqliteGsc &
+  typeof sqliteCompetitors &
   typeof sqliteTelemetry;
 
 const runtimeSchema =
@@ -40,21 +37,19 @@ const runtimeSchema =
     ? {
         ...pgApp,
         ...pgAudit,
-        ...pgSam,
         ...pgAuth,
-        ...pgBilling,
         ...pgGa4,
         ...pgGsc,
+        ...pgCompetitors,
         ...pgTelemetry,
       }
     : {
         ...sqliteApp,
         ...sqliteAudit,
-        ...sqliteSam,
         ...sqliteAuth,
-        ...sqliteBilling,
         ...sqliteGa4,
         ...sqliteGsc,
+        ...sqliteCompetitors,
         ...sqliteTelemetry,
       };
 
@@ -75,12 +70,13 @@ export const {
   organizationActivationState,
   projectActivationState,
   backlinkSnapshots,
+  organizationProviderKeys,
+  competitorProfiles,
+  competitorPages,
   audits,
   auditPages,
   auditIssues,
   auditLighthouseResults,
-  samSessions,
-  samProjectMemory,
   user,
   session,
   account,
@@ -89,7 +85,6 @@ export const {
   organization,
   member,
   invitation,
-  billingCustomerStatus,
   ga4Connections,
   gscConnections,
   telemetryState,

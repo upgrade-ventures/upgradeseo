@@ -9,12 +9,12 @@ const mocks = vi.hoisted(() => ({
   getKeywordCountForConfig: vi.fn(),
   isHostedServerAuthMode: vi.fn(),
   customerHasPaidPlan: vi.fn(),
-  beginRankCheckRun: vi.fn(),
-  createDataforseoClient: vi.fn(),
-  fetchKeywordMetricsForList: vi.fn(),
+  runFreeRankCheck: vi.fn(),
+  recordFreeRankCheck: vi.fn(),
+  fetchFreeTrackedKeywordMetrics: vi.fn(),
 }));
 
-vi.mock("cloudflare:workers", () => ({ env: { RANK_CHECK_WORKFLOW: {} } }));
+vi.mock("cloudflare:workers", () => ({ env: {} }));
 vi.mock(
   "@/server/features/rank-tracking/repositories/RankTrackingRepository",
   () => ({ RankTrackingRepository: mocks }),
@@ -22,16 +22,20 @@ vi.mock(
 vi.mock("@/server/lib/runtime-env", () => ({
   isHostedServerAuthMode: mocks.isHostedServerAuthMode,
 }));
-vi.mock("@/server/billing/subscription", () => ({
+vi.mock("@/server/auth/organizationContext", () => ({
   customerHasPaidPlan: mocks.customerHasPaidPlan,
 }));
 vi.mock("@/server/features/rank-tracking/services/rankCheckRunGuards", () => ({
-  beginRankCheckRun: mocks.beginRankCheckRun,
   reconcileActiveRankCheckRun: vi.fn(),
 }));
-vi.mock("@/server/lib/dataforseo", () => ({
-  createDataforseoClient: mocks.createDataforseoClient,
-  fetchKeywordMetricsForList: mocks.fetchKeywordMetricsForList,
+vi.mock("./recordFreeRankCheck", () => ({
+  recordFreeRankCheck: mocks.recordFreeRankCheck,
+  fetchFreeTrackedKeywordMetrics: mocks.fetchFreeTrackedKeywordMetrics,
+}));
+vi.mock("./freeRankSource", () => ({
+  runFreeRankCheck: mocks.runFreeRankCheck,
+  recordFreeRankCheck: mocks.recordFreeRankCheck,
+  fetchFreeTrackedKeywordMetrics: mocks.fetchFreeTrackedKeywordMetrics,
 }));
 
 const config = {
@@ -72,7 +76,6 @@ describe("RankTrackingService management invariants", () => {
       "config_1",
       "project_1",
       ["SEO", "seo", "technical seo"],
-      { kind: "direct_user_action" },
     );
 
     expect(result).toMatchObject({ added: 1 });
@@ -83,80 +86,7 @@ describe("RankTrackingService management invariants", () => {
     ]);
   });
 
-  it("requires an approved estimate before increasing scheduled spend", async () => {
-    mocks.getKeywordsForConfig.mockResolvedValue([]);
-
-    const error: unknown = await RankTrackingService.addKeywords(
-      "config_1",
-      "project_1",
-      ["seo", "technical seo"],
-      { kind: "credit_ceiling" },
-    ).catch((cause: unknown) => cause);
-    expect(error).toBeInstanceOf(Error);
-    if (!(error instanceof Error) || !("code" in error)) throw error;
-    expect(error.code).toBe("VALIDATION_ERROR");
-    expect(error.message).toContain("nominal queued estimate");
-    expect(error.message).toContain("Live fallback");
-    expect(mocks.addKeywordsToConfig).not.toHaveBeenCalled();
-  });
-
-  it("adds scheduled keywords at the approved estimate", async () => {
-    mocks.getKeywordsForConfig.mockResolvedValue([]);
-    mocks.getKeywordCountForConfig.mockResolvedValue(2);
-    mocks.addKeywordsToConfig.mockImplementation(
-      async (rows: Array<{ id: string }>) => rows.map((row) => row.id),
-    );
-
-    await expect(
-      RankTrackingService.addKeywords(
-        "config_1",
-        "project_1",
-        ["seo", "technical seo"],
-        {
-          kind: "credit_ceiling",
-          maxEstimatedScheduledCheckCredits: 4,
-        },
-      ),
-    ).resolves.toMatchObject({
-      added: 2,
-      scheduledEstimate: {
-        scheduleInterval: "weekly",
-        costCredits: 4,
-        checksPerMonth: 4,
-      },
-    });
-    expect(mocks.addKeywordsToConfig).toHaveBeenCalledTimes(1);
-  });
-
-  it("rolls back its inserts when a concurrent add exceeds the estimate", async () => {
-    mocks.getKeywordsForConfig.mockResolvedValue([]);
-    mocks.getKeywordCountForConfig.mockResolvedValue(3);
-    mocks.addKeywordsToConfig.mockImplementation(
-      async (rows: Array<{ id: string }>) => rows.map((row) => row.id),
-    );
-    mocks.removeKeywordsFromConfig.mockImplementation(
-      async (ids: string[]) => ids,
-    );
-
-    const error: unknown = await RankTrackingService.addKeywords(
-      "config_1",
-      "project_1",
-      ["seo", "technical seo"],
-      {
-        kind: "credit_ceiling",
-        maxEstimatedScheduledCheckCredits: 4,
-      },
-    ).catch((cause: unknown) => cause);
-    expect(error).toBeInstanceOf(Error);
-    if (!(error instanceof Error) || !("code" in error)) throw error;
-    expect(error.code).toBe("VALIDATION_ERROR");
-    expect(mocks.removeKeywordsFromConfig).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.any(String), expect.any(String)]),
-      "config_1",
-    );
-  });
-
-  it("does not require MCP approval for a manual tracker", async () => {
+  it("adds keywords to a manual tracker without a extra count read", async () => {
     mocks.getConfigById.mockResolvedValue({
       ...config,
       scheduleInterval: "manual",
@@ -167,10 +97,8 @@ describe("RankTrackingService management invariants", () => {
     );
 
     await expect(
-      RankTrackingService.addKeywords("config_1", "project_1", ["seo"], {
-        kind: "credit_ceiling",
-      }),
-    ).resolves.toMatchObject({ added: 1, scheduledEstimate: undefined });
+      RankTrackingService.addKeywords("config_1", "project_1", ["seo"]),
+    ).resolves.toMatchObject({ added: 1 });
     expect(mocks.getKeywordCountForConfig).not.toHaveBeenCalled();
   });
 
@@ -190,45 +118,14 @@ describe("RankTrackingService management invariants", () => {
     expect(result).toEqual({ removed: 1, removedIds: ["owned_id"] });
   });
 
-  it("uses the same live cost invariant exposed to the browser", async () => {
-    mocks.getKeywordCountForConfig.mockResolvedValue(5);
-
-    await expect(
-      RankTrackingService.estimateCost("config_1", "project_1"),
-    ).resolves.toMatchObject({
-      keywordCount: 5,
-      devicesCount: 2,
-      totalChecks: 10,
-      method: "live",
-      existingKeywordCount: 5,
-      additionalKeywordCount: 0,
-      scheduledEstimate: {
-        scheduleInterval: "weekly",
-        checksPerMonth: 4,
-      },
-    });
-  });
-
-  it("rejects a hosted unpaid run before keyword or workflow work", async () => {
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
-    mocks.customerHasPaidPlan.mockResolvedValue(false);
-
-    await expect(
-      RankTrackingService.triggerCheck({
-        configId: "config_1",
-        projectId: "project_1",
-        billingCustomer,
-      }),
-    ).rejects.toMatchObject({ code: "PAYMENT_REQUIRED" });
-    expect(mocks.getKeywordsForConfig).not.toHaveBeenCalled();
-    expect(mocks.beginRankCheckRun).not.toHaveBeenCalled();
-  });
-
   it("allows paid hosted and self-hosted runs", async () => {
-    mocks.beginRankCheckRun.mockResolvedValue({
-      ok: true,
-      runId: "run_1",
+    mocks.runFreeRankCheck.mockResolvedValue({
+      source: "gsc_average_position",
+      notice: "Google positions from Search Console.",
+      rows: [],
+      keywordsChecked: 0,
     });
+    mocks.recordFreeRankCheck.mockResolvedValue({ ok: true, runId: "run_1" });
 
     mocks.isHostedServerAuthMode.mockResolvedValue(true);
     mocks.customerHasPaidPlan.mockResolvedValue(true);
@@ -254,58 +151,24 @@ describe("RankTrackingService management invariants", () => {
     expect(mocks.customerHasPaidPlan).not.toHaveBeenCalled();
   });
 
-  it("rejects a run above its approved credit ceiling", async () => {
-    const error: unknown = await RankTrackingService.triggerCheck({
-      configId: "config_1",
-      projectId: "project_1",
-      billingCustomer,
-      maxCostCredits: 11,
-    }).catch((cause: unknown) => cause);
-    expect(error).toBeInstanceOf(Error);
-    if (!(error instanceof Error) || !("code" in error)) throw error;
-    expect(error.code).toBe("VALIDATION_ERROR");
-    expect(error.message).toContain("costs 12 credits");
-    expect(mocks.beginRankCheckRun).not.toHaveBeenCalled();
-  });
-
-  it("starts a run at or below its approved credit ceiling", async () => {
-    mocks.beginRankCheckRun.mockResolvedValue({
-      ok: true,
-      runId: "run_1",
-    });
+  // A check the free sources cannot answer must say so. Recording an empty run
+  // would render as "you rank nowhere".
+  it("refuses a check no free source can answer", async () => {
+    mocks.runFreeRankCheck.mockResolvedValue(null);
 
     await expect(
       RankTrackingService.triggerCheck({
         configId: "config_1",
         projectId: "project_1",
         billingCustomer,
-        maxCostCredits: 12,
       }),
-    ).resolves.toEqual({ ok: true, runId: "run_1" });
-    expect(mocks.beginRankCheckRun).toHaveBeenCalledWith(
-      expect.objectContaining({ maxCostCredits: 12 }),
-    );
-  });
-
-  it("rejects hosted unpaid metrics refresh before provider work", async () => {
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
-    mocks.customerHasPaidPlan.mockResolvedValue(false);
-
-    await expect(
-      RankTrackingService.refreshKeywordMetrics(
-        "config_1",
-        "project_1",
-        billingCustomer,
-      ),
-    ).rejects.toMatchObject({ code: "PAYMENT_REQUIRED" });
-    expect(mocks.createDataforseoClient).not.toHaveBeenCalled();
-    expect(mocks.fetchKeywordMetricsForList).not.toHaveBeenCalled();
+    ).rejects.toMatchObject({ code: "DATA_SOURCE_NOT_CONFIGURED" });
+    expect(mocks.recordFreeRankCheck).not.toHaveBeenCalled();
   });
 
   it("allows self-hosted metrics refresh without a plan check", async () => {
     mocks.isHostedServerAuthMode.mockResolvedValue(false);
-    mocks.createDataforseoClient.mockReturnValue({});
-    mocks.fetchKeywordMetricsForList.mockResolvedValue([]);
+    mocks.fetchFreeTrackedKeywordMetrics.mockResolvedValue([]);
 
     await expect(
       RankTrackingService.refreshKeywordMetrics(
@@ -315,7 +178,7 @@ describe("RankTrackingService management invariants", () => {
       ),
     ).resolves.toEqual({ updated: 0 });
     expect(mocks.customerHasPaidPlan).not.toHaveBeenCalled();
-    expect(mocks.fetchKeywordMetricsForList).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchFreeTrackedKeywordMetrics).toHaveBeenCalledTimes(1);
   });
 
   it("rejects missing or foreign trackers with NOT_FOUND before mutation", async () => {

@@ -10,6 +10,7 @@ import { getAuthMode, isHostedAuthMode } from "@/lib/auth-mode";
 import { resolveCloudflareAccessContext } from "@/middleware/ensure-user/cloudflareAccess";
 import { resolveLocalNoAuthContext } from "@/middleware/ensure-user/delegated";
 import { AppError } from "@/server/lib/errors";
+import { withBasePath } from "@/shared/base-path";
 import { responseForAppError } from "@/server/lib/http-errors";
 import { getPublicOrigin } from "@/server/mcp/public-origin";
 import { GA4_OAUTH_PROVIDER_ID, GA4_OAUTH_SCOPES } from "@/shared/ga4";
@@ -41,7 +42,11 @@ export const GSC_INTEGRATION: SelfHostedGoogleOAuthIntegration = {
   // deployment does not invalidate an authorization already in progress.
   stateNamespace: "gsc",
   displayName: "Search Console",
-  callbackPath: "/api/gsc/oauth/callback",
+  // Prefixed because the redirect_uri is built from origin + this path. On a
+  // sub-path deploy an unprefixed value sends Google to whatever serves the
+  // root of the hostname, and the connection fails at the callback rather than
+  // at the consent screen — that is, after the user has already approved.
+  callbackPath: withBasePath("/api/gsc/oauth/callback"),
   scopes: GSC_OAUTH_SCOPES,
 };
 
@@ -49,7 +54,7 @@ export const GA4_INTEGRATION: SelfHostedGoogleOAuthIntegration = {
   providerId: GA4_OAUTH_PROVIDER_ID,
   stateNamespace: "ga4",
   displayName: "Google Analytics",
-  callbackPath: "/api/ga4/oauth/callback",
+  callbackPath: withBasePath("/api/ga4/oauth/callback"),
   scopes: GA4_OAUTH_SCOPES,
 };
 
@@ -89,7 +94,7 @@ function base64UrlToBytes(value: string) {
 async function getStateKey(clientSecret: string, stateNamespace: string) {
   return crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(`openseo:${stateNamespace}:${clientSecret}`),
+    new TextEncoder().encode(`upgradeseo:${stateNamespace}:${clientSecret}`),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],

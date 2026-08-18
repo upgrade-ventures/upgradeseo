@@ -10,5 +10,4 @@ export const GSC_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/webmasters.readonly",
 ] as const;
 
-export const GSC_SELF_HOSTED_SETUP_DOCS_URL =
-  "https://github.com/every-app/open-seo/blob/main/docs/SELF_HOSTING_GOOGLE_SEARCH_CONSOLE.md";
+export const GSC_SELF_HOSTED_SETUP_DOCS_URL = "";

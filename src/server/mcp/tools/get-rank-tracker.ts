@@ -46,7 +46,7 @@ export const getRankTrackerTool = {
   config: {
     title: "Get rank tracker",
     description:
-      "Read-only access to rank tracker configs and their latest results. With `trackerId`, returns config + latest snapshot per keyword, including `trackingKeywordId` for removals. Without it, lists all trackers in the project. Uses no credits. Use create_rank_tracker when no tracker exists; then use add_rank_tracking_keywords, remove_rank_tracking_keywords, estimate_rank_tracker_cost, or run_rank_tracker to manage it. `lastCheckedAt` shows position freshness.",
+      "Read-only access to rank tracker configs and their latest results. With `trackerId`, returns config + latest snapshot per keyword, including `trackingKeywordId` for removals. Without it, lists all trackers in the project. Use create_rank_tracker when no tracker exists; then use add_rank_tracking_keywords, remove_rank_tracking_keywords, estimate_rank_tracker_cost, or run_rank_tracker to manage it. `lastCheckedAt` shows position freshness.",
     inputSchema,
     outputSchema: z
       .object({

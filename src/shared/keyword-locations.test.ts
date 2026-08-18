@@ -55,7 +55,7 @@ describe("keyword locations", () => {
     expect(isSupportedLanguageCode("zh-TW")).toBe(true);
     // Non-default codes from the master picker list are valid too (e.g. Hindi).
     expect(isSupportedLanguageCode("hi")).toBe(true);
-    // Malformed/unsupported codes DataForSEO would reject as a charged failure.
+    // Malformed/unsupported codes the provider would reject.
     expect(isSupportedLanguageCode("english")).toBe(false);
     expect(isSupportedLanguageCode("en-US")).toBe(false);
     expect(isSupportedLanguageCode("zh-tw")).toBe(false);
@@ -155,7 +155,7 @@ describe("resolveLabsMarket", () => {
 
   it("falls back to the US when the project pair is not served", () => {
     // Concurrent half-updates can leave a location/language pair Labs rejects;
-    // sending it would spend credits on a task that always fails.
+    // sending it would burn quota on a task that always fails.
     expect(
       resolveLabsMarket({}, { locationCode: 2276, languageCode: "vi" }),
     ).toEqual({ locationCode: 2840, languageCode: "en" });

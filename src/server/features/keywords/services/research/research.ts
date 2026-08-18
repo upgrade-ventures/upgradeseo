@@ -1,6 +1,5 @@
 import { AppError } from "@/server/lib/errors";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import type { CreditFeature } from "@/shared/billing-credit-features";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import {
   CACHE_TTL,
   buildCacheKey,
@@ -87,16 +86,15 @@ const cachedResultSchema = z.object({
   }),
 });
 
-// v3: research volumes are no longer clickstream-refined, and Google-Ads-only
-// locations route to keywords_for_keywords.
-const CACHE_VERSION = 3;
+// v5: Google Autocomplete now tops up the ideas list, so v4 entries — which
+// were empty for any seed Bing could not answer — must not be served.
+const CACHE_VERSION = 5;
 
 async function fetchRowsFromSource(
   source: KeywordSource,
   input: ResolvedResearchKeywordsInput,
   seedKeyword: string,
-  billingCustomer: BillingCustomerContext,
-  creditFeature?: CreditFeature,
+  billingCustomer: OrganizationContext,
 ): Promise<EnrichedKeyword[]> {
   return fetchResearchRowsBySource(
     {
@@ -106,7 +104,6 @@ async function fetchRowsFromSource(
       languageCode: input.languageCode,
       resultLimit: input.resultLimit,
       includeClickstreamData: input.clickstream,
-      creditFeature,
     },
     billingCustomer,
   );
@@ -115,8 +112,7 @@ async function fetchRowsFromSource(
 async function fetchAutoRows(
   input: ResolvedResearchKeywordsInput,
   seedKeyword: string,
-  billingCustomer: BillingCustomerContext,
-  creditFeature?: CreditFeature,
+  billingCustomer: OrganizationContext,
 ): Promise<ResearchResult> {
   const attempts: SourceAttempt[] = [];
   let lastSource: KeywordSource = "related";
@@ -129,7 +125,6 @@ async function fetchAutoRows(
       input,
       seedKeyword,
       billingCustomer,
-      creditFeature,
     );
     for (const row of rows) {
       if (accumulatedRows.length >= input.resultLimit) break;
@@ -177,8 +172,7 @@ async function fetchAutoRows(
 async function fetchGoogleAdsRows(
   input: ResolvedResearchKeywordsInput,
   seedKeyword: string,
-  billingCustomer: BillingCustomerContext,
-  creditFeature?: CreditFeature,
+  billingCustomer: OrganizationContext,
 ): Promise<ResearchResult> {
   const rows = await fetchGoogleAdsResearchRows(
     {
@@ -186,7 +180,6 @@ async function fetchGoogleAdsRows(
       locationCode: input.locationCode,
       languageCode: input.languageCode,
       resultLimit: input.resultLimit,
-      creditFeature,
     },
     billingCustomer,
   );
@@ -213,15 +206,13 @@ async function fetchManualRows(
   mode: Exclude<KeywordMode, "auto">,
   input: ResolvedResearchKeywordsInput,
   seedKeyword: string,
-  billingCustomer: BillingCustomerContext,
-  creditFeature?: CreditFeature,
+  billingCustomer: OrganizationContext,
 ): Promise<ResearchResult> {
   const rows = await fetchRowsFromSource(
     mode,
     input,
     seedKeyword,
     billingCustomer,
-    creditFeature,
   );
   const attempt: SourceAttempt = {
     source: mode,
@@ -245,7 +236,7 @@ async function buildResearchCacheKey(
   input: ResolvedResearchKeywordsInput,
   normalizedKeywords: string[],
   mode: KeywordMode,
-  billingCustomer: BillingCustomerContext,
+  billingCustomer: OrganizationContext,
 ): Promise<string> {
   return buildCacheKey("kw:research", {
     cacheVersion: CACHE_VERSION,
@@ -287,8 +278,7 @@ function persistRows(
 
 export async function research(
   input: ResolvedResearchKeywordsInput,
-  billingCustomer: BillingCustomerContext,
-  creditFeature?: CreditFeature,
+  billingCustomer: OrganizationContext,
 ): Promise<ResearchResult> {
   const uniqueKeywords = [
     ...new Set(input.keywords.map(normalizeKeyword)),
@@ -327,25 +317,14 @@ export async function research(
 
   const result =
     provider === "google_ads"
-      ? await fetchGoogleAdsRows(
-          effectiveInput,
-          seedKeyword,
-          billingCustomer,
-          creditFeature,
-        )
+      ? await fetchGoogleAdsRows(effectiveInput, seedKeyword, billingCustomer)
       : mode === "auto"
-        ? await fetchAutoRows(
-            effectiveInput,
-            seedKeyword,
-            billingCustomer,
-            creditFeature,
-          )
+        ? await fetchAutoRows(effectiveInput, seedKeyword, billingCustomer)
         : await fetchManualRows(
             mode,
             effectiveInput,
             seedKeyword,
             billingCustomer,
-            creditFeature,
           );
 
   await setCached(cacheKey, result, CACHE_TTL.researchResult);

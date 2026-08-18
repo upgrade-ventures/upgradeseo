@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { addRankTrackingKeywordsTool } from "./add-rank-tracking-keywords";
 import { createRankTrackerTool } from "./create-rank-tracker";
-import { estimateRankTrackerCostTool } from "./estimate-rank-tracker-cost";
 import { removeRankTrackingKeywordsTool } from "./remove-rank-tracking-keywords";
 import { runRankTrackerTool } from "./run-rank-tracker";
 import { makeToolContext, textContent } from "./tool-test-support";
@@ -51,7 +50,7 @@ const toolContext = makeToolContext();
 const createdConfig = {
   id: trackerId,
   projectId,
-  domain: "openseo.so",
+  domain: "upgradeseo.test",
   locationCode: 2840,
   languageCode: "en",
   locationName: null,
@@ -65,7 +64,7 @@ describe("rank tracking management MCP tools", () => {
   beforeEach(() => {
     mocks.getProjectForOrganization.mockResolvedValue({
       id: projectId,
-      domain: "openseo.so",
+      domain: "upgradeseo.test",
       locationCode: 2840,
       languageCode: "en",
     });
@@ -84,11 +83,11 @@ describe("rank tracking management MCP tools", () => {
       projectId,
       projectMarket: {
         id: projectId,
-        domain: "openseo.so",
+        domain: "upgradeseo.test",
         locationCode: 2840,
         languageCode: "en",
       },
-      domain: "openseo.so",
+      domain: "upgradeseo.test",
       locationCode: undefined,
       languageCode: undefined,
       locationName: undefined,
@@ -108,7 +107,7 @@ describe("rank tracking management MCP tools", () => {
       organizationId: "org_123",
       properties: {
         project_id: projectId,
-        domain: "openseo.so",
+        domain: "upgradeseo.test",
         devices: "mobile",
         schedule: "manual",
         source: "mcp",
@@ -135,15 +134,6 @@ describe("rank tracking management MCP tools", () => {
     expect(mocks.createConfig).not.toHaveBeenCalled();
   });
 
-  it("requires maxCostCredits to run a rank tracker", () => {
-    expect(
-      z.object(runRankTrackerTool.config.inputSchema).safeParse({
-        projectId,
-        trackerId,
-      }).success,
-    ).toBe(false);
-  });
-
   it("reports database-confirmed add and removal counts in text and structured output", async () => {
     mocks.addKeywords.mockResolvedValue({ added: 1, addedIds: [keywordId] });
     mocks.removeKeywords.mockResolvedValue({
@@ -157,15 +147,11 @@ describe("rank tracking management MCP tools", () => {
     );
     expect(textContent(added)).toContain("Added 1 of 3 requested");
     expect(added.structuredContent).toMatchObject({ requested: 3, added: 1 });
-    expect(mocks.addKeywords).toHaveBeenCalledWith(
-      trackerId,
-      projectId,
-      ["seo", "SEO", "existing"],
-      {
-        kind: "credit_ceiling",
-        maxEstimatedScheduledCheckCredits: undefined,
-      },
-    );
+    expect(mocks.addKeywords).toHaveBeenCalledWith(trackerId, projectId, [
+      "seo",
+      "SEO",
+      "existing",
+    ]);
 
     const removed = await removeRankTrackingKeywordsTool.handler(
       { projectId, trackerId, keywordIds: [keywordId, keywordId] },
@@ -179,51 +165,13 @@ describe("rank tracking management MCP tools", () => {
     });
   });
 
-  it("returns the shared live cost estimate without starting a check", async () => {
-    mocks.estimateCost.mockResolvedValue({
-      costUsd: 0.0128,
-      costCredits: 13,
-      keywordCount: 8,
-      devicesCount: 2,
-      totalChecks: 16,
-      method: "live",
-      existingKeywordCount: 5,
-      additionalKeywordCount: 3,
-      scheduledEstimate: {
-        scheduleInterval: "weekly",
-        costUsd: 0.0046,
-        costCredits: 5,
-        checksPerMonth: 4,
-        monthlyCostUsd: 0.0184,
-        monthlyCostCredits: 20,
-      },
-    });
-    const result = await estimateRankTrackerCostTool.handler(
-      { projectId, trackerId, additionalKeywordCount: 3 },
-      toolContext,
-    );
-
-    expect(textContent(result)).toContain(
-      "8 keywords × 2 devices = 16 SERP checks",
-    );
-    expect(textContent(result)).toContain(
-      "additional separately billed live fallback",
-    );
-    expect(result.structuredContent).toMatchObject({
-      costCredits: 13,
-      method: "live",
-    });
-    expect(mocks.estimateCost).toHaveBeenCalledWith(trackerId, projectId, 3);
-    expect(mocks.triggerCheck).not.toHaveBeenCalled();
-  });
-
   it("returns the created run ID and emits the existing telemetry contract", async () => {
     mocks.triggerCheck.mockResolvedValue({
       ok: true,
       runId: "run_1",
     });
     const result = await runRankTrackerTool.handler(
-      { projectId, trackerId, maxCostCredits: 13 },
+      { projectId, trackerId },
       toolContext,
     );
 
@@ -231,9 +179,16 @@ describe("rank tracking management MCP tools", () => {
       started: true,
       runId: "run_1",
     });
-    expect(mocks.triggerCheck).toHaveBeenCalledWith(
-      expect.objectContaining({ maxCostCredits: 13 }),
-    );
+    expect(mocks.triggerCheck).toHaveBeenCalledWith({
+      configId: trackerId,
+      projectId,
+      billingCustomer: {
+        organizationId: "org_123",
+        projectId,
+        userEmail: "alice@example.com",
+        userId: "user_123",
+      },
+    });
     expect(mocks.captureServerEvent).toHaveBeenCalledWith({
       distinctId: "user_123",
       event: "rank_tracking:check_trigger",
@@ -255,7 +210,7 @@ describe("rank tracking management MCP tools", () => {
       blockingRunId: "run_0",
     });
     const result = await runRankTrackerTool.handler(
-      { projectId, trackerId, maxCostCredits: 13 },
+      { projectId, trackerId },
       toolContext,
     );
 
@@ -275,10 +230,7 @@ describe("rank tracking management MCP tools", () => {
     mocks.captureServerEvent.mockRejectedValue(new Error("telemetry down"));
 
     await expect(
-      runRankTrackerTool.handler(
-        { projectId, trackerId, maxCostCredits: 13 },
-        toolContext,
-      ),
+      runRankTrackerTool.handler({ projectId, trackerId }, toolContext),
     ).resolves.toMatchObject({
       structuredContent: { started: true, runId: "run_1" },
     });

@@ -45,10 +45,6 @@ const COLOR_CLASS: Record<TagColorKey, string> = {
   fuchsia: "bg-fuchsia-500",
 };
 
-export function tagChipClass(color: TagColorKey): string {
-  return `tag-chip-${color} ring-1 ring-inset`;
-}
-
 export function tagDotClass(color: TagColorKey): string {
   return COLOR_CLASS[color];
 }

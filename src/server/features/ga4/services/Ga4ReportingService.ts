@@ -142,6 +142,10 @@ export function mapGa4ReportError(error: unknown): never {
     );
   }
   if (error instanceof Ga4MalformedResponseError) {
+    // The message alone is undiagnosable — it covers every shape surprise the
+    // API can produce. Log the cause so an operator can tell a header
+    // mismatch from a schema change without re-running with a debugger.
+    console.error("[ga4] malformed response:", error.message, error.cause);
     throw new Ga4ReportError(
       "ga4_malformed_response",
       "Google Analytics returned an invalid report.",
@@ -194,6 +198,10 @@ export function mapGa4ReportError(error: unknown): never {
     );
   }
   if (error instanceof z.ZodError) {
+    console.error(
+      "[ga4] response failed schema:",
+      JSON.stringify(error.issues.slice(0, 5)),
+    );
     throw new Ga4ReportError(
       "ga4_malformed_response",
       "Google Analytics returned an invalid report.",

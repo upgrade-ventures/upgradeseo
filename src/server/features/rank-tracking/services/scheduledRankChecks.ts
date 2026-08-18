@@ -1,7 +1,5 @@
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { beginRankCheckRun } from "@/server/features/rank-tracking/services/rankCheckRunGuards";
-import { customerHasPaidPlan } from "@/server/billing/subscription";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import {
   computeNextCheckAt,
   devicesCount,
@@ -11,22 +9,20 @@ import {
 // Work admitted per tick, in task units (keywords × devices). Admission
 // control, not a hard rate limit: the first start of a tick is always
 // admitted, so a config bigger than the budget (legal max: 1,000 keywords ×
-// 2 devices = 2,000 units) can never starve. Sized against DataForSEO's
-// 2,000 requests/min account cap, where task_get polling is the binding
-// term: one call per unit per poll round, rounds wake synchronized per tick,
-// and up to three ticks' ~15-minute poll windows overlap the */5 cron — so a
-// full tick can burst ~1,000 polls into a single minute, stacking with the
-// residual rounds of the two prior ticks. Overruns aren't
-// loud failures: throttled polls age into the live fallback at ~3× cost,
-// billed to the customer, so keep real headroom under the cap.
-// 1,000/tick ≈ 288,000 units/day, ~45× steady-state demand — it only binds
-// during backlog catch-up.
+// 2 devices = 2,000 units) can never starve.
+//
+// A free check costs a bounded number of upstream calls per CONFIG (at most a
+// few Search Console pages, or one Bing call) no matter how many keywords it
+// tracks, so counting keyword/device pairs now over-states the real cost. It is
+// kept as the unit because it is still monotonic in tracker size and therefore
+// a safe upper bound: it admits fewer configs per tick than the sources could
+// serve, never more. Unprocessed configs stay due and the next tick resumes
+// oldest-first.
 const SCHEDULED_TASK_UNIT_BUDGET = 1000;
 
 // Wall-clock guard for the per-config loop: sub-hourly crons are killed at 15
-// minutes, and a skip-heavy tick pays serial Autumn round-trips per distinct
-// org (worst case minutes, more when Autumn is degraded). Stopping early is
-// safe — unprocessed configs stay due and the next tick resumes oldest-first.
+// minutes, and a large due set walks serially. Stopping early is safe —
+// unprocessed configs stay due and the next tick resumes oldest-first.
 const TICK_DEADLINE_MS = 3 * 60_000;
 
 // Cap on the per-tick list of configs blocked by an active run. Blocked
@@ -39,36 +35,19 @@ export async function runScheduledRankChecks(env: Env) {
   const nowIso = new Date().toISOString();
   const dueConfigs =
     await RankTrackingRepository.getDueConfigsWithOrganization(nowIso);
-  const isHosted = await isHostedServerAuthMode();
   const keywordCounts = await RankTrackingRepository.getKeywordCountsForConfigs(
     dueConfigs.map((config) => config.id),
   );
-
-  // Function-local so it lives exactly one tick: at module scope this would be
-  // cross-invocation global state in Workers, and a rejection would be cached
-  // forever. Within a tick, a rejection staying memoized is intentional — one
-  // Autumn call per org, and that org's configs simply stay due.
-  const paidPlanChecks = new Map<string, Promise<boolean>>();
-  const checkPaidPlan = (organizationId: string) => {
-    let check = paidPlanChecks.get(organizationId);
-    if (!check) {
-      check = customerHasPaidPlan(organizationId, { retryDenied: true });
-      paidPlanChecks.set(organizationId, check);
-    }
-    return check;
-  };
 
   const deadline = Date.now() + TICK_DEADLINE_MS;
   let unitsStarted = 0;
   let started = 0;
   let stoppedByBudget = false;
   let stoppedByDeadline = false;
-  let skippedFree = 0;
   let skippedNoKeywords = 0;
   let concurrentChangeSkips = 0;
   let alreadyRunning = 0;
   const alreadyRunningConfigIds: string[] = [];
-  let planCheckErrors = 0;
   let workflowStartErrors = 0;
   let configErrors = 0;
 
@@ -118,41 +97,9 @@ export async function runScheduledRankChecks(env: Env) {
         continue;
       }
 
-      // Self-hosted deployments treat every config as paid and make no Autumn
-      // calls at all.
-      let hasPaidPlan = true;
-      if (isHosted) {
-        try {
-          hasPaidPlan = await checkPaidPlan(config.organizationId);
-        } catch (err) {
-          // Never write nextCheckAt on an error: it is the schedule anchor, so
-          // an error write would permanently shift this config's slot and
-          // herd-sync configs after an outage. Leaving the row due is the retry.
-          console.error(
-            `[cron] Plan check failed for config ${config.id} (${config.domain}):`,
-            err,
-          );
-          planCheckErrors++;
-          continue;
-        }
-      }
-
-      if (!hasPaidPlan) {
-        const claimed = await RankTrackingRepository.claimDueConfig({
-          configId: config.id,
-          projectId: config.projectId,
-          observedNextCheckAt,
-          nextCheckAt,
-          lastSkipReason: "plan_required",
-        });
-        if (claimed) skippedFree++;
-        else concurrentChangeSkips++;
-        continue;
-      }
-
-      // Claim the slot before starting. Clearing lastSkipReason here is what
-      // lets an upgraded org drop the "plan_required" badge — the workflow only
-      // writes null on a fully successful run.
+      // Claim the slot before starting. The workflow writes null on a fully
+      // successful run, so clearing lastSkipReason here keeps a stale badge
+      // from outliving the condition that set it.
       const claimed = await RankTrackingRepository.claimDueConfig({
         configId: config.id,
         projectId: config.projectId,
@@ -173,7 +120,7 @@ export async function runScheduledRankChecks(env: Env) {
           projectId: config.projectId,
           billingCustomer: {
             userId: "system",
-            userEmail: "system@openseo.so",
+            userEmail: "",
             organizationId: config.organizationId,
             projectId: config.projectId,
           },
@@ -230,9 +177,7 @@ export async function runScheduledRankChecks(env: Env) {
   // fields. Error level when anything failed, so ticks that need attention
   // surface in error-filtered views.
   const logSummary =
-    planCheckErrors + workflowStartErrors + configErrors > 0
-      ? console.error
-      : console.log;
+    workflowStartErrors + configErrors > 0 ? console.error : console.log;
   logSummary({
     event: "rank_tracking_scheduler_summary",
     candidates: dueConfigs.length,
@@ -241,12 +186,10 @@ export async function runScheduledRankChecks(env: Env) {
     budget: SCHEDULED_TASK_UNIT_BUDGET,
     stoppedByBudget,
     stoppedByDeadline,
-    skippedFree,
     skippedNoKeywords,
     concurrentChangeSkips,
     alreadyRunning,
     alreadyRunningConfigIds,
-    planCheckErrors,
     workflowStartErrors,
     configErrors,
     oldestDueAgeMs: oldestDue

@@ -27,7 +27,7 @@ export const researchKeywordsSchema = z.object({
     .enum(["auto", "related", "suggestions", "ideas"])
     .optional()
     .default("auto"),
-  // Clickstream-refined volumes double the DataForSEO request cost; opt-in.
+  // Clickstream-refined volumes roughly double the work per seed; opt-in.
   clickstream: z.boolean().optional().default(false),
 });
 

@@ -27,8 +27,8 @@ export function createBaseAuthConfig() {
       },
     },
     plugins: [
-      // Block user-initiated org creation: each org is its own Autumn customer
-      // with its own onboarding-plan credit grant, so an authenticated user
+      // Block user-initiated org creation: each org is its own data tenant,
+      // so an authenticated user
       // hitting POST /api/auth/organization/create could mint unlimited fresh
       // grants. The app gives every user exactly one workspace, created
       // server-side at signup via `auth.api.createOrganization({ body: { userId }})`
@@ -46,7 +46,7 @@ export function createBaseAuthConfig() {
       // disableOrganizationDeletion closes the delete side of the same loop:
       // POST /api/auth/organization/delete (owner-callable by default) would
       // cascade-delete the workspace, and the next request auto-creates a fresh
-      // org id — a fresh Autumn customer with a fresh credit grant.
+      // org id — a fresh, empty tenant.
       organization({
         allowUserToCreateOrganization: false,
         invitationLimit: 0,

@@ -6,7 +6,7 @@ describe("toClientError", () => {
     const error = toClientError(
       new AppError(
         "INTERNAL_ERROR",
-        "DataForSEO task missing billing metadata (path: Invalid input). Response: {...}",
+        "Provider task missing response metadata (path: Invalid input). Response: {...}",
       ),
     );
 
@@ -14,9 +14,9 @@ describe("toClientError", () => {
   });
 
   it("keeps public error codes unchanged", () => {
-    const error = toClientError(new AppError("PAYMENT_REQUIRED"));
+    const error = toClientError(new AppError("RATE_LIMITED"));
 
-    expect(error.message).toBe("PAYMENT_REQUIRED");
+    expect(error.message).toBe("RATE_LIMITED");
   });
 
   it("passes setup-error detail through as CODE: detail", () => {

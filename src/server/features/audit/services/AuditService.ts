@@ -1,9 +1,5 @@
 import { env } from "cloudflare:workers";
-import {
-  customerHasManagedAccess,
-  customerHasPaidPlan,
-  type BillingCustomerContext,
-} from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import { getAuditScratchpad } from "@/server/features/audit/AuditScratchpad";
 import {
@@ -24,28 +20,17 @@ import {
   resolveStartUrlRedirects,
 } from "@/server/lib/audit/url-policy";
 import { reconcileRunningAudit } from "@/server/features/audit/services/auditReconciler";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 
-// Plan-tier limits are the abuse bound in hosted mode: free accounts get one
-// small audit at a time, paid keeps the full limits, and customers with no
-// Autumn product at all are turned away. Self-hosted isn't gated.
-async function resolveAuditLimitTier(
-  organizationId: string,
-): Promise<AuditLimitTier> {
-  if (!(await isHostedServerAuthMode())) return "self_hosted";
-  const [hasManagedAccess, hasPaidPlan] = await Promise.all([
-    customerHasManagedAccess(organizationId),
-    customerHasPaidPlan(organizationId),
-  ]);
-  if (!hasManagedAccess) {
-    throw new AppError("PAYMENT_REQUIRED", "Subscribe to run site audits");
-  }
-  return hasPaidPlan ? "paid" : "free";
+// Audits used to be tiered by plan, which is what the "free" and "paid" tiers
+// meant. Nothing is charged now, so every deployment gets the full limits and
+// the crawl budget in audit-capacity.ts is the only bound.
+async function resolveAuditLimitTier(): Promise<AuditLimitTier> {
+  return "self_hosted";
 }
 
 async function startAudit(input: {
   actorUserId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   projectId: string;
   startUrl: string;
   maxPages?: number;

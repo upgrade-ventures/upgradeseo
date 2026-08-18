@@ -2,6 +2,16 @@ import { env } from "cloudflare:workers";
 import { sortBy } from "remeda";
 
 /**
+ * R2 is optional. `alchemy.run.ts` drops the bucket because enabling R2 needs a
+ * payment method, and this install is free by mandate. A cache with no bucket
+ * must behave as a permanent miss, not take the request down: every caller
+ * here is an optimisation, not a source of truth.
+ */
+function bucket(): R2Bucket | null {
+  return (env as { R2?: R2Bucket }).R2 ?? null;
+}
+
+/**
  * Cache TTL constants in seconds.
  */
 export const CACHE_TTL = {
@@ -9,7 +19,7 @@ export const CACHE_TTL = {
   researchResult: 86400,
 } as const;
 
-const CACHE_PREFIX = "dataforseo-cache/";
+const CACHE_PREFIX = "provider-cache/";
 
 export const AI_SEARCH_PROMPT_CACHE_NAMESPACE = "ai-search:prompt-response";
 
@@ -39,7 +49,9 @@ export async function buildCacheKey(
  * drift between writes and reads is otherwise silent.
  */
 export async function getCached(key: string): Promise<unknown> {
-  const obj = await env.R2.get(`${CACHE_PREFIX}${key}`);
+  const store = bucket();
+  if (!store) return null;
+  const obj = await store.get(`${CACHE_PREFIX}${key}`);
   if (!obj) return null;
 
   const expiresAt = obj.customMetadata?.expiresAt;
@@ -61,7 +73,9 @@ export async function setCached<T>(
   ttlSeconds: number,
   metadata: Record<string, string> = {},
 ): Promise<void> {
-  await env.R2.put(`${CACHE_PREFIX}${key}`, JSON.stringify(data), {
+  const store = bucket();
+  if (!store) return;
+  await store.put(`${CACHE_PREFIX}${key}`, JSON.stringify(data), {
     httpMetadata: { contentType: "application/json" },
     customMetadata: {
       ...metadata,

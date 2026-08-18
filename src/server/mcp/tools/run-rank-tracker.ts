@@ -14,13 +14,6 @@ const inputSchema = {
     .string()
     .uuid()
     .describe("Rank tracker ID from get_rank_tracker."),
-  maxCostCredits: z
-    .number()
-    .int()
-    .positive()
-    .describe(
-      "Maximum credits the user approved after seeing estimate_rank_tracker_cost. The run is rejected if its fresh estimate is higher.",
-    ),
 } as const;
 
 type Args = z.infer<z.ZodObject<typeof inputSchema>>;
@@ -30,7 +23,7 @@ export const runRankTrackerTool = {
   config: {
     title: "Run rank tracker",
     description:
-      "Start an explicit live rank check for every keyword and configured device. This spends credits: call estimate_rank_tracker_cost, show the estimate to the user, and pass the approved credit amount as maxCostCredits. A fresh estimate above that ceiling is rejected. Hosted accounts require a paid plan, while self-hosted deployments are not plan-gated. If a run is already in progress, its blocking run ID is reported without starting or charging another check. The schedule is unchanged.",
+      "Start a live rank check for every keyword and configured device. Free: positions come from Search Console for domains you have verified, Bing Webmaster for verified sites, or an opt-in Bright Data zone. If a run is already in progress, its blocking run ID is reported instead of starting another. The schedule is unchanged.",
     inputSchema,
     outputSchema: z
       .object({
@@ -52,7 +45,6 @@ export const runRankTrackerTool = {
       configId: args.trackerId,
       projectId: args.projectId,
       billingCustomer: context.billing,
-      maxCostCredits: args.maxCostCredits,
     });
     const trackerPath = `/p/${args.projectId}/rank-tracking/${args.trackerId}`;
 

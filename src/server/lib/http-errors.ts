@@ -10,8 +10,6 @@ function statusForAppError(code: string): number {
       return 404;
     case "VALIDATION_ERROR":
       return 400;
-    case "PAYMENT_REQUIRED":
-      return 402;
     default:
       return 500;
   }

@@ -16,9 +16,7 @@ export const startAudit = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(startAuditSchema)
   .handler(async ({ data, context }) => {
-    const limitTier = await AuditService.resolveAuditLimitTier(
-      context.organizationId,
-    );
+    const limitTier = await AuditService.resolveAuditLimitTier();
 
     const result = await AuditService.startAudit({
       actorUserId: context.userId,

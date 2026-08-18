@@ -10,7 +10,7 @@ export function makeToolContext(
       organizationId: "org_123",
       clientId: "client_123",
       scopes: ["mcp"],
-      baseUrl: "https://open-seo.test",
+      baseUrl: "https://upgradeseo.test",
       ...overrides,
     },
   };

@@ -10,7 +10,7 @@ export const listProjectsTool = {
   config: {
     title: "List projects",
     description:
-      "Lists all projects in the user's organization. Uses no credits — does not call DataForSEO. Use this whenever you need a `projectId` for another OpenSEO tool. Returns an array of {id, name, domain, locationCode, languageCode}; pass the `id` value as `projectId`. locationCode/languageCode are the project's default market — tools fall back to them when a call omits location/language args.",
+      "Lists all projects in the user's organization. Use this whenever you need a `projectId` for another UpgradeSEO tool. Returns an array of {id, name, domain, locationCode, languageCode}; pass the `id` value as `projectId`. locationCode/languageCode are the project's default market — tools fall back to them when a call omits location/language args.",
     inputSchema: {} as Record<string, never>,
     outputSchema: {
       projects: z.array(

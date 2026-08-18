@@ -5,7 +5,7 @@ import {
 } from "@/server/features/domain/services/domainKeywordFilters";
 
 describe("buildOrderBy", () => {
-  it("maps sort modes to DataForSEO field paths", () => {
+  it("maps sort modes to provider field paths", () => {
     expect(buildOrderBy("rank", "asc")).toEqual([
       "ranked_serp_element.serp_item.rank_absolute,asc",
     ]);

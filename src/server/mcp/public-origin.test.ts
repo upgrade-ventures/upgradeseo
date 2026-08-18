@@ -22,14 +22,17 @@ describe("getPublicOrigin", () => {
   });
 
   it("ignores forwarded hosts when the request is already public https", () => {
-    const request = new Request("https://app.openseo.so/api/oauth/consent", {
-      headers: {
-        "x-forwarded-proto": "https",
-        "x-forwarded-host": "evil.test",
+    const request = new Request(
+      "https://app.upgradeseo.test/api/oauth/consent",
+      {
+        headers: {
+          "x-forwarded-proto": "https",
+          "x-forwarded-host": "evil.test",
+        },
       },
-    });
+    );
 
-    expect(getPublicOrigin(request)).toBe("https://app.openseo.so");
+    expect(getPublicOrigin(request)).toBe("https://app.upgradeseo.test");
   });
 });
 

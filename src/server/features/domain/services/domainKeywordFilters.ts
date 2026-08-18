@@ -5,7 +5,7 @@ import {
   joinClauses,
   parseFilterTerms,
   type FilterClause,
-} from "@/server/lib/dataforseo/filters";
+} from "@/server/lib/seo/filters";
 import type { DomainKeywordsFilters } from "@/types/schemas/domain";
 
 export type DomainKeywordsSortMode =
@@ -35,7 +35,7 @@ export function buildOrderBy(
  * Each include/exclude term is one ilike clause; numeric ranges add one per
  * bound; the free-text search term adds one OR-group of two (keyword OR url).
  * The client surfaces the same condition count and disables Apply when over
- * the DataForSEO budget.
+ * the provider's filter-condition budget.
  */
 export function buildKeywordFilters(
   filters: DomainKeywordsFilters,

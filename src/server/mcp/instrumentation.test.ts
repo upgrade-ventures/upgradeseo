@@ -46,7 +46,7 @@ const authContext: ToolAuthContext = {
   organizationId: "org-1",
   clientId: "client-1",
   scopes: ["mcp"],
-  baseUrl: "https://app.openseo.so",
+  baseUrl: "https://app.upgradeseo.test",
 };
 
 const toolContext: ToolContext = { auth: authContext };

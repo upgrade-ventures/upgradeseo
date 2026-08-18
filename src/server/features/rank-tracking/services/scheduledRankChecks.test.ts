@@ -43,7 +43,6 @@ const mocks = vi.hoisted(() => ({
         trigger: string;
       }) => Promise<BeginResult>
     >(),
-  customerHasPaidPlan: vi.fn<(organizationId: string) => Promise<boolean>>(),
   isHostedServerAuthMode: vi.fn<() => Promise<boolean>>(),
 }));
 
@@ -61,9 +60,7 @@ vi.mock(
 vi.mock("@/server/features/rank-tracking/services/rankCheckRunGuards", () => ({
   beginRankCheckRun: mocks.beginRankCheckRun,
 }));
-vi.mock("@/server/billing/subscription", () => ({
-  customerHasPaidPlan: mocks.customerHasPaidPlan,
-}));
+vi.mock("@/server/auth/organizationContext", () => ({}));
 vi.mock("@/server/lib/runtime-env", () => ({
   isHostedServerAuthMode: mocks.isHostedServerAuthMode,
 }));
@@ -98,32 +95,12 @@ describe("runScheduledRankChecks", () => {
     vi.resetModules();
     vi.resetAllMocks();
     mocks.isHostedServerAuthMode.mockResolvedValue(true);
-    mocks.customerHasPaidPlan.mockResolvedValue(true);
     mocks.claimDueConfig.mockResolvedValue(true);
     mocks.beginRankCheckRun.mockResolvedValue({ ok: true, runId: "run_1" });
     mocks.getKeywordCountsForConfigs.mockResolvedValue(
       new Map([["config_1", 5]]),
     );
     mocks.getDueConfigsWithOrganization.mockResolvedValue([dueConfig()]);
-  });
-
-  it("advances a free config with plan_required instead of starting a workflow", async () => {
-    mocks.customerHasPaidPlan.mockResolvedValue(false);
-
-    await runTick();
-
-    expect(mocks.claimDueConfig).toHaveBeenCalledTimes(1);
-    expect(mocks.claimDueConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        configId: "config_1",
-        projectId: "project_1",
-        observedNextCheckAt: "2026-01-01T00:00:00.000Z",
-        lastSkipReason: "plan_required",
-      }),
-    );
-    const [claim] = mocks.claimDueConfig.mock.calls[0];
-    expect(new Date(claim.nextCheckAt).getTime()).toBeGreaterThan(Date.now());
-    expect(mocks.beginRankCheckRun).not.toHaveBeenCalled();
   });
 
   it("advances a zero-keyword config with no_keywords without consuming budget", async () => {
@@ -198,7 +175,6 @@ describe("runScheduledRankChecks", () => {
 
     expect(mocks.beginRankCheckRun).toHaveBeenCalledTimes(1);
     expect(mocks.claimDueConfig).toHaveBeenCalledTimes(1);
-    expect(mocks.customerHasPaidPlan).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         stoppedByBudget: true,
@@ -331,50 +307,11 @@ describe("runScheduledRankChecks", () => {
     );
   });
 
-  it("leaves a config due when its plan check throws, and still processes other orgs", async () => {
-    mocks.getDueConfigsWithOrganization.mockResolvedValue([
-      dueConfig({ id: "config_a1", organizationId: "org_a" }),
-      dueConfig({
-        id: "config_a2",
-        organizationId: "org_a",
-        nextCheckAt: "2026-01-02T00:00:00.000Z",
-      }),
-      dueConfig({
-        id: "config_b",
-        organizationId: "org_b",
-        nextCheckAt: "2026-01-03T00:00:00.000Z",
-      }),
-    ]);
-    mocks.getKeywordCountsForConfigs.mockResolvedValue(
-      new Map([
-        ["config_a1", 5],
-        ["config_a2", 5],
-        ["config_b", 5],
-      ]),
-    );
-    mocks.customerHasPaidPlan.mockImplementation(async (orgId: string) => {
-      if (orgId === "org_a") throw new Error("autumn down");
-      return true;
-    });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await runTick();
-
-    // One Autumn call per org per tick — org_a's rejection is memoized.
-    expect(mocks.customerHasPaidPlan).toHaveBeenCalledTimes(2);
-    expect(mocks.claimDueConfig).toHaveBeenCalledTimes(1);
-    expect(mocks.claimDueConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ configId: "config_b" }),
-    );
-    expect(mocks.beginRankCheckRun).toHaveBeenCalledTimes(1);
-  });
-
   it("makes no billing calls in self-hosted mode", async () => {
     mocks.isHostedServerAuthMode.mockResolvedValue(false);
 
     await runTick();
 
-    expect(mocks.customerHasPaidPlan).not.toHaveBeenCalled();
     expect(mocks.beginRankCheckRun).toHaveBeenCalledTimes(1);
   });
 });

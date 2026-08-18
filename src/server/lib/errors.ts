@@ -24,7 +24,14 @@ export function asAppError(error: unknown): AppError | null {
 // a full https URL…") that self-hosters need to fix their deployment, and the
 // alternative is a generic card that makes every misconfiguration look the
 // same. Everything else stays stripped to its bare code.
-const CLIENT_DETAIL_ERROR_CODES = new Set<ErrorCode>(["AUTH_CONFIG_MISSING"]);
+// DATA_SOURCE_NOT_CONFIGURED belongs here for the same reason: its message is
+// static guidance naming WHICH free source to connect and why this particular
+// feature needs it. Stripped to a bare code, a backlinks user was shown the
+// generic keyword-research sentence, which is simply the wrong instruction.
+const CLIENT_DETAIL_ERROR_CODES = new Set<ErrorCode>([
+  "AUTH_CONFIG_MISSING",
+  "DATA_SOURCE_NOT_CONFIGURED",
+]);
 
 export function toClientError(error: unknown): Error {
   const appError = asAppError(error);

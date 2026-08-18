@@ -1,5 +1,5 @@
 // Lightweight, dependency-free site reading shared by the chat agents
-// (onboarding + SAM): discover URLs from the sitemap (falling back to the
+// (onboarding): discover URLs from the sitemap (falling back to the
 // homepage) and extract readable text from each page via plain fetch. This is
 // enough to let the model infer what a site does. JS-heavy sites degrade
 // gracefully (less text); a Browser Rendering upgrade can slot in behind this
@@ -7,11 +7,11 @@
 
 import { normalizeAndValidateStartUrl } from "@/server/lib/audit/url-policy";
 
-export const MAX_PAGES = 5;
+const MAX_PAGES = 5;
 const PER_PAGE_CHAR_LIMIT = 4000;
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 2_000_000;
-const USER_AGENT = "OpenSEO-Onboarding/1.0 (+https://openseo.so)";
+const USER_AGENT = "UpgradeSEO-Onboarding/1.0 (+)";
 
 type ScrapedPage = {
   url: string;
@@ -186,7 +186,7 @@ export async function readPages(
  * sitemap declares, capped at `limit`. Lets an agent see what a site has and
  * choose which pages to read (readPages) instead of blindly taking the first N.
  */
-export async function discoverSiteUrls(
+async function discoverSiteUrls(
   domain: string,
   limit: number,
 ): Promise<{ urls: string[]; blocked: boolean }> {

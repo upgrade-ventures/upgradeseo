@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isTelemetryOptOutValue,
-  looksLikeDataForSeoKey,
-  validateTeamDomain,
-} from "./selfhost-checks";
+import { isTelemetryOptOutValue, validateTeamDomain } from "./selfhost-checks";
 
 describe("validateTeamDomain", () => {
   it("accepts a full https team domain", () => {
@@ -36,24 +32,6 @@ describe("validateTeamDomain", () => {
 
   it("rejects empty values", () => {
     expect(validateTeamDomain("").ok).toBe(false);
-  });
-});
-
-describe("looksLikeDataForSeoKey", () => {
-  it("accepts base64 of login:password", () => {
-    expect(looksLikeDataForSeoKey(btoa("user@example.com:secret"))).toBe(true);
-  });
-
-  it("rejects a raw dashboard API key", () => {
-    expect(looksLikeDataForSeoKey("0123456789abcdef0123")).toBe(false);
-  });
-
-  it("rejects base64 without a colon", () => {
-    expect(looksLikeDataForSeoKey(btoa("no-colon-here"))).toBe(false);
-  });
-
-  it("tolerates surrounding whitespace", () => {
-    expect(looksLikeDataForSeoKey(` ${btoa("a:b")} `)).toBe(true);
   });
 });
 

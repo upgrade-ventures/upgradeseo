@@ -8,7 +8,7 @@ import {
 
 export type AuditLimitTier = "free" | "paid" | "self_hosted";
 
-// The crawler runs on our Workers compute and isn't credit-metered, so these
+// The crawler runs on our Workers compute and isn't metered, so these
 // per-tier bounds are the abuse control: free accounts cost nothing to create,
 // so they get one small audit at a time and a modest total budget. Paid gets
 // bounds sized for real sites rather than abuse (a payment method on file is

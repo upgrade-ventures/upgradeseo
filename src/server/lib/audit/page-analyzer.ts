@@ -15,6 +15,17 @@ import { normalizeUrl, isSameOrigin } from "./url-utils";
 import type { PageAnalysis, PageLink } from "./types";
 
 const SKIPPED_LINK_PROTOCOLS = /^(javascript:|mailto:|tel:|#)/;
+/**
+ * Cloudflare rewrites `mailto:` addresses into `/cdn-cgi/l/email-protection#<hex>`
+ * and injects a script that turns them back into real mailto links in the
+ * browser. Followed literally the path is a dead end, so crawling it reports one
+ * broken link per page carrying an email address — on the site that prompted
+ * this, 14 of 36 findings were that single footer address.
+ *
+ * `/cdn-cgi/` is Cloudflare's reserved namespace and never contains site
+ * content, so the whole prefix is skipped rather than just this one endpoint.
+ */
+const CLOUDFLARE_INTERNAL_PATH = /^(?:https?:\/\/[^/]+)?\/cdn-cgi\//i;
 /** Subtrees whose text is not visible content. */
 const NON_CONTENT_TAGS = new Set(["script", "style", "noscript", "svg"]);
 const HEADING_LEVELS: Record<string, number> = {
@@ -163,7 +174,11 @@ export function analyzeHtml(
             // one, and the tokenizer has no tree correction, so mirror that.
             closeAnchor();
             const href = attribs["href"];
-            if (href && !SKIPPED_LINK_PROTOCOLS.test(href)) {
+            if (
+              href &&
+              !SKIPPED_LINK_PROTOCOLS.test(href) &&
+              !CLOUDFLARE_INTERNAL_PATH.test(href)
+            ) {
               openAnchor = {
                 href,
                 rel: attribs["rel"]?.toLowerCase() ?? "",

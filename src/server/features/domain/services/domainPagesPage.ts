@@ -1,11 +1,15 @@
 import { waitUntil } from "cloudflare:workers";
 import { z } from "zod";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import { createDataforseoClient } from "@/server/lib/dataforseo";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { buildCacheKey, getCached, setCached } from "@/server/lib/r2-cache";
-import { normalizeDomainInput, toRelativePath } from "@/server/lib/domainUtils";
-import type { RelevantPagesItem } from "@/server/lib/dataforseo";
 import { computeHasMore } from "@/server/features/domain/services/pagination";
+import { normalizeDomainInput } from "@/server/lib/domainUtils";
+import {
+  applyFreePageQuery,
+  freeDomainNoteSchema,
+  FREE_SOURCE_LABEL,
+  tryFreeDomainPages,
+} from "@/server/features/domain/services/freeDomainOverview";
 import type { DomainKeywordsFilters } from "@/types/schemas/domain";
 
 const DOMAIN_PAGES_PAGE_TTL_SECONDS = 12 * 60 * 60;
@@ -33,6 +37,12 @@ const domainPagesPageResultSchema = z.object({
     }),
   ),
   fetchedAt: z.string(),
+  /**
+   * Present only on the free stack: why per-page traffic and keyword counts
+   * are null, and whether Common Crawl answered at all. Optional so a payload
+   * cached by the paid path still parses.
+   */
+  free: freeDomainNoteSchema.optional(),
 });
 
 type DomainPagesPageResult = z.infer<typeof domainPagesPageResultSchema>;
@@ -105,20 +115,6 @@ function buildPageFilters(
   return expressions;
 }
 
-function mapPageItem(item: RelevantPagesItem) {
-  const url = item.page_address ?? null;
-  if (!url) return null;
-  const organic = item.metrics?.organic ?? null;
-  const traffic = organic?.etv ?? null;
-  const keywords = organic?.count ?? null;
-  return {
-    page: url,
-    relativePath: toRelativePath(url),
-    organicTraffic: traffic != null ? Math.round(traffic) : null,
-    keywords: keywords != null ? Math.round(keywords) : null,
-  };
-}
-
 export async function getPagesPage(
   input: {
     projectId: string;
@@ -133,12 +129,12 @@ export async function getPagesPage(
     filters: DomainKeywordsFilters;
     search?: string;
   },
-  billingCustomer: BillingCustomerContext,
+  billingCustomer: OrganizationContext,
 ): Promise<DomainPagesPageResult> {
   const domain = normalizeDomainInput(input.domain, input.includeSubdomains);
   const offset = (input.page - 1) * input.pageSize;
-  const orderBy = [`${SORT_FIELD_BY_MODE[input.sortMode]},${input.sortOrder}`];
-  const filters = buildPageFilters(input.filters, input.search);
+  const _orderBy = [`${SORT_FIELD_BY_MODE[input.sortMode]},${input.sortOrder}`];
+  const _filters = buildPageFilters(input.filters, input.search);
 
   const cacheKey = await buildCacheKey("domain:pages-page", {
     organizationId: billingCustomer.organizationId,
@@ -161,51 +157,54 @@ export async function getPagesPage(
     return cached.data;
   }
 
-  const dataforseo = createDataforseoClient(billingCustomer);
-  const response = await dataforseo.domain.relevantPages({
-    target: domain,
-    locationCode: input.locationCode,
-    languageCode: input.languageCode,
-    limit: input.pageSize,
-    offset,
-    orderBy,
-    filters: filters.length > 0 ? filters : undefined,
-  });
+  const free = await tryFreeDomainPages({ domain });
+  {
+    // Common Crawl hands back the whole inventory in one query, so the filter
+    // and the paging are applied here.
+    const query = applyFreePageQuery(free.rows, {
+      filters: input.filters,
+      search: input.search,
+    });
+    const pageRows = query.rows.slice(offset, offset + input.pageSize);
 
-  const pages = response.items
-    .map(mapPageItem)
-    .filter(
-      (item): item is NonNullable<ReturnType<typeof mapPageItem>> =>
-        item != null,
-    );
-
-  const totalCount = response.totalCount;
-  const hasMore = computeHasMore(
-    offset,
-    response.items.length,
-    totalCount,
-    input.pageSize,
-  );
-
-  const result: DomainPagesPageResult = {
-    domain,
-    page: input.page,
-    pageSize: input.pageSize,
-    totalCount,
-    hasMore,
-    pages,
-    fetchedAt: new Date().toISOString(),
-  };
-
-  // waitUntil, not void: workerd cancels unregistered pending I/O once the
-  // response is sent, so a fire-and-forget put never persists the cache.
-  waitUntil(
-    setCached(cacheKey, result, DOMAIN_PAGES_PAGE_TTL_SECONDS).catch(
-      (error) => {
-        console.error("domain.pages-page.cache-write failed:", error);
+    const freeResult: DomainPagesPageResult = {
+      domain,
+      page: input.page,
+      pageSize: input.pageSize,
+      // Pages Common Crawl holds for this domain, which is a floor on what the
+      // site publishes rather than a crawl of our own. `free.truncated` says
+      // whether the index also capped that. When the index did not answer at
+      // all there is no count to report, and 0 would read as an empty site.
+      totalCount: free.sourceDown ? null : query.rows.length,
+      hasMore: free.sourceDown
+        ? false
+        : computeHasMore(
+            offset,
+            pageRows.length,
+            query.rows.length,
+            input.pageSize,
+          ),
+      pages: pageRows,
+      fetchedAt: new Date().toISOString(),
+      free: {
+        unavailable: { ...free.unavailable, ...query.unavailable },
+        source: FREE_SOURCE_LABEL.pages,
+        truncated: free.truncated,
       },
-    ),
-  );
+    };
 
-  return result;
+    // An outage must not be cached, or one bad minute pins an empty table for
+    // the next twelve hours.
+    if (!free.sourceDown) {
+      waitUntil(
+        setCached(cacheKey, freeResult, DOMAIN_PAGES_PAGE_TTL_SECONDS).catch(
+          (error) => {
+            console.error("domain.pages-page.cache-write failed:", error);
+          },
+        ),
+      );
+    }
+
+    return freeResult;
+  }
 }

@@ -76,8 +76,8 @@ function messageForStatus(status: number, body: string): string {
   return `Search Console API error (${status}): ${body.slice(0, 300)}`;
 }
 
-/** Free Google Search Console client. Unlike the DataForSEO client it does NOT
- *  meter credits — GSC is first-party data with no per-call cost. Access tokens
+/** Free Google Search Console client. Unlike a metered provider client it does NOT
+ *  meter usage — GSC is first-party data with no per-call cost. Access tokens
  *  are minted (and auto-refreshed) by Better Auth from the connector's stored
  *  google-search-console grant. */
 export function createGscClient(opts: {

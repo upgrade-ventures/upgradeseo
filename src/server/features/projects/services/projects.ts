@@ -7,7 +7,7 @@ import type {
   UpdateProjectInput,
 } from "@/types/schemas/projects";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
-import { normalizeBacklinksTarget } from "@/server/lib/dataforseoBacklinksTarget";
+import { normalizeBacklinksTarget } from "@/server/lib/backlinksTarget";
 import { AppError } from "@/server/lib/errors";
 import { assertLanguageForLocation } from "@/server/lib/market";
 import { getLanguageCode } from "@/shared/keyword-locations";

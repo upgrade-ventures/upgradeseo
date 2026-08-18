@@ -50,7 +50,7 @@ export const projects = sqliteTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     domain: text("domain"),
-    // Default DataForSEO location/language for the project, set during
+    // Default location/language for the project, set during
     // onboarding and reused by every project-scoped data call.
     locationCode: integer("location_code").notNull().default(2840),
     languageCode: text("language_code").notNull().default("en"),
@@ -390,7 +390,7 @@ export const projectActivationState = sqliteTable("project_activation_state", {
 });
 
 // Point-in-time backlink profile summaries for the project's own domain,
-// written by the dashboard's visit-triggered refresh. DataForSEO's summary
+// written by the dashboard's visit-triggered refresh. The provider's summary
 // already carries new/lost counts, so one snapshot renders a full card;
 // rows accumulate into history for future trend views. The domain is stored
 // per row so a later project-domain change doesn't rewrite history.
@@ -418,6 +418,49 @@ export const backlinkSnapshots = sqliteTable(
     index("backlink_snapshots_project_captured_idx").on(
       table.projectId,
       table.capturedAt,
+    ),
+  ],
+);
+
+// Third-party provider credentials a tenant supplies for their own brand:
+// Bing Webmaster, OpenPageRank, and Google OAuth client credentials for
+// Search Console. Scoped to the organization, so every project inside it
+// inherits one set of keys.
+//
+// `secretCiphertext` is AES-256-GCM sealed by server/lib/crypto/secret-box and
+// is bound to (organizationId, provider) as additional authenticated data, so
+// a row copied into another tenant fails to decrypt. Plaintext NEVER lands in
+// this table, and `secretLastFour` is the only fragment ever shown again.
+export const organizationProviderKeys = sqliteTable(
+  "organization_provider_keys",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    // "bing" | "openpagerank" | "google_oauth" — validated in the service, not
+    // constrained here, so adding a provider is not a migration.
+    provider: text("provider").notNull(),
+    secretCiphertext: text("secret_ciphertext").notNull(),
+    // Non-secret companion value, e.g. a Google OAuth client ID. Null for
+    // single-value providers.
+    publicIdentifier: text("public_identifier"),
+    secretLastFour: text("secret_last_four").notNull().default(""),
+    createdByUserId: text("created_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(current_timestamp)`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(current_timestamp)`),
+  },
+  (table) => [
+    // One credential per provider per organization; saving again replaces it.
+    uniqueIndex("organization_provider_keys_org_provider_uidx").on(
+      table.organizationId,
+      table.provider,
     ),
   ],
 );

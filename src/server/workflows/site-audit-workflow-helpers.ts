@@ -5,7 +5,7 @@ import type {
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { normalizeUrl } from "@/server/lib/audit/url-utils";
 
-const CRAWL_USER_AGENT = "OpenSEO-Audit/1.0";
+const CRAWL_USER_AGENT = "UpgradeSEO-Audit/1.0";
 const MAX_HTML_BYTES = 1024 * 1024;
 
 /**

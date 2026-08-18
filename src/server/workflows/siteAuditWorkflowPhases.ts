@@ -1,5 +1,5 @@
 import type { WorkflowStep } from "cloudflare:workers";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { discoverUrls, parseRobotsTxt } from "@/server/lib/audit/discovery";
 import {
   fetchLighthouseResult,
@@ -43,7 +43,7 @@ type LighthouseBatchBoundary =
 type AuditPhasesParams = {
   auditId: string;
   workflowInstanceId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   projectId: string;
   startUrl: string;
   config: AuditConfig;
@@ -166,7 +166,7 @@ async function runDiscoveryPhase(
 type LighthousePhaseParams = {
   auditId: string;
   workflowInstanceId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   projectId: string;
   startUrl: string;
   config: AuditConfig;
@@ -230,16 +230,24 @@ export async function runLighthousePhase(
       const index = batchStart + batchOffset;
       // The paid calls are checkpointed separately from all storage. With
       // Workflow retries disabled, a later R2/DB/progress failure cannot replay
-      // DataForSEO. One URL groups its mobile + desktop checks into one compact
+      // PageSpeed Insights. One URL groups its mobile + desktop checks into one compact
       // checkpoint rather than returning a whole Lighthouse batch.
       const fetched = await pgStep(
         step,
         `lighthouse-fetch-${index + 1}`,
         LIGHTHOUSE_FETCH_STEP,
         () =>
+          // `storage` makes the fetch upload the raw report itself, keeping it
+          // out of this step's return value, which is capped at 1MiB.
           Promise.all([
-            fetchLighthouseResult(url, pageId, "mobile", billingCustomer),
-            fetchLighthouseResult(url, pageId, "desktop", billingCustomer),
+            fetchLighthouseResult(url, pageId, "mobile", billingCustomer, {
+              projectId,
+              auditId,
+            }),
+            fetchLighthouseResult(url, pageId, "desktop", billingCustomer, {
+              projectId,
+              auditId,
+            }),
           ]),
       );
 
@@ -319,7 +327,7 @@ async function finalizeAudit(args: {
   step: WorkflowStep;
   auditId: string;
   workflowInstanceId: string;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
   projectId: string;
   startUrl: string;
   config: AuditConfig;

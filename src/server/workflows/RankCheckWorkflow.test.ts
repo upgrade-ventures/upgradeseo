@@ -1,21 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkflowStep } from "cloudflare:workers";
-import {
-  prepareRankCheckKeywords,
-  RankCheckWorkflow,
-} from "./RankCheckWorkflow";
+import { RankCheckWorkflow } from "./RankCheckWorkflow";
 
 const mocks = vi.hoisted(() => ({
   getConfigById: vi.fn(),
   getRunById: vi.fn(),
   getKeywordsForConfig: vi.fn(),
+  getSnapshotsForRun: vi.fn(),
+  insertSnapshots: vi.fn(),
   updateRun: vi.fn(),
-  autumnCheck: vi.fn(),
-  createDataforseoClient: vi.fn(),
-  runLiveCheck: vi.fn(),
+  updateConfig: vi.fn(),
+  runFreeRankCheck: vi.fn(),
   failRunIfActive: vi.fn(),
   captureServerEvent: vi.fn(),
-  isHostedServerAuthMode: vi.fn(),
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -32,9 +29,8 @@ vi.mock(
 vi.mock("@/server/features/rank-tracking/services/rankCheckRunGuards", () => ({
   failRunIfActive: mocks.failRunIfActive,
 }));
-vi.mock("@/server/workflows/rankCheckPaths", () => ({
-  runLiveCheck: mocks.runLiveCheck,
-  runQueuedCheck: vi.fn(),
+vi.mock("@/server/features/rank-tracking/services/freeRankSource", () => ({
+  runFreeRankCheck: mocks.runFreeRankCheck,
 }));
 vi.mock("@/server/workflows/pgStep", () => ({
   pgStep: (
@@ -44,120 +40,98 @@ vi.mock("@/server/workflows/pgStep", () => ({
     fn: () => unknown,
   ) => fn(),
 }));
-vi.mock("@/server/lib/dataforseo", () => ({
-  createDataforseoClient: mocks.createDataforseoClient,
-}));
 vi.mock("@/server/lib/posthog", () => ({
   captureServerEvent: mocks.captureServerEvent,
 }));
-vi.mock("@/server/billing/autumn", () => ({
-  autumn: { check: mocks.autumnCheck },
-}));
-vi.mock("@/server/lib/runtime-env", () => ({
-  isHostedServerAuthMode: mocks.isHostedServerAuthMode,
-}));
 
-const billingCustomer = {
-  userId: "user_1",
-  userEmail: "user@example.com",
-  organizationId: "org_1",
+const payload = {
+  runId: "run_1",
+  configId: "config_1",
+  billingCustomer: {
+    userId: "user_1",
+    userEmail: "user@example.com",
+    organizationId: "org_1",
+    projectId: "project_1",
+  },
   projectId: "project_1",
+  domain: "example.com",
+  locationCode: 2840,
+  devices: "desktop" as const,
+  trigger: "scheduled" as const,
+  languageCode: "en",
+  serpDepth: 10,
 };
 
-const activeRun = {
-  id: "run_1",
-  status: "running",
-};
+function runWorkflow() {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the mocked base class does not inspect Worker constructor context
+  const workflow = new RankCheckWorkflow({} as ExecutionContext, {} as Env);
+  return workflow.run(
+    { instanceId: "run_1", timestamp: new Date(), payload },
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- workflow steps are executed directly by the pgStep mock
+    {} as WorkflowStep,
+  );
+}
 
-describe("rank check workflow credit ceiling", () => {
+describe("RankCheckWorkflow", () => {
   beforeEach(() => {
-    mocks.getRunById.mockResolvedValue(activeRun);
-    mocks.updateRun.mockResolvedValue(undefined);
-    mocks.isHostedServerAuthMode.mockResolvedValue(true);
-    mocks.autumnCheck.mockResolvedValue({ balance: { remaining: 1_000 } });
-  });
-
-  it("rejects a keyword-list race before balance or DataForSEO calls", async () => {
     mocks.getConfigById.mockResolvedValue({ isActive: true });
-    mocks.getKeywordsForConfig.mockResolvedValue(
-      Array.from({ length: 5 }, (_, index) => ({
-        id: `kw_${index}`,
-        keyword: `keyword ${index}`,
-      })),
-    );
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the mocked base class does not inspect Worker constructor context
-    const workflow = new RankCheckWorkflow({} as ExecutionContext, {} as Env);
+    mocks.getRunById.mockResolvedValue({
+      id: "run_1",
+      status: "running",
+      keywordsTotal: 1,
+    });
+    mocks.getKeywordsForConfig.mockResolvedValue([
+      { id: "kw_1", keyword: "seo" },
+    ]);
+    mocks.getSnapshotsForRun.mockResolvedValue([{ trackingKeywordId: "kw_1" }]);
+  });
 
-    await expect(
-      workflow.run(
+  // The run's free-text channel is the only place the source label can live, so
+  // losing it would let a Search Console window average be read as a live SERP
+  // position.
+  it("completes the run carrying the source notice", async () => {
+    mocks.runFreeRankCheck.mockResolvedValue({
+      source: "gsc_average_position",
+      notice: "Google positions from Search Console, averaged over 28 days.",
+      rows: [
         {
-          instanceId: "run_1",
-          timestamp: new Date(),
-          payload: {
-            runId: "run_1",
-            configId: "config_1",
-            billingCustomer,
-            projectId: "project_1",
-            domain: "example.com",
-            locationCode: 2840,
-            languageCode: "en",
-            devices: "desktop",
-            serpDepth: 10,
-            trigger: "manual",
-            maxCostCredits: 12,
-          },
+          trackingKeywordId: "kw_1",
+          keyword: "seo",
+          device: "desktop",
+          position: 4,
+          url: "https://example.com/",
         },
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- workflow steps are executed directly by the pgStep mock
-        {} as WorkflowStep,
-      ),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
-
-    expect(mocks.autumnCheck).not.toHaveBeenCalled();
-    expect(mocks.createDataforseoClient).not.toHaveBeenCalled();
-    expect(mocks.runLiveCheck).not.toHaveBeenCalled();
-  });
-
-  it("accepts the same reloaded list at the approved ceiling", async () => {
-    mocks.getKeywordsForConfig.mockResolvedValue(
-      Array.from({ length: 4 }, (_, index) => ({
-        id: `kw_${index}`,
-        keyword: `keyword ${index}`,
-      })),
-    );
-
-    const result = await prepareRankCheckKeywords({
-      runId: "run_1",
-      configId: "config_1",
-      billingCustomer,
-      devices: "desktop",
-      serpDepth: 10,
-      trigger: "manual",
-      maxCostCredits: 12,
+      ],
+      keywordsChecked: 1,
     });
 
-    expect(result.keywords).toHaveLength(4);
-    expect(mocks.autumnCheck).toHaveBeenCalledTimes(2);
+    await runWorkflow();
+
+    expect(mocks.insertSnapshots).toHaveBeenCalledWith([
+      expect.objectContaining({ runId: "run_1", serpFeatures: null }),
+    ]);
+    expect(mocks.updateRun).toHaveBeenCalledWith(
+      "run_1",
+      expect.objectContaining({
+        status: "completed",
+        keywordsChecked: 1,
+        errorMessage:
+          "Google positions from Search Console, averaged over 28 days.",
+      }),
+    );
   });
 
-  it("preserves callers that do not provide a ceiling", async () => {
-    mocks.getKeywordsForConfig.mockResolvedValue(
-      Array.from({ length: 5 }, (_, index) => ({
-        id: `kw_${index}`,
-        keyword: `keyword ${index}`,
-      })),
+  it("fails the run when no free source can answer", async () => {
+    mocks.runFreeRankCheck.mockRejectedValue(
+      new Error("Bing Webmaster Tools could not read example.com"),
     );
-    mocks.isHostedServerAuthMode.mockResolvedValue(false);
 
-    const result = await prepareRankCheckKeywords({
-      runId: "run_1",
-      configId: "config_1",
-      billingCustomer,
-      devices: "desktop",
-      serpDepth: 10,
-      trigger: "manual",
-    });
+    await expect(runWorkflow()).rejects.toThrow();
 
-    expect(result.keywords).toHaveLength(5);
-    expect(mocks.autumnCheck).not.toHaveBeenCalled();
+    expect(mocks.insertSnapshots).not.toHaveBeenCalled();
+    expect(mocks.failRunIfActive).toHaveBeenCalledWith(
+      "run_1",
+      "Bing Webmaster Tools could not read example.com",
+    );
   });
 });

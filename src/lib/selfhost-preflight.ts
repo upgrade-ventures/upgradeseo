@@ -1,6 +1,5 @@
 import { AUTH_MODES } from "@/lib/auth-mode";
 import {
-  looksLikeDataForSeoKey,
   MIN_BETTER_AUTH_SECRET_LENGTH,
   validateTeamDomain,
 } from "@/shared/selfhost-checks";
@@ -14,7 +13,7 @@ type PreflightLevel = "ok" | "info" | "warn" | "fail";
 
 type PreflightItem = {
   // Stable identifier shared with /api/health's check map.
-  key: "auth" | "dataforseo" | "gsc" | "ai" | "runtime";
+  key: "auth" | "keyword_source" | "gsc" | "ai" | "runtime";
   name: string;
   level: PreflightLevel;
   message: string;
@@ -120,34 +119,24 @@ function checkAuthMode(env: EnvRecord, items: PreflightItem[]): void {
   });
 }
 
-function checkDataForSeo(env: EnvRecord, items: PreflightItem[]): void {
-  const key = get(env, "DATAFORSEO_API_KEY");
-
-  if (!key) {
+function checkKeywordSource(env: EnvRecord, items: PreflightItem[]): void {
+  // Every keyword source is free, so "not set" is an unfinished setup rather
+  // than a choice between a paid tier and a free one.
+  const bingKey = get(env, "BING_WEBMASTER_API_KEY");
+  if (!bingKey) {
     items.push({
-      key: "dataforseo",
-      name: "DATAFORSEO_API_KEY",
+      key: "keyword_source",
+      name: "BING_WEBMASTER_API_KEY",
       level: "warn",
       message:
-        "Not set — all SEO data features will be unavailable until it is. It is the base64 of your DataForSEO login:password (NOT the dashboard API key). See docs/DATAFORSEO_API_KEY.md.",
-    });
-    return;
-  }
-
-  if (!looksLikeDataForSeoKey(key)) {
-    items.push({
-      key: "dataforseo",
-      name: "DATAFORSEO_API_KEY",
-      level: "warn",
-      message:
-        "Set, but does not decode as base64 of login:password. If DataForSEO rejects it, encode your account email and API password: printf 'email:password' | base64.",
+        "Not set — there is no instance-wide keyword data source. Bing Webmaster Tools is free with no card; add its key here, or have each organization connect Microsoft Advertising or Google Ads in Settings.",
     });
     return;
   }
 
   items.push({
-    key: "dataforseo",
-    name: "DATAFORSEO_API_KEY",
+    key: "keyword_source",
+    name: "BING_WEBMASTER_API_KEY",
     level: "ok",
     message: "Set",
   });
@@ -195,6 +184,26 @@ function checkOptionalFeatures(env: EnvRecord, items: PreflightItem[]): void {
     });
   }
 
+  // Provider keys entered in Settings are encrypted with this material. With
+  // none, saving one fails, and in local_noauth nothing else demands it — so
+  // without this check the feature is silently dead on a fresh self-host.
+  items.push(
+    betterAuthSecret || get(env, "SECRETS_ENCRYPTION_KEY")
+      ? {
+          key: "runtime",
+          name: "Provider key storage",
+          level: "ok",
+          message: "Keys entered in Settings can be encrypted and stored.",
+        }
+      : {
+          key: "runtime",
+          name: "Provider key storage",
+          level: "warn",
+          message:
+            "No BETTER_AUTH_SECRET or SECRETS_ENCRYPTION_KEY — API keys cannot be saved from Settings (nothing to encrypt them with). Generate one with: openssl rand -base64 32",
+        },
+  );
+
   items.push(
     get(env, "OPENROUTER_API_KEY")
       ? {
@@ -208,7 +217,7 @@ function checkOptionalFeatures(env: EnvRecord, items: PreflightItem[]): void {
           name: "AI features",
           level: "info",
           message:
-            "OPENROUTER_API_KEY not set (optional) — SAM, the in-app SEO agent, is disabled.",
+            "OPENROUTER_API_KEY not set (optional) — the in-app onboarding agent is disabled.",
         },
   );
 }
@@ -219,7 +228,7 @@ function checkOptionalFeatures(env: EnvRecord, items: PreflightItem[]): void {
 export function runSelfhostChecks(env: EnvRecord): PreflightItem[] {
   const items: PreflightItem[] = [];
   checkAuthMode(env, items);
-  checkDataForSeo(env, items);
+  checkKeywordSource(env, items);
   checkOptionalFeatures(env, items);
   return items;
 }

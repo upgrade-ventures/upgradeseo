@@ -80,7 +80,7 @@ export const backlinksRowsFiltersSchema = z.object({
 });
 
 /**
- * DataForSEO result grouping for the backlinks list: `one_per_domain` returns
+ * Result grouping for the backlinks list: `one_per_domain` returns
  * each referring domain's strongest link (the default, denoised view);
  * `as_is` returns every individual backlink.
  */
@@ -110,7 +110,7 @@ export const topPagesFiltersSchema = z.object({
 
 export const backlinksSortOrderSchema = z.enum(["asc", "desc"]);
 // Sort field names double as table column ids on the client; the server maps
-// them to DataForSEO field names.
+// them to provider field names.
 export const backlinksRowsSortFieldSchema = z.enum([
   "rank",
   "domainRank",

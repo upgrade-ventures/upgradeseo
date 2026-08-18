@@ -11,20 +11,22 @@ describe("jsonCodec", () => {
   const codec = jsonCodec(schema);
 
   it("parses valid JSON that matches schema", () => {
-    const parsed = codec.parse('{"name":"open-seo","count":2}');
-    expect(parsed).toEqual({ name: "open-seo", count: 2 });
+    const parsed = codec.parse('{"name":"upgradeseo","count":2}');
+    expect(parsed).toEqual({ name: "upgradeseo", count: 2 });
   });
 
   it("throws on invalid JSON", () => {
-    expect(() => codec.parse('{"name":"open-seo"')).toThrowError();
+    expect(() => codec.parse('{"name":"upgradeseo"')).toThrowError();
   });
 
   it("throws when JSON does not match schema", () => {
-    expect(() => codec.parse('{"name":"open-seo","count":"2"}')).toThrowError();
+    expect(() =>
+      codec.parse('{"name":"upgradeseo","count":"2"}'),
+    ).toThrowError();
   });
 
   it("encodes typed values to JSON", () => {
-    const encoded = codec.encode({ name: "open-seo", count: 5 });
-    expect(encoded).toBe('{"name":"open-seo","count":5}');
+    const encoded = codec.encode({ name: "upgradeseo", count: 5 });
+    expect(encoded).toBe('{"name":"upgradeseo","count":5}');
   });
 });

@@ -78,7 +78,7 @@ async function missingSelfHostedGoogleClientResponse(
   if (hosted || configured) return null;
 
   return mcpResponse({
-    text: `This self-hosted OpenSEO deployment is not configured for Search Console yet. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and BETTER_AUTH_SECRET, then reconnect Search Console from the project's settings page. Setup docs: ${GSC_SELF_HOSTED_SETUP_DOCS_URL}`,
+    text: `This self-hosted UpgradeSEO deployment is not configured for Search Console yet. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and BETTER_AUTH_SECRET, then reconnect Search Console from the project's settings page. Setup docs: ${GSC_SELF_HOSTED_SETUP_DOCS_URL}`,
     meta: buildProjectMeta(context, projectId),
     structuredContent: {
       ok: false,
@@ -183,7 +183,7 @@ export const getSearchConsolePerformanceTool = {
   config: {
     title: "Get Google Search Console performance",
     description:
-      "Query the connected Search Console property's Search Analytics: clicks, impressions, CTR, and average position by query/page/country/device/date. First-party data — use it for what already ranks, near-ranking queries, and pages with real demand. ctr is a 0-1 fraction; position is a 1-based average; dates are Pacific Time; the last ~3 days may be incomplete. Read-only; uses no credits.",
+      "Query the connected Search Console property's Search Analytics: clicks, impressions, CTR, and average position by query/page/country/device/date. First-party data — use it for what already ranks, near-ranking queries, and pages with real demand. ctr is a 0-1 fraction; position is a 1-based average; dates are Pacific Time; the last ~3 days may be incomplete. Read-only.",
     inputSchema: perfInputSchema,
     outputSchema: {
       ok: z.boolean(),
@@ -327,7 +327,7 @@ export const inspectUrlsTool = {
   config: {
     title: "Inspect URLs in Google Search Console",
     description:
-      "Run Google Search Console's URL Inspection on up to 10 URLs of the connected property: index/coverage state, last crawl time, Google-selected vs declared canonical, and mobile/rich-results verdicts. Use it to answer 'is this page indexed? why not?'. Per-URL failures are reported inline. Read-only; uses no credits.",
+      "Run Google Search Console's URL Inspection on up to 10 URLs of the connected property: index/coverage state, last crawl time, Google-selected vs declared canonical, and mobile/rich-results verdicts. Use it to answer 'is this page indexed? why not?'. Per-URL failures are reported inline. Read-only.",
     inputSchema: inspectInputSchema,
     outputSchema: {
       ok: z.boolean(),

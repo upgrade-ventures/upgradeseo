@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Input + output schemas for the AI Search feature (Brand Lookup + Prompt
  * Explorer). These two pages are fully stateless — the user types something,
- * we hit DataForSEO, and we render. Schemas live here so they can be reused
+ * we hit the providers, and we render. Schemas live here so they can be reused
  * by server functions, services, R2 cache validation, and the client UI.
  */
 
@@ -79,9 +79,9 @@ const brandTopPageSchema = z.object({
   url: z.string().max(2048),
   domain: z.string().max(253).nullable(),
   platform: z.enum(["chat_gpt", "google"]),
-  // Page-level citation mentions from DataForSEO top_pages.
+  // Page-level citation mentions. No free source supplies these.
   mentions: z.number().int().nonnegative().nullable(),
-  // Page-level AI search volume from DataForSEO top_pages.
+  // Page-level AI search volume. No free source supplies this.
   capturedVolume: z.number().int().nonnegative().nullable(),
   // Example prompts from the fetched mentions sample that cited this page.
   keywords: z.array(brandTopPageKeywordSchema).max(50),
@@ -152,7 +152,7 @@ export type PromptExplorerModel = z.infer<typeof promptExplorerModelSchema>;
 /**
  * Two-letter ISO country code passed as `web_search_country_iso_code` to each
  * LLM Responses endpoint. Affects the web-search component of the answer
- * (Perplexity, GPT-5, Gemini, Claude when web search is on). DataForSEO
+ * (Perplexity, GPT-5, Gemini, Claude when web search is on). The provider
  * accepts any ISO-2 for ChatGPT/Gemini; Claude/Perplexity have a finite
  * supported list. We only expose codes covered by all four.
  */

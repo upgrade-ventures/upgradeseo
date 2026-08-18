@@ -1,7 +1,6 @@
 import { waitUntil } from "cloudflare:workers";
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import { createDataforseoClient } from "@/server/lib/dataforseo";
-import type { LlmResponseResult } from "@/server/lib/dataforseoLlmSchemas";
+import { z } from "zod";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { AppError } from "@/server/lib/errors";
 import {
   AI_SEARCH_PROMPT_CACHE_NAMESPACE,
@@ -9,260 +8,140 @@ import {
   getCached,
   setCached,
 } from "@/server/lib/r2-cache";
-import { safeHostname, safeHttpUrl } from "@/server/features/ai-search/safeUrl";
 import {
-  promptExplorerModelResultSchema,
-  type PromptExplorerCitation,
-  type PromptExplorerInput,
-  type PromptExplorerModel,
-  type PromptExplorerModelResult,
-  type PromptExplorerResult,
+  founderyMeasurementNotice,
+  runFounderyAnswer,
+  type FounderyAnswer,
+} from "@/server/features/ai-search/services/founderyVisibility";
+import type {
+  PromptExplorerInput,
+  PromptExplorerModel,
+  PromptExplorerModelResult,
+  PromptExplorerResult,
 } from "@/types/schemas/ai-search";
 
 /**
- * Prompt Explorer asks one prompt across one-to-four LLM models and renders
- * the answers side by side. Each (prompt, model) tuple is cached in R2 for 7
- * days because LLM responses are expensive and reasonably stable over short
- * windows.
+ * Prompt Explorer answers the user's prompt with our own Azure AI Foundry
+ * deployment. Each prompt is cached in R2 for 7 days because model calls are
+ * expensive and reasonably stable over short windows.
  *
- * Per-model errors are isolated: a Claude API failure must not prevent
- * ChatGPT/Gemini/Perplexity results from rendering. We use Promise.allSettled
- * to enforce that.
+ * WHAT THIS ANSWER IS AND IS NOT. It is what OUR model replies, once, right
+ * now, and it has no web-search tool, so there are no cited sources and
+ * anything past its training cutoff can be missing.
+ *
+ * Because there is exactly one engine, the vendor picker cannot be honoured.
+ * Running the same deployment four times and captioning the answers ChatGPT,
+ * Claude, Gemini and Perplexity would be four fabricated attributions, so we
+ * answer ONCE. The result still has to occupy one of the vendor-named slots in
+ * `PromptExplorerModel` (the union predates the single-engine path), so the
+ * answer body opens with a notice correcting the card heading. See the
+ * orchestrator note: the real fix is a "foundery" member on that union.
  */
 
 /** LLM responses are stable enough for a 7-day cache. */
 const PROMPT_RESPONSE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 /**
- * Hard cap on response length. Set to the DataForSEO per-call maximum because
- * reasoning models (gpt-5, gemini-2.5-pro) count hidden chain-of-thought
- * tokens against this budget — at 1024 ChatGPT regularly burns the whole
- * budget on reasoning and returns a near-empty visible message.
+ * Hard cap on response length. Generous because reasoning deployments count
+ * hidden chain-of-thought tokens against this budget — a cap sized to the
+ * visible answer gets spent on reasoning and returns a near-empty message.
  */
 const PROMPT_RESPONSE_MAX_TOKENS = 4096;
 
-type DataforseoClient = ReturnType<typeof createDataforseoClient>;
-
 export async function explorePrompt(
   input: PromptExplorerInput,
-  billingCustomer: BillingCustomerContext,
+  billingCustomer: OrganizationContext,
 ): Promise<PromptExplorerResult> {
-  const dataforseo = createDataforseoClient(billingCustomer);
   const highlightBrand = input.highlightBrand?.trim() || null;
+  const slot = input.models[0];
 
-  // Dedupe models so a request like ["claude","claude"] doesn't fan out to two
-  // paid upstream calls for the same answer.
-  const uniqueModels = Array.from(new Set(input.models));
-
-  const settled = await Promise.allSettled(
-    uniqueModels.map((model) =>
-      runModel({
-        model,
-        input,
-        highlightBrand,
-        billingCustomer,
-        dataforseo,
-      }),
-    ),
-  );
-
-  const results: PromptExplorerModelResult[] = settled.map(
-    (settledResult, index) => {
-      const model = uniqueModels[index];
-      if (settledResult.status === "fulfilled") return settledResult.value;
-      return mapErrorToResult(model, settledResult.reason);
-    },
-  );
+  let answer: FounderyAnswer;
+  try {
+    answer = await fetchFounderyAnswer(input, billingCustomer);
+  } catch (error) {
+    // A missing Foundery key is a setup problem the user can fix, so it must
+    // reach them as its own error rather than as a per-card "try again".
+    if (error instanceof AppError) throw error;
+    return {
+      prompt: input.prompt,
+      highlightBrand,
+      fetchedAt: new Date().toISOString(),
+      results: [mapErrorToResult(slot, error)],
+    };
+  }
 
   return {
     prompt: input.prompt,
     highlightBrand,
     fetchedAt: new Date().toISOString(),
-    results,
+    results: [
+      {
+        status: "success" as const,
+        model: slot,
+        modelName: `${answer.modelName} on Azure AI Foundry`,
+        text: `${founderyMeasurementNotice(answer.modelName)}\n\n${answer.text}`,
+        // No web-search tool means no annotations, so there is nothing to cite
+        // and no fan-out queries to report. Empty, never invented.
+        citations: [],
+        fanOutQueries: [],
+        // Computed on the raw answer rather than the notice-prefixed text, so
+        // wording inside our own notice can never satisfy a brand match.
+        brandMentioned: computeBrandMentioned(answer.text, highlightBrand),
+        outputTokens: answer.outputTokens,
+        webSearch: false,
+      },
+    ],
   };
 }
 
-type RunModelArgs = {
-  model: PromptExplorerModel;
-  input: PromptExplorerInput;
-  highlightBrand: string | null;
-  billingCustomer: BillingCustomerContext;
-  dataforseo: DataforseoClient;
-};
+/** Only the fields we can honestly reconstruct from a Foundery text answer. */
+const founderyAnswerCacheSchema = z.object({
+  text: z.string(),
+  modelName: z.string(),
+  outputTokens: z.number().int().nonnegative().nullable(),
+});
 
-async function runModel(
-  args: RunModelArgs,
-): Promise<PromptExplorerModelResult> {
+async function fetchFounderyAnswer(
+  input: PromptExplorerInput,
+  billingCustomer: OrganizationContext,
+): Promise<FounderyAnswer> {
   const cacheKey = await buildCacheKey(AI_SEARCH_PROMPT_CACHE_NAMESPACE, {
-    organizationId: args.billingCustomer.organizationId,
-    projectId: args.input.projectId,
-    model: args.model,
+    organizationId: billingCustomer.organizationId,
+    projectId: input.projectId,
+    source: "foundery",
     // Collapse only whitespace differences. Casing is deliberately preserved:
     // prompts like "Compare Go vs go" or case-sensitive code snippets must
     // not collide with their lowercase twins.
-    prompt: normalizePromptForCache(args.input.prompt),
-    webSearch: args.input.webSearch,
-    webSearchCountryCode: args.input.webSearchCountryCode ?? null,
-    // Bumped when prompt/payload shape changes — busts stale cache entries.
-    systemPromptV: 5,
+    prompt: normalizePromptForCache(input.prompt),
+    systemPromptV: 1,
   });
 
-  const cached = promptExplorerModelResultSchema.safeParse(
-    await getCached(cacheKey),
-  );
-  if (cached.success && cached.data.status === "success") {
-    // highlightBrand is not part of the cache key — re-apply it so the same
-    // cached response can power different brand highlights for free.
-    return reapplyHighlightBrand(cached.data, args.highlightBrand);
-  }
+  const cached = founderyAnswerCacheSchema.safeParse(await getCached(cacheKey));
+  if (cached.success) return cached.data;
 
-  const rawResponse = await fetchModelResponse(args);
-  const shaped = shapeSuccess(args.model, rawResponse);
+  const answer = await runFounderyAnswer({
+    organizationId: billingCustomer.organizationId,
+    prompt: input.prompt,
+    maxOutputTokens: PROMPT_RESPONSE_MAX_TOKENS,
+  });
 
   waitUntil(
-    setCached(cacheKey, shaped, PROMPT_RESPONSE_TTL_SECONDS, {
-      organizationId: args.billingCustomer.organizationId,
+    setCached(cacheKey, answer, PROMPT_RESPONSE_TTL_SECONDS, {
+      organizationId: billingCustomer.organizationId,
     }).catch((err) => {
-      console.error("ai-search.prompt-response.cache-write failed:", err);
+      console.error("ai-search.foundery-response.cache-write failed:", err);
     }),
   );
 
-  return reapplyHighlightBrand(shaped, args.highlightBrand);
-}
-
-// Each value must be a member of ACCEPTED_LLM_MODEL_NAMES in dataforseo/ai.ts,
-// which mirrors DataForSEO's llm_responses/models catalog. DataForSEO dropped
-// the Claude Sonnet 4.0 family, so we target the 4.5 alias (latest dated 4.5).
-const MODEL_NAMES: Record<PromptExplorerModel, string> = {
-  chat_gpt: "gpt-5",
-  claude: "claude-sonnet-4-5",
-  gemini: "gemini-2.5-pro",
-  perplexity: "sonar-reasoning-pro",
-};
-
-function fetchModelResponse(args: RunModelArgs): Promise<LlmResponseResult> {
-  return args.dataforseo.aiSearch.llmResponse({
-    modelSlug: args.model,
-    modelName: MODEL_NAMES[args.model],
-    userPrompt: args.input.prompt,
-    webSearch: args.input.webSearch,
-    webSearchCountryCode: args.input.webSearchCountryCode,
-    maxOutputTokens: PROMPT_RESPONSE_MAX_TOKENS,
-  });
-}
-
-/**
- * Shape a raw LLM response into the brand-agnostic success payload we cache.
- * Brand-specific fields (`matchedBrand`, `brandMentioned`) are computed
- * separately by `reapplyHighlightBrand` on every read so one cache entry can
- * serve requests with different `highlightBrand` values.
- */
-function shapeSuccess(
-  model: PromptExplorerModel,
-  response: LlmResponseResult,
-): PromptExplorerModelResult {
-  const text = extractText(response);
-  const citations = extractCitations(response);
-  const fanOutQueries = (response.fan_out_queries ?? []).slice(0, 20);
-
-  return {
-    status: "success" as const,
-    model,
-    modelName: response.model_name ?? null,
-    text,
-    citations,
-    fanOutQueries,
-    brandMentioned: null,
-    outputTokens:
-      response.output_tokens != null
-        ? Math.round(response.output_tokens)
-        : null,
-    webSearch: response.web_search ?? false,
-  };
-}
-
-function reapplyHighlightBrand(
-  result: PromptExplorerModelResult,
-  highlightBrand: string | null,
-): PromptExplorerModelResult {
-  if (result.status !== "success") return result;
-  const citations = result.citations.map((citation) => ({
-    ...citation,
-    matchedBrand: matchesBrand(citation.url, citation.title, highlightBrand),
-  }));
-  return {
-    ...result,
-    citations,
-    brandMentioned: computeBrandMentioned(
-      result.text,
-      citations,
-      highlightBrand,
-    ),
-  };
-}
-
-function extractText(response: LlmResponseResult): string {
-  const textParts: string[] = [];
-  for (const item of response.items ?? []) {
-    if (item.type !== "message") continue;
-    for (const section of item.sections ?? []) {
-      if (typeof section.text === "string" && section.text.length > 0) {
-        textParts.push(section.text);
-      }
-    }
-  }
-  return textParts.join("\n\n").trim();
-}
-
-export function extractCitations(
-  response: LlmResponseResult,
-): PromptExplorerCitation[] {
-  const seen = new Set<string>();
-  const citations: PromptExplorerCitation[] = [];
-
-  for (const item of response.items ?? []) {
-    if (item.type !== "message") continue;
-    for (const section of item.sections ?? []) {
-      for (const annotation of section.annotations ?? []) {
-        // DataForSEO annotations are untyped `{ title, url }` reference
-        // objects (AnnotationInfo) — there is no citation-type discriminator
-        // to filter on. Guard on URL safety only: LLMs can be coaxed into
-        // emitting `javascript:` payloads, and we render these as <a href>.
-        const safeUrl = safeHttpUrl(annotation.url);
-        if (!safeUrl || seen.has(safeUrl)) continue;
-        seen.add(safeUrl);
-        citations.push({
-          url: safeUrl,
-          domain: safeHostname(safeUrl),
-          title: annotation.title ?? null,
-          matchedBrand: false,
-        });
-      }
-    }
-  }
-
-  return citations.slice(0, 25);
+  return answer;
 }
 
 function computeBrandMentioned(
   text: string,
-  citations: PromptExplorerCitation[],
   highlightBrand: string | null,
 ): boolean | null {
   if (!highlightBrand) return null;
-  if (citations.some((c) => c.matchedBrand)) return true;
   return mentionRegex(highlightBrand).test(text);
-}
-
-function matchesBrand(
-  url: string,
-  title: string | null | undefined,
-  highlightBrand: string | null,
-): boolean {
-  if (!highlightBrand) return false;
-  const needle = highlightBrand.toLowerCase();
-  const haystack = `${url} ${title ?? ""}`.toLowerCase();
-  return haystack.includes(needle);
 }
 
 function mentionRegex(brand: string): RegExp {
@@ -290,16 +169,6 @@ function mapErrorToResult(
   model: PromptExplorerModel,
   reason: unknown,
 ): PromptExplorerModelResult {
-  if (
-    reason instanceof AppError &&
-    (reason.code === "INSUFFICIENT_CREDITS" ||
-      reason.code === "AI_SEARCH_BILLING_ISSUE")
-  ) {
-    // These account-level failures apply to every model, so surface one clear
-    // error instead of silently degrading to per-model failures.
-    throw reason;
-  }
-
   // Log full upstream detail server-side; surface only a generic message to
   // the client. Upstream error bodies sometimes echo request paths or
   // diagnostic fields we don't want to leak to the browser.

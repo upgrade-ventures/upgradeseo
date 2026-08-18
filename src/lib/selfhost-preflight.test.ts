@@ -9,15 +9,15 @@ function itemFor(
 }
 
 describe("runSelfhostPreflight", () => {
-  it("passes the stock Docker setup (local_noauth + DataForSEO key)", () => {
+  it("passes the stock Docker setup (local_noauth + a keyword source)", () => {
     const result = runSelfhostPreflight({
       AUTH_MODE: "local_noauth",
-      DATAFORSEO_API_KEY: btoa("user@example.com:secret"),
+      BING_WEBMASTER_API_KEY: "bing-key",
     });
 
     expect(result.failed).toBe(false);
     expect(itemFor(result, "AUTH_MODE")?.level).toBe("ok");
-    expect(itemFor(result, "DATAFORSEO_API_KEY")?.level).toBe("ok");
+    expect(itemFor(result, "BING_WEBMASTER_API_KEY")?.level).toBe("ok");
   });
 
   it("fails an invalid AUTH_MODE with the valid list", () => {
@@ -49,15 +49,32 @@ describe("runSelfhostPreflight", () => {
     expect(itemFor(result, "TEAM_DOMAIN")?.message).toContain("https://");
   });
 
-  it("warns on a DataForSEO key that is not base64 login:password", () => {
+  it("warns when no keyword data source is configured", () => {
+    // With no instance key there is no keyword source until an organization
+    // connects one in Settings, and saying so is the honest answer.
+    const result = runSelfhostPreflight({ AUTH_MODE: "local_noauth" });
+
+    expect(itemFor(result, "BING_WEBMASTER_API_KEY")?.level).toBe("warn");
+    expect(itemFor(result, "BING_WEBMASTER_API_KEY")?.message).toContain(
+      "Microsoft Advertising",
+    );
+  });
+
+  it("warns that provider keys cannot be saved without key material", () => {
+    // local_noauth demands no secret otherwise, so without this the Settings
+    // page would offer a save button that always fails.
+    const result = runSelfhostPreflight({ AUTH_MODE: "local_noauth" });
+    const item = itemFor(result, "Provider key storage");
+    expect(item?.level).toBe("warn");
+    expect(item?.message).toContain("openssl rand");
+  });
+
+  it("reports provider key storage as ready once a secret exists", () => {
     const result = runSelfhostPreflight({
       AUTH_MODE: "local_noauth",
-      DATAFORSEO_API_KEY: "raw-dashboard-key",
+      SECRETS_ENCRYPTION_KEY: "a-long-random-value-for-encryption-here",
     });
-
-    expect(result.failed).toBe(false);
-    expect(itemFor(result, "DATAFORSEO_API_KEY")?.level).toBe("warn");
-    expect(itemFor(result, "DATAFORSEO_API_KEY")?.message).toContain("base64");
+    expect(itemFor(result, "Provider key storage")?.level).toBe("ok");
   });
 
   it("warns that GSC stays disabled on a short BETTER_AUTH_SECRET", () => {

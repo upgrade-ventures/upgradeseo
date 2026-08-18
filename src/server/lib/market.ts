@@ -14,13 +14,13 @@ export function assertLabsLocationCode(locationCode: number | undefined) {
   if (locationCode != null && getKeywordDataProvider(locationCode) !== "labs") {
     throw new AppError(
       "VALIDATION_ERROR",
-      "Domain analytics is not available for this country. Keyword research and rank tracking work; domain-level data is limited to DataForSEO Labs locations.",
+      "Domain analytics is not available for this country. Keyword research and rank tracking work; domain-level data is limited to the Labs location set.",
     );
   }
 }
 
 /**
- * Guards Labs-backed callers against a language DataForSEO doesn't serve for
+ * Guards Labs-backed callers against a language not served for
  * the chosen location. A mismatched pair (e.g. language_code="ru" for the
  * United States) is otherwise rejected as an opaque *charged* "Invalid Field:
  * 'language_code'." task failure, so validate the pair first (cost 0).

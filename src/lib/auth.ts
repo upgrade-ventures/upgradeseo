@@ -19,6 +19,7 @@ import {
   hasHostedTurnstileConfig,
 } from "@/lib/auth-turnstile";
 import { getOrCreateDefaultHostedOrganization } from "@/server/auth/default-hosted-organization";
+import { withBasePath } from "@/shared/base-path";
 import {
   sendHostedPasswordResetEmail,
   sendHostedVerificationEmail,
@@ -66,6 +67,13 @@ function createAuth() {
 
   const auth = betterAuth({
     baseURL: baseUrl,
+    // Better Auth matches requests on `basePath` (default "/api/auth"). On a
+    // sub-path deploy the request arrives at /UpgradeSEO/api/auth/... so the
+    // default never matches and every endpoint answers 404 with an empty body
+    // — which surfaces in the UI only as "Google sign in is not available".
+    // BETTER_AUTH_URL is the ORIGIN here, so the prefix lives in exactly one
+    // place and the two cannot compound into /UpgradeSEO/UpgradeSEO/api/auth.
+    basePath: withBasePath("/api/auth"),
     secret: getHostedSecret(),
     ...baseAuthConfig,
     emailAndPassword: {
@@ -114,7 +122,6 @@ function createAuth() {
         create: {
           // Hosted only: keep cheap mass-signups off the free plan by rejecting
           // throwaway-inbox domains before the user row is created. Self-hosted
-          // has no shared credit pool to protect, so it's left untouched.
           before: async (user) => {
             if (
               isHostedAuthMode(env.AUTH_MODE) &&
@@ -183,10 +190,10 @@ function getTrustedOrigins(baseUrl: string) {
 
   if (process.env.NODE_ENV !== "production") {
     trustedOrigins.push(
-      "http://open-seo.localhost:1355",
-      "http://*.open-seo.localhost:1355",
-      "https://open-seo.localhost:1355",
-      "https://*.open-seo.localhost:1355",
+      "http://upgradeseo.localhost:1355",
+      "http://*.upgradeseo.localhost:1355",
+      "https://upgradeseo.localhost:1355",
+      "https://*.upgradeseo.localhost:1355",
     );
   }
 

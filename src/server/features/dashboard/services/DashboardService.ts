@@ -1,4 +1,4 @@
-import type { BillingCustomerContext } from "@/server/billing/subscription";
+import type { OrganizationContext } from "@/server/auth/organizationContext";
 import { ActivationRepository } from "@/server/features/activation/repositories/ActivationRepository";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import { getIssueTypePageCountsForAudit } from "@/server/features/audit/repositories/auditSummaryQueries";
@@ -7,10 +7,11 @@ import { Ga4ConnectionRepository } from "@/server/features/ga4/repositories/Ga4C
 import { GscConnectionRepository } from "@/server/features/gsc/repositories/GscConnectionRepository";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { getLatestResults } from "@/server/features/rank-tracking/services/rankTrackingResults";
+import { BacklinksService } from "@/server/features/backlinks/services/BacklinksService";
 import {
-  createDataforseoClient,
-  normalizeBacklinksTarget,
-} from "@/server/lib/dataforseo";
+  getActivity,
+  getSearchSummary,
+} from "@/server/features/dashboard/services/dashboardFeeds";
 
 // Daily cadence: fresh numbers each visit without per-visit spend; a dormant
 // project costs nothing because refreshes are visit-triggered.
@@ -56,8 +57,13 @@ export type DashboardAuditSummary = {
   totalIssueTypes: number;
 };
 
-export type DashboardBacklinkSummary = {
+type DashboardBacklinkSummary = {
   domain: string;
+  /**
+   * Authority PROXY on 0-100 (OpenPageRank, or the keyless Ahrefs Domain
+   * Rating), not a licensed link-index rank. Any copy that shows it must say
+   * so.
+   */
   rank: number | null;
   backlinks: number | null;
   referringDomains: number | null;
@@ -69,10 +75,54 @@ export type DashboardBacklinkSummary = {
   stale: boolean;
 };
 
+/**
+ * 28-day Search Console totals, plus the preceding 28 days so each figure can
+ * carry a change.
+ *
+ * Null when Search Console is not connected, or when Google returned nothing —
+ * the caller renders "no data" rather than a zero, because a zero here would
+ * read as "your site got no clicks" when the truth is "we never asked".
+ */
+export type DashboardSearchSummary = {
+  clicks: number;
+  impressions: number;
+  /** Fraction, 0-1, as Google reports it. */
+  ctr: number;
+  /** 1-based average position. */
+  position: number;
+  /** Same four figures for the previous 28 days, or null on a new property. */
+  previous: {
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  } | null;
+};
+
+/**
+ * One entry in the dashboard's activity timeline.
+ *
+ * Assembled from records the app already writes — audit runs, rank-check runs
+ * and connection events. There is deliberately no separate event-log table: a
+ * second write path would be one more thing to keep in sync, and everything the
+ * timeline shows already has a durable row with a timestamp on it.
+ */
+export type DashboardActivityEntry = {
+  id: string;
+  /** Drives the icon and the dot colour. */
+  kind: "audit" | "rank" | "connection";
+  tone: "success" | "warning" | "danger" | "info";
+  title: string;
+  detail: string | null;
+  /** ISO 8601. */
+  at: string;
+};
+
 type DashboardOverview = {
   rank: DashboardRankSummary | null;
   audit: DashboardAuditSummary | null;
   backlinks: DashboardBacklinkSummary | null;
+  search: DashboardSearchSummary | null;
 };
 
 async function getActivation(input: {
@@ -108,14 +158,22 @@ async function getOverview(input: {
   projectId: string;
   domain: string | null;
 }): Promise<DashboardOverview> {
-  const [rank, audit, backlinks] = await Promise.all([
+  const [rank, audit, backlinks, search] = await Promise.all([
     getRankSummary(input.projectId),
     getAuditSummary(input.projectId),
     getBacklinkSummary(input.projectId, input.domain),
+    getSearchSummary(input.projectId),
   ]);
-  return { rank, audit, backlinks };
+  return { rank, audit, backlinks, search };
 }
 
+/**
+ * Totals for the last 28 complete days and the 28 before them.
+ *
+ * Google's data lags roughly three days, so both windows are offset by
+ * SEARCH_LAG_DAYS; without that the current window is always short a few days
+ * and every metric reads as falling.
+ */
 async function getRankSummary(
   projectId: string,
 ): Promise<DashboardRankSummary | null> {
@@ -219,19 +277,25 @@ async function getBacklinkSummary(
 }
 
 /**
- * Visit-triggered snapshot refresh. Fetches only the DataForSEO backlinks
- * summary (not the history endpoint the backlinks page also pays for) and is
- * a no-op while the latest snapshot for the current domain is under a day
- * old. Concurrent loads racing the freshness check can each pay a metered
- * call — every call is metered, so the race duplicates customer spend on
- * identical data but never leaks revenue; accepted for now. On a fetch
- * failure with a stale snapshot in hand, the stale snapshot is returned
- * rather than surfacing an error card.
+ * Visit-triggered snapshot refresh, a no-op while the latest snapshot for the
+ * current domain is under a day old.
+ *
+ * Reads the same free overview the Backlinks page renders rather than its own
+ * source, so the card and the page can never quote different numbers, and a
+ * warm entry in that shared cache makes the visit free. The free sources fill
+ * authority and referring domains only; new/lost movement has no free source
+ * and stays null, which the card renders as a dash rather than as zero.
+ *
+ * When no free source is connected the overview throws
+ * DATA_SOURCE_NOT_CONFIGURED. With a stale snapshot in hand that is swallowed
+ * so the card keeps showing the older real numbers; with nothing in hand it
+ * propagates, because the naming-the-fix message is more use than an empty
+ * card.
  */
 async function ensureBacklinkSnapshot(input: {
   projectId: string;
   domain: string | null;
-  billingCustomer: BillingCustomerContext;
+  billingCustomer: OrganizationContext;
 }): Promise<DashboardBacklinkSummary | null> {
   const { projectId, domain } = input;
   if (!domain) return null;
@@ -243,28 +307,27 @@ async function ensureBacklinkSnapshot(input: {
     return getBacklinkSummary(projectId, domain);
   }
 
-  const normalized = normalizeBacklinksTarget(domain, { scope: "domain" });
-  const dataforseo = createDataforseoClient(input.billingCustomer);
-
   try {
-    const summary = await dataforseo.backlinks.summary({
-      target: normalized.apiTarget,
-    });
+    const { overview } = await BacklinksService.profileOverview(
+      { target: domain, scope: "domain" },
+      input.billingCustomer,
+    );
+    const summary = overview.summary;
     await BacklinkSnapshotRepository.insert({
       projectId,
       domain,
-      rank: summary.rank ?? null,
-      backlinks: summary.backlinks ?? null,
-      referringDomains: summary.referring_domains ?? null,
-      brokenBacklinks: summary.broken_backlinks ?? null,
-      newBacklinks: summary.new_backlinks ?? null,
-      lostBacklinks: summary.lost_backlinks ?? null,
-      newReferringDomains:
-        summary.new_referring_domains ?? summary.new_reffering_domains ?? null,
-      lostReferringDomains:
-        summary.lost_referring_domains ??
-        summary.lost_reffering_domains ??
-        null,
+      // The column is an integer and the authority proxy is a 0-100 score
+      // with one decimal, so it is rounded to fit. Rounding a proxy loses
+      // nothing a reader could act on; storing 5.7 in an integer column
+      // behaves differently on SQLite and Postgres.
+      rank: summary.rank === null ? null : Math.round(summary.rank),
+      backlinks: summary.backlinks,
+      referringDomains: summary.referringDomains,
+      brokenBacklinks: summary.brokenBacklinks,
+      newBacklinks: summary.newBacklinks,
+      lostBacklinks: summary.lostBacklinks,
+      newReferringDomains: summary.newReferringDomains,
+      lostReferringDomains: summary.lostReferringDomains,
       capturedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -278,8 +341,16 @@ async function ensureBacklinkSnapshot(input: {
   return getBacklinkSummary(projectId, domain);
 }
 
+/**
+ * The activity timeline, newest first.
+ *
+ * Reads real rows only. A project with no history returns an empty list, which
+ * the UI renders as an empty state rather than as invented history.
+ */
+
 export const DashboardService = {
   getActivation,
   getOverview,
+  getActivity,
   ensureBacklinkSnapshot,
 };

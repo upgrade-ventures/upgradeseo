@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "@/server/lib/errors";
 import { objectSchema } from "@/server/mcp/output-schemas";
-import * as researchTools from "./dataforseo-research-tools";
 import { getBacklinksProfileTool } from "./get-backlinks-profile";
 import { makeToolContext } from "./tool-test-support";
 
@@ -25,19 +24,6 @@ vi.mock("@/server/features/backlinks/services/BacklinksService", () => ({
     profileBacklinksPage: mocks.profileBacklinksPage,
   },
 }));
-
-// A class instance reproduces what the DataForSEO SDK hands the tools: an
-// object whose prototype is not Object.prototype (e.g.
-// DataforseoLabsSerpCompetitorsLiveItem). Zod 4's z.record() rejects those
-// ("expected record, received <ClassName>"), so a record-based output schema
-// makes the MCP server fail these passthrough tools with a -32602 output
-// validation error even though the API call succeeded.
-class ProviderRow {
-  constructor(
-    public domain: string,
-    public rank_absolute: number,
-  ) {}
-}
 
 const toolContext = makeToolContext({
   userEmail: "team@example.com",
@@ -80,35 +66,7 @@ beforeEach(() => {
   });
 });
 
-describe("DataForSEO research tool output schemas", () => {
-  // Every tool that streams provider rows straight to structuredContent.
-  it.each([
-    ["find_serp_competitors", "competitors"],
-    ["get_local_serp_results", "results"],
-    ["search_local_businesses", "businesses"],
-    ["get_google_business_questions", "questions"],
-    ["get_ranked_keywords", "keywords"],
-  ])(
-    "%s accepts typed (non-plain-object) provider rows",
-    async (toolName, field) => {
-      const tools = researchTools;
-      const tool = Object.values(tools).find((t) => t.name === toolName);
-      if (!tool) throw new Error(`tool ${toolName} not found`);
-
-      const schema = objectSchema(tool.config.outputSchema);
-
-      // Mirror the MCP server: validate structuredContent against the tool's
-      // own output schema. Extra keys (e.g. get_ranked_keywords' totalCount)
-      // are allowed by the passthrough schemas, so one payload covers all.
-      const result = await schema.safeParseAsync({
-        [field]: [new ProviderRow("example.com", 1)],
-        totalCount: 1,
-      });
-
-      expect(result.success).toBe(true);
-    },
-  );
-
+describe("MCP tool output schemas", () => {
   it("get_backlinks_profile accepts a paginated backlinks profile payload", async () => {
     const schema = objectSchema(getBacklinksProfileTool.config.outputSchema);
 
@@ -144,7 +102,6 @@ describe("get_backlinks_profile MCP tool", () => {
           hideLost: true,
         },
         mode: "as_is",
-        hideSpam: false,
       },
       toolContext,
     );
@@ -170,7 +127,6 @@ describe("get_backlinks_profile MCP tool", () => {
         organizationId: "org_123",
         projectId: "project_123",
       },
-      { hideSpam: false },
     );
     expect(result.structuredContent?.backlinks).toEqual(backlinkPage);
     const first = result.content[0];
@@ -197,7 +153,6 @@ describe("get_backlinks_profile MCP tool", () => {
         sortOrder: "desc",
         filters: {},
         mode: "one_per_domain",
-        hideSpam: true,
       },
       toolContext,
     );
@@ -210,10 +165,12 @@ describe("get_backlinks_profile MCP tool", () => {
     });
   });
 
-  it("preserves Backlinks API access and credit errors", async () => {
+  // The message names which free source to connect, so the tool must surface
+  // the service's error intact instead of collapsing it to an empty page.
+  it("preserves the service's missing-data-source error", async () => {
     const error = new AppError(
-      "BACKLINKS_BILLING_ISSUE",
-      "The connected DataForSEO account has a billing or balance issue",
+      "DATA_SOURCE_NOT_CONFIGURED",
+      "Verify this site in Bing Webmaster Tools to see its individual links.",
     );
     mocks.profileBacklinksPage.mockRejectedValue(error);
 
@@ -229,14 +186,13 @@ describe("get_backlinks_profile MCP tool", () => {
           sortOrder: "desc",
           filters: {},
           mode: "one_per_domain",
-          hideSpam: true,
         },
         toolContext,
       ),
     ).rejects.toMatchObject({
-      code: "BACKLINKS_BILLING_ISSUE",
+      code: "DATA_SOURCE_NOT_CONFIGURED",
       message:
-        "The connected DataForSEO account has a billing or balance issue",
+        "Verify this site in Bing Webmaster Tools to see its individual links.",
     });
   });
 });

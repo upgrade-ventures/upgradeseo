@@ -40,7 +40,7 @@ export interface RobotsResult {
 async function fetchRobotsTxtText(origin: string): Promise<string | null> {
   try {
     const response = await fetch(`${origin}/robots.txt`, {
-      headers: { "User-Agent": "OpenSEO-Audit/1.0" },
+      headers: { "User-Agent": "UpgradeSEO-Audit/1.0" },
       signal: AbortSignal.timeout(10_000),
     });
 
@@ -173,7 +173,7 @@ async function fetchSitemapDocumentWithRetry(sitemapUrl: string): Promise<{
   for (let attempt = 0; attempt <= SITEMAP_RETRIES; attempt++) {
     try {
       const response = await fetch(normalizedSitemapUrl, {
-        headers: { "User-Agent": "OpenSEO-Audit/1.0" },
+        headers: { "User-Agent": "UpgradeSEO-Audit/1.0" },
         signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS),
       });
 

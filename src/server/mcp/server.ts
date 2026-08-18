@@ -17,7 +17,6 @@ import { getDomainKeywordSuggestionsTool } from "@/server/mcp/tools/get-domain-k
 import { getDomainOverviewTool } from "@/server/mcp/tools/get-domain-overview";
 import { addRankTrackingKeywordsTool } from "@/server/mcp/tools/add-rank-tracking-keywords";
 import { createRankTrackerTool } from "@/server/mcp/tools/create-rank-tracker";
-import { estimateRankTrackerCostTool } from "@/server/mcp/tools/estimate-rank-tracker-cost";
 import { getRankTrackerTool } from "@/server/mcp/tools/get-rank-tracker";
 import { removeRankTrackingKeywordsTool } from "@/server/mcp/tools/remove-rank-tracking-keywords";
 import { runRankTrackerTool } from "@/server/mcp/tools/run-rank-tracker";
@@ -37,14 +36,7 @@ import {
 import { createProjectTool } from "@/server/mcp/tools/create-project";
 import { listProjectsTool } from "@/server/mcp/tools/list-projects";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
-import {
-  findSerpCompetitorsTool,
-  getGoogleBusinessQuestionsTool,
-  getKeywordMetricsTool,
-  getLocalSerpResultsTool,
-  getRankedKeywordsTool,
-  searchLocalBusinessesTool,
-} from "@/server/mcp/tools/dataforseo-research-tools";
+import { getKeywordMetricsTool } from "@/server/mcp/tools/research-tools";
 import { researchKeywordsTool } from "@/server/mcp/tools/research-keywords";
 import { saveKeywordsTool } from "@/server/mcp/tools/save-keywords";
 import {
@@ -70,7 +62,7 @@ type ToolArgs<Input extends ToolSchema> = Input extends z.ZodType
     ? z.infer<z.ZodObject<Input>>
     : never;
 
-type OpenSeoToolDefinition<Input extends ToolSchema> = {
+type UpgradeSeoToolDefinition<Input extends ToolSchema> = {
   name: string;
   config: {
     title?: string;
@@ -85,9 +77,9 @@ type OpenSeoToolDefinition<Input extends ToolSchema> = {
   ) => CallToolResult | Promise<CallToolResult>;
 };
 
-function registerOpenSeoTool<Input extends ToolSchema>(
+function registerUpgradeSeoTool<Input extends ToolSchema>(
   server: McpServer,
-  tool: OpenSeoToolDefinition<Input>,
+  tool: UpgradeSeoToolDefinition<Input>,
   authProps: McpProps,
 ) {
   const outputSchema = objectSchema(tool.config.outputSchema);
@@ -114,18 +106,18 @@ function registerOpenSeoTool<Input extends ToolSchema>(
   );
 }
 
-export function createOpenSeoMcpServer(authProps: McpProps) {
+export function createUpgradeSeoMcpServer(authProps: McpProps) {
   const server = new McpServer(
     {
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: "UpgradeSEO MCP",
+      title: "UpgradeSEO",
       version: "0.0.11",
       description:
-        "SEO research tools for AI agents: keyword research and metrics, SERP and local SERP results, domain and backlink analysis, rank tracking, and Google Search Console performance.",
-      websiteUrl: "https://openseo.so",
+        "SEO research tools for AI agents: keyword research and metrics, domain and backlink analysis, rank tracking, site audits, and Google Search Console and Analytics performance.",
+      websiteUrl: "",
       icons: [
         {
-          src: "https://openseo.so/android-chrome-512x512.png",
+          src: "",
           mimeType: "image/png",
           sizes: ["512x512"],
         },
@@ -133,13 +125,13 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
     },
     {
       instructions:
-        "OpenSEO research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
+        "UpgradeSEO reads free data sources the user has connected (Google Search Console, Google Analytics, Google Ads, Bing Webmaster Tools, OpenPageRank). A tool that reports a value as unknown means no connected free source publishes it; treat that as missing data, never as zero, and tell the user which source to connect. Ranking and link data for a site the user has not verified is not available at all.",
     },
   );
 
   const register = <Input extends ToolSchema>(
-    tool: OpenSeoToolDefinition<Input>,
-  ) => registerOpenSeoTool(server, tool, authProps);
+    tool: UpgradeSeoToolDefinition<Input>,
+  ) => registerUpgradeSeoTool(server, tool, authProps);
 
   register(whoamiTool);
   register(listProjectsTool);
@@ -156,13 +148,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getRankTrackerTool);
   register(addRankTrackingKeywordsTool);
   register(removeRankTrackingKeywordsTool);
-  register(estimateRankTrackerCostTool);
   register(runRankTrackerTool);
-  register(getRankedKeywordsTool);
-  register(findSerpCompetitorsTool);
-  register(searchLocalBusinessesTool);
-  register(getLocalSerpResultsTool);
-  register(getGoogleBusinessQuestionsTool);
   register(getKeywordMetricsTool);
   register(getSearchConsolePerformanceTool);
   register(inspectUrlsTool);

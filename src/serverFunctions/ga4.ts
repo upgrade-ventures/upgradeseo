@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { waitUntil } from "cloudflare:workers";
 import { z } from "zod";
+import { Ga4OrganicOverviewService } from "@/server/features/ga4/services/Ga4OrganicOverviewService";
 import { Ga4Service } from "@/server/features/ga4/services/Ga4Service";
 import { hasSelfHostedGoogleOAuthConfig } from "@/server/features/google/oauth-config";
 import {
@@ -129,3 +130,22 @@ export const startSelfHostedGa4Link = createServerFn({ method: "POST" })
       publicOrigin: getPublicOrigin(getRequest()),
     }),
   }));
+
+/**
+ * Organic sessions and key events for the dashboard.
+ *
+ * The reporting services have existed since GA4 was added but were reachable
+ * only through the MCP tools, so a connected property showed a green dot in
+ * Settings and nothing anywhere else. This is the missing server entry point.
+ *
+ * Errors are mapped, never thrown raw: an expired grant and a property with no
+ * organic traffic are different states and the card has to tell them apart.
+ */
+export const getGa4OrganicOverview = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(projectScopedSchema)
+  .handler(async ({ context }) => {
+    return Ga4OrganicOverviewService.getOrganicOverview({
+      projectId: context.projectId,
+    });
+  });

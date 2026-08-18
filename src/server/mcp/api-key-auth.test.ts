@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MCP_AUTH_CONTEXT_PROP } from "@/server/mcp/context";
 import { MCP_OAUTH_SCOPES } from "@/lib/oauth-resource";
-import type { handleAuthenticatedOpenSeoMcpRequest } from "@/server/mcp/transport";
+import type { handleAuthenticatedUpgradeSeoMcpRequest } from "@/server/mcp/transport";
 
 const mocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(),
   getHostedUser: vi.fn(),
   getOrCreateDefaultHostedOrganization: vi.fn(),
   recordMcpAuthorized: vi.fn(),
-  handleAuthenticatedOpenSeoMcpRequest:
-    vi.fn<typeof handleAuthenticatedOpenSeoMcpRequest>(),
+  handleAuthenticatedUpgradeSeoMcpRequest:
+    vi.fn<typeof handleAuthenticatedUpgradeSeoMcpRequest>(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/lib/auth", () => ({
       createOrganization: vi.fn(),
     },
   }),
-  getHostedBaseUrl: () => "https://app.openseo.so",
+  getHostedBaseUrl: () => "https://app.upgradeseo.test",
 }));
 
 vi.mock("@/server/auth/repositories/AuthRepository", () => ({
@@ -38,8 +38,8 @@ vi.mock("@/server/features/activation/mcpActivation", () => ({
 }));
 
 vi.mock("@/server/mcp/transport", () => ({
-  handleAuthenticatedOpenSeoMcpRequest:
-    mocks.handleAuthenticatedOpenSeoMcpRequest,
+  handleAuthenticatedUpgradeSeoMcpRequest:
+    mocks.handleAuthenticatedUpgradeSeoMcpRequest,
 }));
 
 import { handleMcpApiKeyRequest } from "@/server/mcp/api-key-auth";
@@ -52,7 +52,7 @@ const ctx: ExecutionContext = {
 };
 
 function request(headers?: HeadersInit, method = "POST") {
-  return new Request("https://app.openseo.so/mcp", { method, headers });
+  return new Request("https://app.upgradeseo.test/mcp", { method, headers });
 }
 
 describe("handleMcpApiKeyRequest", () => {
@@ -65,7 +65,7 @@ describe("handleMcpApiKeyRequest", () => {
     });
     mocks.getOrCreateDefaultHostedOrganization.mockResolvedValue("org-1");
     mocks.recordMcpAuthorized.mockResolvedValue(undefined);
-    mocks.handleAuthenticatedOpenSeoMcpRequest.mockResolvedValue(
+    mocks.handleAuthenticatedUpgradeSeoMcpRequest.mockResolvedValue(
       new Response("mcp response"),
     );
   });
@@ -89,9 +89,11 @@ describe("handleMcpApiKeyRequest", () => {
       expect.any(Function),
     );
     expect(mocks.recordMcpAuthorized).toHaveBeenCalledWith("org-1");
-    expect(mocks.handleAuthenticatedOpenSeoMcpRequest).toHaveBeenCalledTimes(1);
+    expect(mocks.handleAuthenticatedUpgradeSeoMcpRequest).toHaveBeenCalledTimes(
+      1,
+    );
     const [passedRequest, props, passedEnv, passedCtx] =
-      mocks.handleAuthenticatedOpenSeoMcpRequest.mock.calls[0];
+      mocks.handleAuthenticatedUpgradeSeoMcpRequest.mock.calls[0];
     expect(passedRequest).toBe(mcpRequest);
     expect(passedEnv).toBe(env);
     expect(passedCtx).toBe(ctx);
@@ -102,7 +104,7 @@ describe("handleMcpApiKeyRequest", () => {
         organizationId: "org-1",
         scopes: [...MCP_OAUTH_SCOPES],
         clientId: "api_key",
-        baseUrl: "https://app.openseo.so",
+        baseUrl: "https://app.upgradeseo.test",
       },
     });
   });
@@ -143,7 +145,9 @@ describe("handleMcpApiKeyRequest", () => {
     await expect(response?.json()).resolves.toMatchObject({
       error: "invalid_api_key",
     });
-    expect(mocks.handleAuthenticatedOpenSeoMcpRequest).not.toHaveBeenCalled();
+    expect(
+      mocks.handleAuthenticatedUpgradeSeoMcpRequest,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns 429 with Retry-After when Better Auth rate-limits the key", async () => {
@@ -168,7 +172,9 @@ describe("handleMcpApiKeyRequest", () => {
     await expect(response?.json()).resolves.toMatchObject({
       error: "rate_limited",
     });
-    expect(mocks.handleAuthenticatedOpenSeoMcpRequest).not.toHaveBeenCalled();
+    expect(
+      mocks.handleAuthenticatedUpgradeSeoMcpRequest,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns a JSON 500 when auth resolution throws", async () => {
@@ -184,10 +190,12 @@ describe("handleMcpApiKeyRequest", () => {
     await expect(response?.json()).resolves.toMatchObject({
       error: "internal_error",
     });
-    expect(mocks.handleAuthenticatedOpenSeoMcpRequest).not.toHaveBeenCalled();
+    expect(
+      mocks.handleAuthenticatedUpgradeSeoMcpRequest,
+    ).not.toHaveBeenCalled();
   });
 
-  it("leaves non-OpenSEO bearer tokens for OAuth", async () => {
+  it("leaves non-UpgradeSEO bearer tokens for OAuth", async () => {
     await expect(
       handleMcpApiKeyRequest(
         request({ Authorization: "Bearer oauth-access-token" }),
@@ -198,7 +206,7 @@ describe("handleMcpApiKeyRequest", () => {
     expect(mocks.verifyApiKey).not.toHaveBeenCalled();
   });
 
-  it("leaves non-OpenSEO x-api-key values for OAuth", async () => {
+  it("leaves non-UpgradeSEO x-api-key values for OAuth", async () => {
     await expect(
       handleMcpApiKeyRequest(
         request({

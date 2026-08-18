@@ -17,7 +17,7 @@ const oauthSearch = new URLSearchParams({
   state: "state-123",
   code_challenge: "challenge-123",
   code_challenge_method: "S256",
-  resource: "https://app.openseo.so/mcp",
+  resource: "https://app.upgradeseo.test/mcp",
   exp: "1778271800",
   sig: "signed-value",
 }).toString();
@@ -67,7 +67,7 @@ describe("auth redirect helpers", () => {
   it("extracts the current path, query, and hash from hrefs", () => {
     expect(
       getCurrentAuthRedirectFromHref(
-        "https://open-seo.test/projects?tab=keywords#top",
+        "https://upgradeseo.test/projects?tab=keywords#top",
       ),
     ).toBe("/projects?tab=keywords#top");
   });
@@ -96,7 +96,9 @@ describe("auth redirect helpers", () => {
     expect(redirect).toContain("state=state-123");
     expect(redirect).toContain("code_challenge=challenge-123");
     expect(redirect).toContain("code_challenge_method=S256");
-    expect(redirect).toContain("resource=https%3A%2F%2Fapp.openseo.so%2Fmcp");
+    expect(redirect).toContain(
+      "resource=https%3A%2F%2Fapp.upgradeseo.test%2Fmcp",
+    );
     expect(redirect).toContain("exp=1778271800");
     expect(redirect).toContain("sig=signed-value");
   });

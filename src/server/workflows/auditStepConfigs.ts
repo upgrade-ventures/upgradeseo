@@ -22,7 +22,7 @@ export const CRAWL_CHUNK_STEP: WorkflowStepConfig = {
 };
 
 /**
- * One Lighthouse URL (mobile + desktop). DataForSEO charges these calls, so a
+ * One Lighthouse URL (mobile + desktop). These calls are rate-limited, so a
  * Workflow replay must never issue them again after the step starts.
  */
 export const LIGHTHOUSE_FETCH_STEP: WorkflowStepConfig = {

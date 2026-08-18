@@ -60,6 +60,7 @@ function analyzeHtmlWithCheerio(html: string, pageUrl: string): PageAnalysis {
     const href = $(el).attr("href");
     if (!href) return;
     if (/^(javascript:|mailto:|tel:|#)/.test(href)) return;
+    if (/^(?:https?:\/\/[^/]+)?\/cdn-cgi\//i.test(href)) return;
     const resolved = normalizeUrl(href, pageUrl);
     if (!resolved) return;
     if (linksByTarget.has(resolved)) return;
@@ -204,5 +205,23 @@ describe("analyzeHtml parity with the DOM reference", () => {
       </p>
       <ul><li>four</li><li>five</li></ul>
     </body>`);
+  });
+});
+
+describe("link extraction", () => {
+  it("skips Cloudflare's email-obfuscation links", () => {
+    // Real regression: one obfuscated footer address produced a broken-link
+    // finding on every page of the site that carried it.
+    const result = analyzeHtml(
+      `<a href="/cdn-cgi/l/email-protection#584a">email</a>
+       <a href="https://example.com/cdn-cgi/l/email-protection#01">also</a>
+       <a href="/real-page">keep</a>`,
+      "https://example.com/",
+      200,
+      0,
+    );
+    expect(result.links.map((l) => l.targetUrl)).toEqual([
+      "https://example.com/real-page",
+    ]);
   });
 });

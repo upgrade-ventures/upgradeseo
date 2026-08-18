@@ -4,7 +4,7 @@ import { normalizeClientRegistrationRequest } from "@/server/mcp/oauth-registrat
 describe("normalizeClientRegistrationRequest", () => {
   it("keeps explicit public registrations public", async () => {
     const request = new Request(
-      "https://app.openseo.so/api/auth/oauth2/register",
+      "https://app.upgradeseo.test/api/auth/oauth2/register",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -25,7 +25,7 @@ describe("normalizeClientRegistrationRequest", () => {
 
   it("registers Perplexity as a real confidential client", async () => {
     const request = new Request(
-      "https://app.openseo.so/api/auth/oauth2/register",
+      "https://app.upgradeseo.test/api/auth/oauth2/register",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -45,7 +45,7 @@ describe("normalizeClientRegistrationRequest", () => {
 
   it("defaults other omitted token auth methods to public clients", async () => {
     const request = new Request(
-      "https://app.openseo.so/api/auth/oauth2/register",
+      "https://app.upgradeseo.test/api/auth/oauth2/register",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,7 +65,7 @@ describe("normalizeClientRegistrationRequest", () => {
 
   it("keeps explicit confidential registration methods", async () => {
     const request = new Request(
-      "https://app.openseo.so/api/auth/oauth2/register",
+      "https://app.upgradeseo.test/api/auth/oauth2/register",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,7 +90,7 @@ describe("normalizeClientRegistrationRequest", () => {
       token_endpoint_auth_method: "none",
     });
     const request = new Request(
-      "https://app.openseo.so/api/auth/oauth2/register",
+      "https://app.upgradeseo.test/api/auth/oauth2/register",
       {
         method: "POST",
         headers: {

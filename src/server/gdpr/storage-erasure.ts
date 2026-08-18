@@ -1,7 +1,5 @@
 import { getAuth } from "@/lib/auth";
 import { getAuditScratchpad } from "@/server/features/audit/AuditScratchpad";
-import type { OnboardingChatAgent } from "@/server/features/onboarding/OnboardingChatAgent";
-import type { SamChatAgent } from "@/server/features/sam/SamChatAgent";
 import { captureServerError } from "@/server/lib/posthog";
 import {
   AI_SEARCH_PROMPT_CACHE_NAMESPACE,
@@ -160,7 +158,7 @@ async function revokeGoogleAccount(
     body: new URLSearchParams({ token: accessToken }),
   });
   // Google uses invalid_token for an already-revoked token. Either response
-  // leaves OpenSEO without a live upstream grant once the local row is erased.
+  // leaves UpgradeSEO without a live upstream grant once the local row is erased.
   if (!response.ok && response.status !== 400) {
     throw new Error(
       `Google token revocation failed for ${account.providerId}/${account.accountId}: ${response.status}`,
@@ -186,30 +184,10 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
     googleRevocations.push(await revokeGoogleAccount(payload.userId, account));
   }
 
-  // env.d.ts declares the DO bindings untyped (ambient contexts can't import
-  // the classes); narrow here so the erasure RPCs are typed.
-  const samChat =
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the binding is declared as this class in wrangler.jsonc
-    env.SAM_CHAT as unknown as DurableObjectNamespace<SamChatAgent>;
-  for (const sessionId of payload.samSessionIds) {
-    await samChat.get(samChat.idFromName(sessionId)).destroyForErasure();
-  }
-  const onboardingChat =
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the binding is declared as this class in wrangler.jsonc
-    env.ONBOARDING_CHAT as unknown as DurableObjectNamespace<OnboardingChatAgent>;
-  for (const projectId of payload.projectIds) {
-    await onboardingChat
-      .get(onboardingChat.idFromName(projectId))
-      .destroyForErasure();
-  }
   for (const auditId of payload.auditIds) {
     await getAuditScratchpad(auditId).destroyForErasure();
     await env.KV.delete(`audit-progress:${auditId}`);
   }
-  // The autumn:customer-ensured KV markers are deliberately left alone: they
-  // hold no personal data (org id key, "1" value), expire on their own 24h
-  // TTL, and clearing them would let an in-flight authenticated request
-  // re-create the Autumn customer before the Postgres delete lands.
 
   for (let index = 0; index < payload.r2Keys.length; index += 1_000) {
     await env.R2.delete(payload.r2Keys.slice(index, index + 1_000));
@@ -226,7 +204,6 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
       rankTerminated: rankWorkflowsTerminated,
     },
     durableObjects: {
-      sam: payload.samSessionIds.length,
       onboarding: payload.projectIds.length,
       auditScratchpads: payload.auditIds.length,
     },

@@ -10,10 +10,10 @@ const ctx: ExecutionContext = {
 };
 
 function request(method: string, body?: unknown) {
-  return new Request("https://open-seo.test/mcp", {
+  return new Request("https://upgradeseo.test/mcp", {
     method,
     headers: {
-      Host: "open-seo.test",
+      Host: "upgradeseo.test",
       Accept: "application/json, text/event-stream",
       "Content-Type": "application/json",
     },
@@ -43,7 +43,7 @@ describe("Agents SDK v2 MCP transport", () => {
   });
 
   it("passes verified provider identity and application props to tools", async () => {
-    const props = { openSeoAuth: { organizationId: "org-1" } };
+    const props = { upgradeSeoAuth: { organizationId: "org-1" } };
     const oauthContext = {
       ...ctx,
       props,
@@ -52,7 +52,7 @@ describe("Agents SDK v2 MCP transport", () => {
         token: "access-token",
         clientId: "client-1",
         scopes: ["mcp"],
-        resource: "https://open-seo.test/mcp",
+        resource: "https://upgradeseo.test/mcp",
         props,
       },
     } as ExecutionContext;

@@ -13,7 +13,6 @@ export const gdprStorageErasurePayloadSchema = z
     email: z.string().email().max(512),
     organizationIds: boundedIds,
     projectIds: boundedIds,
-    samSessionIds: boundedIds,
     auditIds: boundedIds,
     activeAuditWorkflowIds: boundedIds,
     activeRankWorkflowIds: boundedIds,

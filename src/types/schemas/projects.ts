@@ -23,7 +23,7 @@ const projectDomainField = z
 const projectLocationCodeField = z
   .number()
   .int()
-  .refine(isSupportedLocationCode, "Unsupported DataForSEO location code")
+  .refine(isSupportedLocationCode, "Unsupported location code")
   .optional();
 
 const projectLanguageCodeField = z
@@ -77,7 +77,7 @@ export const setProjectMarketSchema = z.object({
   locationCode: z
     .number()
     .int()
-    .refine(isSupportedLocationCode, "Unsupported DataForSEO location code"),
+    .refine(isSupportedLocationCode, "Unsupported location code"),
   languageCode: z
     .string()
     .refine(isSupportedLanguageCode, "Unsupported language code"),
