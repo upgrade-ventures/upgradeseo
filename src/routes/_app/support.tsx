@@ -1,8 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const DISCORD_URL = "https://discord.gg/c9uGs3cFXr";
-const GITHUB_URL = "";
-
 export const Route = createFileRoute("/_app/support")({
   component: SupportPage,
 });
@@ -24,33 +21,16 @@ function SupportPage() {
 
         <div className="mt-8 space-y-3">
           <a
-            href={DISCORD_URL}
-            target="_blank"
-            rel="noreferrer"
+            href="mailto:support@upgrade.ventures"
             className="block rounded-lg border border-base-300 px-5 py-4 transition-colors hover:border-base-content/20"
           >
-            <p className="text-sm font-semibold">Discord</p>
+            <p className="text-sm font-semibold">Email</p>
             <p className="mt-1 text-sm text-base-content/60">
-              Ask for help, share ideas and learn from the community.
+              Bugs, feature requests, questions &mdash; a human reads every
+              message.
             </p>
             <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-base-content">
-              Join the Discord
-              <span aria-hidden="true">&rarr;</span>
-            </span>
-          </a>
-
-          <a
-            href={`${GITHUB_URL}/issues`}
-            target="_blank"
-            rel="noreferrer"
-            className="block rounded-lg border border-base-300 px-5 py-4 transition-colors hover:border-base-content/20"
-          >
-            <p className="text-sm font-semibold">GitHub Issues</p>
-            <p className="mt-1 text-sm text-base-content/60">
-              Report bugs or request features on GitHub.
-            </p>
-            <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-base-content">
-              Open an issue
+              support@upgrade.ventures
               <span aria-hidden="true">&rarr;</span>
             </span>
           </a>

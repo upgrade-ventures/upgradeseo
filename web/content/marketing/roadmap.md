@@ -3,7 +3,7 @@ title: Roadmap
 description: Features we plan to add to UpgradeSEO over the next three months.
 ---
 
-Have a feature request that belongs here? [Tell us on Discord](https://discord.gg/c9uGs3cFXr).
+Have a feature request that belongs here? [Tell us](mailto:support@upgrade.ventures).
 
 ## Evergreen
 
@@ -48,4 +48,4 @@ Have a feature request that belongs here? [Tell us on Discord](https://discord.g
 - Keyword Gap Analysis Page
   - We will support this as a skill. You can ask Claude to turn it into a report.
 
-Have a feature request that belongs here? [Tell us on Discord](https://discord.gg/c9uGs3cFXr).
+Have a feature request that belongs here? [Tell us](mailto:support@upgrade.ventures).

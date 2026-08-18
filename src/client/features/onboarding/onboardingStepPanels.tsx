@@ -15,8 +15,6 @@ import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { setProjectMarket } from "@/serverFunctions/projects";
 import { withBasePath } from "@/shared/base-path";
 
-const DISCORD_URL = "https://discord.gg/c9uGs3cFXr";
-
 type ProjectMarketRecord = {
   id: string;
   locationCode: number;
@@ -277,7 +275,7 @@ export function OnboardingAside({
         </div>
         <p style={ASIDE_BODY}>
           The free setup guide under Help covers every free source end to end,
-          and Discord is the fastest way to reach a human.
+          and email is the fastest way to reach a human.
         </p>
         <div
           style={{
@@ -289,12 +287,10 @@ export function OnboardingAside({
           }}
         >
           <a
-            href={DISCORD_URL}
-            target="_blank"
-            rel="noreferrer noopener"
+            href="mailto:support@upgrade.ventures"
             style={{ fontSize: 12.5, color: "var(--accent)" }}
           >
-            Discord
+            support@upgrade.ventures
           </a>
           <span style={{ color: "var(--text-3)" }}>·</span>
           {/* This used to be a mailto: built from an empty address, which

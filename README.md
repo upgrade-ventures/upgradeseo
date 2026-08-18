@@ -73,7 +73,7 @@ npx skills add YOUR_GITHUB_ORG/upgradeseo --skill simple-issue-description
 
 ## Community
 
-Join Discord to chat: [Discord](https://discord.gg/c9uGs3cFXr)
+Questions or feedback: [support@upgrade.ventures](mailto:support@upgrade.ventures)
 
 Follow along for updates:
 

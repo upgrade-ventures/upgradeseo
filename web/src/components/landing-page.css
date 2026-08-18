@@ -668,8 +668,8 @@
   background: var(--ink) !important;
 }
 
-/* ── Floating Discord pill (quiet messenger-style nod) ── */
-.itc-discord {
+/* ── Floating contact pill ── */
+.itc-contact {
   position: fixed;
   right: 20px;
   bottom: 20px;
@@ -686,18 +686,18 @@
   text-decoration: none;
   transition: background-color 0.15s ease;
 }
-.itc-discord:hover {
+.itc-contact:hover {
   background: #000000;
 }
-.itc-discord:focus-visible {
+.itc-contact:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 @media (max-width: 767px) {
-  .itc-discord span {
+  .itc-contact span {
     display: none;
   }
-  .itc-discord {
+  .itc-contact {
     padding: 12px;
   }
 }

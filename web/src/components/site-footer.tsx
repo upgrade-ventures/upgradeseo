@@ -53,20 +53,7 @@ export function SiteFooter({ className }: { className?: string }) {
           <div className="mt-2 flex flex-col gap-1.5">
             <Link to="/roadmap">Roadmap</Link>
             <Link to="/pricing">Pricing</Link>
-            <a
-              href=""
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://discord.gg/c9uGs3cFXr"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Discord
-            </a>
+            <a href="mailto:support@upgrade.ventures">Email</a>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms-and-conditions">Terms</Link>
           </div>

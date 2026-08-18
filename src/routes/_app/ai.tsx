@@ -20,7 +20,6 @@ import { captureClientEvent } from "@/client/lib/posthog";
 import { useShellBreakpoint } from "@/client/layout/useShellBreakpoint";
 import { getAuthMode, isHostedClientAuthMode } from "@/lib/auth-mode";
 
-const DISCORD_URL = "https://discord.gg/c9uGs3cFXr";
 const SKILL_NAMES = [
   "seo-project-setup",
   "seo-coach",
@@ -412,11 +411,9 @@ function SkillsAndTools({ narrow }: { narrow: boolean }) {
         style={{ paddingTop: 16, borderTop: "1px solid var(--border-muted)" }}
       >
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)" }}>
-          Something missing or broken here? Tell us on{" "}
-          <a href={DISCORD_URL} target="_blank" rel="noreferrer noopener">
-            Discord
-          </a>
-          , or through <Link to="/support">Help & Community</Link>.
+          Something missing or broken here? Email{" "}
+          <a href="mailto:support@upgrade.ventures">support@upgrade.ventures</a>
+          , or go through <Link to="/support">Help & Community</Link>.
         </p>
       </section>
     </>
