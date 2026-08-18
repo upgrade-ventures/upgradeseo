@@ -3,7 +3,7 @@ name: PR Preview
 # Alchemy preview stage per private-repo PR: deploy on open/update, destroy on
 # close (stage pr-<n>). Full model in docs/PREVIEW_DEPLOYMENTS.md.
 #
-# Public-mirror (every-app/open-seo) PRs NEVER deploy from CI — fork code must
+# Public-mirror (YOUR_GITHUB_ORG/upgradeseo) PRs NEVER deploy from CI — fork code must
 # not run with deploy secrets. Preview those locally from a worktree instead
 # (docs/PREVIEW_DEPLOYMENTS.md, "Public-mirror PRs"). The repository gate
 # below keeps the synced copy of this file inert on the mirror.
@@ -45,7 +45,7 @@ env:
 jobs:
   preview:
     if: >-
-      github.repository == 'bensenescu/open-seo' &&
+      github.repository == 'bensenescu/upgradeseo' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -83,7 +83,7 @@ jobs:
             *.workers.dev) ;;
             *) echo "::error::ENV_PREVIEW secret is missing a valid WORKERS_SUBDOMAIN (needed to derive and verify the preview URL)"; exit 1 ;;
           esac
-          echo "PREVIEW_URL=https://open-seo-${STAGE}.${subdomain}" >> "$GITHUB_ENV"
+          echo "PREVIEW_URL=https://upgradeseo-${STAGE}.${subdomain}" >> "$GITHUB_ENV"
 
       # Same command as a local preview deploy: vite build, alchemy deploy.
       # State lives in the account's Cloudflare state store; CI resolves its

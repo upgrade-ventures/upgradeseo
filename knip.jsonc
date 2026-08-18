@@ -20,10 +20,12 @@
     "src/db/pg/schema.ts",
     // Standalone CLI/dev scripts, invoked via package.json scripts
     "scripts/**",
-    // DataForSEO section barrel — consumed via the dynamic import in
-    // client.ts (loadDataforseoSections) + property access, which knip
-    // can't trace
-    "src/server/lib/dataforseo/sections.ts",
+    // The Prominence design system. Its exports are the vocabulary the ported
+    // screens draw from, and they land ahead of their consumers by design — a
+    // primitive is written once, when the first screen needs it, then reused by
+    // the next. Treated as an entry point so knip does not read "not used yet"
+    // as "dead".
+    "src/client/components/prominence/Primitives.tsx",
   ],
   // badseo/ is the standalone broken-SEO fixture worker (own deps/config),
   // like web/ it isn't part of the app's module graph.

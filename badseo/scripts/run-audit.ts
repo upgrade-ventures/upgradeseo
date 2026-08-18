@@ -1,7 +1,7 @@
 /**
  * End-to-end audit harness for badseo.dev.
  *
- * This drives the REAL OpenSEO audit engine (the same crawl + issue-detection
+ * This drives the REAL UpgradeSEO audit engine (the same crawl + issue-detection
  * functions the production Worker uses) against a running badseo.dev, then
  * checks that every fixture triggers exactly the audit issues it declares.
  *
@@ -348,7 +348,7 @@ async function main() {
   }
 
   // Explicit regression guard for the trailing-slash redirect cycle
-  // (every-app/open-seo#61): the canonical page must resolve to a 200 with no
+  // (YOUR_GITHUB_ORG/upgradeseo#61): the canonical page must resolve to a 200 with no
   // redirect loop and no error. Fix-agnostic on purpose — the 200 lands on the
   // slash form under the root-cause fix (slashes preserved) or on the non-slash
   // form under older slash-stripping code that inline-follows. A crawler that

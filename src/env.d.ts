@@ -7,10 +7,6 @@ declare namespace Cloudflare {
     OAUTH_KV: KVNamespace;
 
     // Durable Object backing the onboarding strategy chat (see wrangler.jsonc).
-    ONBOARDING_CHAT: DurableObjectNamespace;
-
-    // Durable Object backing the SAM in-app agent (see wrangler.jsonc).
-    SAM_CHAT: DurableObjectNamespace;
 
     // Durable Object holding per-audit crawl scratch state (frontier, link
     // edges, page mirror). Untyped here; getAuditScratchpad narrows the stub.
@@ -33,8 +29,6 @@ declare namespace Cloudflare {
     LOOPS_API_KEY?: string;
     LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID?: string;
     LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID?: string;
-    AUTUMN_SECRET_KEY?: string;
-    AUTUMN_WEBHOOK_SECRET?: string;
     // HMAC secret for the operator-only GDPR storage-erasure endpoint.
     GDPR_ERASURE_SECRET?: string;
 
@@ -43,10 +37,29 @@ declare namespace Cloudflare {
     TURNSTILE_SECRET_KEY?: string;
     TURNSTILE_SITE_KEY?: string;
 
-    // DataForSEO API Basic auth value (base64 of login:password)
-    DATAFORSEO_API_KEY: string;
+    // THE PROVIDER STACK. Every source here is free.
+    // Bing Webmaster Tools: free, no card, one key per user. Its keyword
+    // methods take a bare query (no siteUrl), so they work for any term.
+    BING_WEBMASTER_API_KEY?: string;
 
-    // OpenRouter API key for the in-app chat agents (onboarding + SAM).
+    // Google Ads: four secrets as one JSON blob + the manager customer id.
+    GOOGLE_ADS_CREDENTIALS?: string;
+    GOOGLE_ADS_CUSTOMER_ID?: string;
+
+    // Azure AI Foundry, the sanctioned AI provider for the chat agents.
+    FOUNDERY_API_KEY?: string;
+    FOUNDERY_ENDPOINT?: string;
+
+    // PageSpeed Insights (free key; keyless calls hit a shared 429 quota).
+    PAGESPEED_API_KEY?: string;
+
+    // Encrypts provider keys entered through Settings.
+    SECRETS_ENCRYPTION_KEY?: string;
+    // OpenPageRank: free 30k domains/month. Domain authority for ANY domain,
+    // which powers the keyword-difficulty proxy.
+    OPENPAGERANK_API_KEY?: string;
+
+    // OpenRouter API key for the in-app onboarding chat agent.
     OPENROUTER_API_KEY?: string;
     // Optional OpenRouter model slug override (defaults in openrouter.ts).
     OPENROUTER_MODEL?: string;

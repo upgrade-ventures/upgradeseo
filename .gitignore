@@ -44,3 +44,8 @@ dist-sourcemaps/
 
 # Alchemy local state + bundle artifacts (SaaS deploys)
 .alchemy/
+
+# Local build override: makes `docker compose up --build` build this checkout
+# instead of pulling the published image. Local-only by design — tracking it
+# would force every clone to build from source.
+compose.override.yaml

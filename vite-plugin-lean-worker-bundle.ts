@@ -35,13 +35,13 @@ const EAGER_DENYLIST: Array<{ pattern: RegExp; expected: string }> = [
     pattern:
       /node_modules\/(workers-ai-provider|@ai-sdk\/(openai|anthropic))\//,
     expected:
-      "aliased to workers-ai-provider-stub.ts (@cloudflare/think's default " +
+      "aliased to workers-ai-provider-stub.ts (the SDK's default " +
       "provider path is dead code — our agents construct OpenRouter models)",
   },
   {
     pattern: /node_modules\/just-bash\//,
     expected:
-      "aliased to just-bash-stub.ts (Think's workspace bash tool is disabled)",
+      "aliased to just-bash-stub.ts (the workspace bash tool is disabled)",
   },
   {
     // The barrel (index.*) is allowed — the load hook rewrites its content to

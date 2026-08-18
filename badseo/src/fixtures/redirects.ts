@@ -62,7 +62,7 @@ const redirectLoop: Fixture = {
 // A crawler that normalizes away trailing slashes turns /redirect/trailing-slash/
 // back into /redirect/trailing-slash, follows the 301 to the slash form, strips
 // it again, and loops — the 508 "Loop Detected" class of bug from
-// https://github.com/every-app/open-seo/pull/61. The audit must crawl the
+//  The audit must crawl the
 // canonical page once as a 200 and NOT report a redirect loop, so this fixture
 // expects zero issues. If it ever comes back with redirect-loop (or an error),
 // the trailing-slash handling has regressed.

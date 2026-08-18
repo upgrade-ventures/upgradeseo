@@ -8,8 +8,8 @@ export function SiteLayout({ children }: { children: ReactNode }) {
           BADSEO
         </a>
         <span className="nav-links">
-          <a href="https://openseo.so">OpenSEO</a>
-          <a href="https://github.com/every-app/open-seo">GitHub</a>
+          <a href="">UpgradeSEO</a>
+          <a href="">GitHub</a>
         </span>
       </nav>
       {children}
@@ -20,8 +20,8 @@ export function SiteLayout({ children }: { children: ReactNode }) {
           </a>
           <span className="foot-links">
             <a href="/#issues">All issues</a>
-            <a href="https://github.com/every-app/open-seo">GitHub</a>
-            <a href="https://openseo.so">OpenSEO</a>
+            <a href="">GitHub</a>
+            <a href="">UpgradeSEO</a>
             <a href="/privacy">Privacy</a>
             <button
               className="footer-button"

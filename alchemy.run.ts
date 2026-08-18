@@ -16,7 +16,7 @@ import {
   workerName,
 } from "./alchemy.access.ts";
 
-// Preview hostnames are `open-seo-<stage>.<WORKERS_SUBDOMAIN>` — the naming
+// Preview hostnames are `upgradeseo-<stage>.<WORKERS_SUBDOMAIN>` — the naming
 // lives in alchemy.access.ts, shared with the Access wildcard the security
 // boundary depends on. The shell copy in .github/workflows/pr-preview.yml
 // must be kept in sync by hand.
@@ -28,7 +28,7 @@ import {
 // - Any stage except "hosted-prod": fresh stage-suffixed resources. Previews
 //   deploy via `pnpm deploy:preview --stage <name>`; self-hosters via
 //   `pnpm deploy:selfhost` (stage "selfhost", no flag to pass).
-// - Stage "hosted-prod": names the EXISTING openseo.so production resources
+// - Stage "hosted-prod": names the EXISTING upgradeseo.so production resources
 //   so `--adopt` imports them. Deploy via `pnpm deploy:postgres` (--adopt and
 //   the stage baked in).
 //
@@ -69,11 +69,11 @@ const wrangler = z
 // Physical names of the wrangler-era production resources (see git history of
 // wrangler.jsonc). Adoption matches on these exact names/titles.
 const PROD_NAMES = {
-  d1: "open-seo",
-  r2: "open-seo",
+  d1: "upgradeseo",
+  r2: "upgradeseo",
   kv: "every-super-seo",
   oauthKv: "OAUTH_KV",
-  hyperdrive: "openseo",
+  hyperdrive: "upgradeseo",
 } as const;
 
 const makeResources = (stage: string) => {
@@ -84,35 +84,26 @@ const makeResources = (stage: string) => {
   const keep = Alchemy.RemovalPolicy.retain(prod);
   return {
     DB: Cloudflare.D1.Database("DB", {
-      name: prod ? PROD_NAMES.d1 : `open-seo-db-${stage}`,
+      name: prod ? PROD_NAMES.d1 : `upgradeseo-db-${stage}`,
       // drizzle-generated SQL migrations; tracked in the same
       // wrangler-compatible table prod already uses.
       migrationsDir: "drizzle",
       migrationsTable: "d1_migrations",
     }).pipe(keep),
-    R2: Cloudflare.R2.Bucket("R2", {
-      name: prod ? PROD_NAMES.r2 : `open-seo-r2-${stage}`,
-      // Expire cached DataForSEO responses. Prod's lifecycle rules are
-      // dashboard-managed; its props stay omitted so alchemy leaves them be.
-      ...(prod
-        ? {}
-        : {
-            lifecycleRules: [
-              {
-                id: "dataforseo-cache-expiry",
-                prefix: "dataforseo-cache/",
-                deleteObjectsTransition: {
-                  condition: { type: "Age", maxAge: 7 * 24 * 60 * 60 },
-                },
-              },
-            ],
-          }),
-    }).pipe(keep),
+    // R2 REMOVED (Upgrade Ventures, 15 Aug 2026). Cloudflare requires a payment
+    // method on file to enable R2 even inside its free tier, and the owner's
+    // ruling is that this deployment stays card-free. Safe to drop here because
+    // the bucket only ever backed (a) the DataForSEO response cache, which is
+    // off since we run without a DataForSEO key, and (b) the operator-only GDPR
+    // storage-erasure endpoint. Nothing in Search Console, the site audit or the
+    // GA4 tooling reads or writes R2 — verified by grep before removing.
+    // TRADE-OFF, stated plainly: /gdpr storage erasure would fail if invoked.
+    // Restore by reverting this hunk (original kept at alchemy.run.ts.orig).
     KV: Cloudflare.KV.Namespace("KV", {
-      title: prod ? PROD_NAMES.kv : `open-seo-kv-${stage}`,
+      title: prod ? PROD_NAMES.kv : `upgradeseo-kv-${stage}`,
     }).pipe(keep),
     OAUTH_KV: Cloudflare.KV.Namespace("OAUTH_KV", {
-      title: prod ? PROD_NAMES.oauthKv : `open-seo-oauth-kv-${stage}`,
+      title: prod ? PROD_NAMES.oauthKv : `upgradeseo-oauth-kv-${stage}`,
     }).pipe(keep),
   };
 };
@@ -244,8 +235,8 @@ const resolveSelfHostAccess = (
       const application = yield* emailAccessGate({
         policyId: "SelfHostAllowUsers",
         applicationId: "SelfHostAccess",
-        policyName: `open-seo ${stage} self-host users`,
-        applicationName: `open-seo ${stage}`,
+        policyName: `upgradeseo ${stage} self-host users`,
+        applicationName: `upgradeseo ${stage}`,
         domain: `${workerName(stage)}.${subdomain}`,
         emails: allowedEmails,
       });
@@ -262,7 +253,27 @@ const resolveSelfHostAccess = (
 const dataEnv = {
   // AUTH_MODE, DATABASE_PROVIDER, BETTER_AUTH_URL, TEAM_DOMAIN, and
   // POLICY_AUD are stage-dependent and set in the stack body below.
-  DATAFORSEO_API_KEY: Config.redacted("DATAFORSEO_API_KEY"),
+  // OPTIONAL, not required: this deployment runs on free data sources, and a
+  // required secret here made `deploy:selfhost` hard-fail before it started.
+  DATAFORSEO_API_KEY: optionalSecret("DATAFORSEO_API_KEY"),
+
+  // FREE PROVIDER STACK. Without these the Cloudflare deploy has no keyword
+  // data source at all, which is what shipped before.
+  BING_WEBMASTER_API_KEY: optionalSecret("BING_WEBMASTER_API_KEY"),
+  OPENPAGERANK_API_KEY: optionalSecret("OPENPAGERANK_API_KEY"),
+  // Google Ads: four secrets as one JSON blob, plus the manager customer id.
+  GOOGLE_ADS_CREDENTIALS: optionalSecret("GOOGLE_ADS_CREDENTIALS"),
+  GOOGLE_ADS_CUSTOMER_ID: optionalVar("GOOGLE_ADS_CUSTOMER_ID"),
+  // Azure AI Foundry, the sanctioned AI provider.
+  FOUNDERY_API_KEY: optionalSecret("FOUNDERY_API_KEY"),
+  FOUNDERY_ENDPOINT: optionalVar("FOUNDERY_ENDPOINT"),
+  // Encrypts provider keys entered through Settings. Without it (and without
+  // BETTER_AUTH_SECRET) the Settings page cannot store anything.
+  SECRETS_ENCRYPTION_KEY: optionalSecret("SECRETS_ENCRYPTION_KEY"),
+  // PageSpeed Insights. Keyless calls now 429 on a shared quota, so the free
+  // key is effectively required for Lighthouse data.
+  PAGESPEED_API_KEY: optionalSecret("PAGESPEED_API_KEY"),
+
   BYPASS_EMAIL_VERIFICATION: optionalVar("BYPASS_EMAIL_VERIFICATION"),
   BETTER_AUTH_SECRET: optionalSecret("BETTER_AUTH_SECRET"),
   GOOGLE_CLIENT_ID: optionalVar("GOOGLE_CLIENT_ID"),
@@ -285,11 +296,11 @@ const dataEnv = {
   TURNSTILE_SITE_KEY: optionalVar("TURNSTILE_SITE_KEY"),
   // Alchemy reconciles worker vars on every deploy, so the telemetry opt-out
   // must live in the env file — a dashboard-set var would be wiped.
-  OPENSEO_TELEMETRY_DISABLED: optionalVar("OPENSEO_TELEMETRY_DISABLED"),
+  UPGRADESEO_TELEMETRY_DISABLED: optionalVar("UPGRADESEO_TELEMETRY_DISABLED"),
 };
 
 export default Alchemy.Stack(
-  "open-seo",
+  "upgradeseo",
   {
     providers: Cloudflare.providers(),
     // Durable state in the Cloudflare state store (an `alchemy-state-store`
@@ -317,9 +328,7 @@ export default Alchemy.Stack(
       authUrl = yield* optionalVar("BETTER_AUTH_URL");
       if (!authUrl) {
         return yield* Effect.die(
-          new Error(
-            "Set BETTER_AUTH_URL (https://app.openseo.so) in .env.production.",
-          ),
+          new Error("Set BETTER_AUTH_URL () in .env.production."),
         );
       }
       // Prod must say which database it runs on. A silently-defaulted "d1"
@@ -351,10 +360,10 @@ export default Alchemy.Stack(
       workersSubdomain,
     );
 
-    const app = yield* Cloudflare.Worker("open-seo", {
+    const app = yield* Cloudflare.Worker("upgradeseo", {
       name: workerName(stage),
       // Prod serves the real domains; the zone is inferred from the hostname.
-      domain: prod ? ["app.openseo.so", "www.app.openseo.so"] : undefined,
+      domain: prod ? ["app.upgradeseo.so", "www.app.upgradeseo.so"] : undefined,
       // Prebuilt worker from `vite build` (@cloudflare/vite-plugin). The entry
       // exports the DO + WorkflowEntrypoint classes (re-exported by
       // src/server.ts), which `bundle: false` requires. Sibling chunks under
@@ -426,7 +435,7 @@ export default Alchemy.Stack(
         ),
       },
     }).pipe(
-      // Prod adopts the live worker serving app.openseo.so; never delete it
+      // Prod adopts the live worker serving app.upgradeseo.so; never delete it
       // on destroy. (Workflow registrations aren't individually retainable —
       // they're created inside the worker provider — but re-registering them
       // is a lossless upsert, unlike deleting the data-bearing resources.)

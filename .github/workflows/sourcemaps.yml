@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   upload:
-    if: github.repository != 'every-app/open-seo'
+    if: github.repository != 'YOUR_GITHUB_ORG/upgradeseo'
     runs-on: ubuntu-latest
     env:
       POSTHOG_SOURCEMAPS: "true"
