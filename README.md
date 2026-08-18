@@ -2,7 +2,7 @@
 
 > Open source alternative to Semrush and Ahrefs
 
-UpgradeSEO is an SEO tool for _the people_. If tools like Semrush or Ahrefs are too expensive or bloated, UpgradeSEO is a pay-as-you-go alternative that you actually control.
+UpgradeSEO is an SEO tool for _the people_. If tools like Semrush or Ahrefs are too expensive or bloated, UpgradeSEO is a free alternative that you actually control.
 
 > All-in-one SEO tool for you and your AI agent.
 
@@ -50,7 +50,10 @@ UpgradeSEO supports two self-hosting paths:
 
 ## Costs
 
-See [upgradeseo.so/pricing]()
+UpgradeSEO itself is free: bring your own free-tier keys (Search Console,
+Bing Webmaster, OpenPageRank, an ads API for volume) and pay nothing per
+call. What each source provides and refuses to fake is documented in
+[`docs/DATA_SOURCES.md`](./docs/DATA_SOURCES.md).
 
 ## Local Development
 

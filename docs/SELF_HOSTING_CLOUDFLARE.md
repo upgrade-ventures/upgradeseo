@@ -2,7 +2,9 @@
 
 > Before deploying, read [DEPLOYMENT_TRAPS.md](./DEPLOYMENT_TRAPS.md). For
 > mounting under a path prefix see [SUBPATH_DEPLOYMENT.md](./SUBPATH_DEPLOYMENT.md);
-> for keys and their limits see [DATA_SOURCES.md](./DATA_SOURCES.md).
+> for keys and their limits see [DATA_SOURCES.md](./DATA_SOURCES.md); to
+> replace the Access gate with public Google sign-in see
+> [HOSTED_AUTH.md](./HOSTED_AUTH.md).
 
 Host UpgradeSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
 

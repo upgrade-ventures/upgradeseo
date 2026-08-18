@@ -52,6 +52,19 @@ The `oauth2/callback/*` pair is easy to miss: those are Better Auth's
 generic-OAuth paths, used by the hosted GSC/GA4 connect flows, and nothing
 errors until a user completes consent and lands on `redirect_uri_mismatch`.
 
+## Building and deploying
+
+```
+VITE_BASE_PATH=UpgradeSEO npm run build
+npx wrangler deploy --config dist/server/wrangler.json
+```
+
+Deploy from the **generated** config, never the repo's `wrangler.jsonc` — the
+build writes `dist/server/wrangler.json` with the built worker's entry point
+and asset directory, and deploying the top-level config ships a stale or empty
+worker with no error. The full failure catalogue lives in
+[`DEPLOYMENT_TRAPS.md`](./DEPLOYMENT_TRAPS.md).
+
 ## Verifying
 
 ```
