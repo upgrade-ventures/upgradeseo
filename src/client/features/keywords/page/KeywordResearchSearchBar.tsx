@@ -1,4 +1,5 @@
-import { Info, Search } from "lucide-react";
+import { useState } from "react";
+import { Icon } from "@/client/components/icons/IconSprite";
 import { getFieldError } from "@/client/lib/forms";
 import {
   isResultLimit,
@@ -8,8 +9,8 @@ import {
   MAX_KEYWORDS_PER_SUBMIT,
   RESULT_LIMITS,
 } from "@/client/features/keywords/keywordResearchTypes";
-import { isLabsLocationCode } from "@/client/features/keywords/locations";
 import { LocationSelect } from "@/client/components/LocationSelect";
+import { ProminenceSelect } from "./prominenceControls";
 import type { KeywordResearchControllerState } from "./types";
 
 type Props = {
@@ -22,157 +23,223 @@ function getTextareaRows(value: string): number {
   return Math.min(MAX_KEYWORDS_PER_SUBMIT, Math.max(1, lines));
 }
 
+/** Ties the keyword error message to the field it belongs to. */
+const KEYWORD_ERROR_ID = "keyword-research-keyword-error";
+
 export function KeywordResearchSearchBar({ controller }: Props) {
-  const { controlsForm, handleSearchSubmit } = controller;
+  const { controlsForm, handleSearchSubmit, isLoading } = controller;
 
   return (
-    <div className="card border border-base-300 bg-base-100">
-      <div className="card-body gap-2">
-        <form
-          className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-start lg:gap-2"
-          onSubmit={handleSearchSubmit}
-        >
-          <controlsForm.Field name="keyword">
-            {(field) => {
-              const keywordError = getFieldError(field.state.meta.errors);
-              const rows = getTextareaRows(field.state.value);
-
-              return (
-                <label
-                  className={`flex w-full lg:flex-1 lg:min-w-0 lg:max-w-md items-start gap-2 rounded-lg border bg-base-100 px-4 py-3 transition-colors focus-within:border-primary ${
-                    keywordError ? "border-error" : "border-base-300"
-                  }`}
-                >
-                  <Search className="mt-0.5 size-4 shrink-0 text-base-content/60" />
-                  <textarea
-                    className="grow min-w-0 resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-base-content/40"
-                    rows={rows}
-                    placeholder="Enter a keyword"
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onKeyDown={(event) => {
-                      // Enter submits. Shift+Enter inserts a newline, so
-                      // researching several keywords at once means adding a
-                      // line per keyword (or pasting newline-separated ones).
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        void controlsForm.handleSubmit();
-                      }
-                    }}
-                  />
-                </label>
-              );
-            }}
-          </controlsForm.Field>
-
-          <div className="grid grid-cols-2 gap-2 lg:contents">
-            <controlsForm.Field name="locationCode">
-              {(field) => (
-                <LocationSelect
-                  value={field.state.value}
-                  onChange={(code) => field.handleChange(code)}
-                  className="w-full lg:w-44 lg:shrink-0"
-                />
-              )}
-            </controlsForm.Field>
-
-            <controlsForm.Field name="resultLimit">
-              {(field) => (
-                <select
-                  className="select select-bordered w-full lg:w-auto lg:shrink-0"
-                  value={field.state.value}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    field.handleChange(isResultLimit(next) ? next : 150);
-                  }}
-                >
-                  {RESULT_LIMITS.map((limit) => (
-                    <option key={limit} value={limit}>
-                      {limit} results
-                    </option>
-                  ))}
-                </select>
-              )}
-            </controlsForm.Field>
-
-            <controlsForm.Field name="mode">
-              {(field) => (
-                <select
-                  className="select select-bordered w-full lg:w-auto lg:shrink-0"
-                  value={field.state.value}
-                  onChange={(event) =>
-                    field.handleChange(normalizeKeywordMode(event.target.value))
-                  }
-                >
-                  <option value="auto">Auto</option>
-                  <option value="related">Related keywords</option>
-                  <option value="suggestions">Suggestions</option>
-                  <option value="ideas">Ideas</option>
-                </select>
-              )}
-            </controlsForm.Field>
-
-            <button
-              type="submit"
-              className="btn btn-primary w-full px-6 lg:w-auto lg:shrink-0"
-            >
-              Search
-            </button>
-          </div>
-        </form>
+    <form onSubmit={handleSearchSubmit}>
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginTop: 14,
+          paddingBottom: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
         <controlsForm.Field name="keyword">
-          {(field) => {
-            const keywordError = getFieldError(field.state.meta.errors);
+          {(field) => (
+            <KeywordField
+              value={field.state.value}
+              invalid={getFieldError(field.state.meta.errors) !== undefined}
+              onChange={(value) => field.handleChange(value)}
+              onSubmit={() => void controlsForm.handleSubmit()}
+            />
+          )}
+        </controlsForm.Field>
 
-            return keywordError ? (
-              <p className="text-sm text-error">{keywordError}</p>
-            ) : null;
-          }}
-        </controlsForm.Field>
         <controlsForm.Field name="locationCode">
-          {(locationField) =>
-            isLabsLocationCode(locationField.state.value) ? (
-              <controlsForm.Field name="clickstream">
-                {(field) => (
-                  <div className="flex items-center gap-2">
-                    <label className="label cursor-pointer justify-start gap-2 p-0">
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-sm toggle-primary"
-                        checked={field.state.value}
-                        onChange={(event) =>
-                          field.handleChange(event.target.checked)
-                        }
-                      />
-                      <span className="text-sm font-medium text-base-content/80">
-                        Clickstream-refined volumes
-                      </span>
-                    </label>
-                    <div
-                      className="tooltip tooltip-right"
-                      data-tip="Google reports one combined search volume for similar keywords (e.g. 'seo tool' and 'seo tools'). Turn this on to estimate each keyword's own volume. Costs 2x the credits."
-                    >
-                      <Info className="size-3.5 text-base-content/50" />
-                    </div>
-                  </div>
-                )}
-              </controlsForm.Field>
-            ) : (
-              <div
-                className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-sm text-base-content/80"
-                role="status"
-              >
-                <Info className="mt-0.5 size-4 shrink-0 text-info" />
-                <span>
-                  Keyword data for this country comes from Google Ads — search
-                  volume, CPC, and trends are available, but difficulty and
-                  intent are not.
-                </span>
-              </div>
-            )
-          }
+          {(field) => (
+            <LocationSelect
+              value={field.state.value}
+              onChange={(code) => field.handleChange(code)}
+              className="w-44 shrink-0"
+            />
+          )}
         </controlsForm.Field>
+
+        <controlsForm.Field name="resultLimit">
+          {(field) => (
+            <ProminenceSelect
+              aria-label="Number of results"
+              value={field.state.value}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                field.handleChange(isResultLimit(next) ? next : 150);
+              }}
+            >
+              {RESULT_LIMITS.map((limit) => (
+                <option key={limit} value={limit}>
+                  {limit} results
+                </option>
+              ))}
+            </ProminenceSelect>
+          )}
+        </controlsForm.Field>
+
+        <controlsForm.Field name="mode">
+          {(field) => (
+            <ProminenceSelect
+              aria-label="Keyword match mode"
+              value={field.state.value}
+              onChange={(event) =>
+                field.handleChange(normalizeKeywordMode(event.target.value))
+              }
+            >
+              <option value="auto">Auto</option>
+              <option value="related">Related keywords</option>
+              <option value="suggestions">Suggestions</option>
+              <option value="ideas">Ideas</option>
+            </ProminenceSelect>
+          )}
+        </controlsForm.Field>
+
+        <SearchButton running={isLoading} />
       </div>
-    </div>
+
+      <controlsForm.Field name="keyword">
+        {(field) => {
+          const keywordError = getFieldError(field.state.meta.errors);
+          return keywordError ? (
+            <p
+              id={KEYWORD_ERROR_ID}
+              role="alert"
+              style={{
+                margin: "0 0 12px",
+                fontSize: 12,
+                color: "var(--danger)",
+              }}
+            >
+              {keywordError}
+            </p>
+          ) : null;
+        }}
+      </controlsForm.Field>
+    </form>
+  );
+}
+
+function KeywordField({
+  value,
+  invalid,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  invalid: boolean;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  // The design's `style-focus` sits on the wrapping label while focus actually
+  // lands on the textarea, so the border colour is tracked here.
+  const [focused, setFocused] = useState(false);
+  const borderColor = invalid
+    ? "var(--danger)"
+    : focused
+      ? "var(--accent)"
+      : "var(--line)";
+
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        flex: 1,
+        minWidth: 260,
+        maxWidth: 420,
+        minHeight: 30,
+        padding: "5px 10px",
+        border: `1px solid ${borderColor}`,
+        borderRadius: 6,
+        background: "var(--surface)",
+        // The ring goes on the wrapper because focus lands on the textarea,
+        // whose own outline the design suppresses.
+        ...(focused ? { boxShadow: "var(--focus)" } : null),
+      }}
+    >
+      <Icon
+        name="i-search"
+        size={14}
+        style={{ color: "var(--text-3)", flexShrink: 0, marginTop: 3 }}
+      />
+      <textarea
+        rows={getTextareaRows(value)}
+        aria-label="Keyword to research"
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? KEYWORD_ERROR_ID : undefined}
+        placeholder="Enter a keyword. Shift + Enter for a second line."
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(event) => {
+          // Enter searches. Shift+Enter inserts a newline, so researching
+          // several keywords at once means one keyword per line.
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            onSubmit();
+          }
+        }}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          border: "none",
+          outline: "none",
+          resize: "none",
+          background: "transparent",
+          color: "var(--text)",
+          fontFamily: "inherit",
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}
+      />
+    </label>
+  );
+}
+
+function SearchButton({ running }: { running: boolean }) {
+  return (
+    // The accent fill, its label colour, the hover and the focus ring all come
+    // from the shared primary class, so no colour is written down twice or
+    // hard-coded here. Only the design's own search-bar geometry is local.
+    <button
+      type="submit"
+      className="prominence-button-primary"
+      disabled={running}
+      aria-busy={running || undefined}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        minHeight: "max(30px, var(--tap, 0px))",
+        padding: "5px 14px",
+        ...(running ? { cursor: "progress", opacity: 0.9 } : null),
+      }}
+    >
+      {running ? (
+        <>
+          <span
+            aria-hidden
+            style={{
+              width: 11,
+              height: 11,
+              borderRadius: 999,
+              // Inherits the button's own label colour rather than naming one.
+              border: "2px solid currentColor",
+              borderTopColor: "transparent",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          Searching…
+        </>
+      ) : (
+        "Search"
+      )}
+    </button>
   );
 }

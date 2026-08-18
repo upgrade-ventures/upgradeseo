@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { CSSProperties } from "react";
 
 type Props = {
   page: number;
@@ -25,6 +25,22 @@ function formatRange(
   return `${start.toLocaleString()}–${end.toLocaleString()} of ${totalCount.toLocaleString()}`;
 }
 
+/** Previous/Next, in the design's two states: live, and the disabled variant. */
+function pagerButton(disabled: boolean): CSSProperties {
+  return {
+    minHeight: 26,
+    padding: "3px 9px",
+    border: `1px solid ${disabled ? "var(--border-muted)" : "var(--line)"}`,
+    background: "var(--surface)",
+    color: disabled ? "var(--text-3)" : "var(--text)",
+    borderRadius: 6,
+    fontSize: 12,
+    fontFamily: "inherit",
+    cursor: disabled ? "not-allowed" : "pointer",
+    whiteSpace: "nowrap",
+  };
+}
+
 export function TablePagination({
   page,
   pageSize,
@@ -37,25 +53,51 @@ export function TablePagination({
 }: Props) {
   const totalPages =
     totalCount != null ? Math.max(1, Math.ceil(totalCount / pageSize)) : null;
-  const canGoPrev = page > 1;
-  const canGoNext = totalPages != null ? page < totalPages : hasNextPage;
+  const canGoPrev = page > 1 && !isLoading;
+  const canGoNext =
+    (totalPages != null ? page < totalPages : hasNextPage) && !isLoading;
 
   return (
-    <div className="flex flex-col gap-3 border-t border-base-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2 text-sm text-base-content/70 tabular-nums">
-        <span>{formatRange(page, pageSize, totalCount)}</span>
-        {isLoading ? (
-          <span className="loading loading-spinner loading-xs" />
-        ) : null}
-      </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+        padding: "10px var(--pad, 24px)",
+        borderTop: "1px solid var(--line)",
+        color: "var(--text-2)",
+        fontSize: 12,
+      }}
+    >
+      <span
+        style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "0.01em" }}
+        // The range changes under the reader when a page loads, and the count
+        // is the only confirmation that the click did anything.
+        aria-live="polite"
+      >
+        Showing {formatRange(page, pageSize, totalCount)}
+        {isLoading ? " · loading…" : ""}
+      </span>
 
-      <div className="flex items-center gap-6">
-        <label className="flex items-center gap-2 text-sm text-base-content/70">
-          <span className="whitespace-nowrap">Rows per page</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ whiteSpace: "nowrap" }}>Rows per page</span>
           <select
-            className="select select-bordered select-sm w-20"
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
+            style={{
+              minHeight: 26,
+              padding: "3px 6px",
+              border: "1px solid var(--line)",
+              background: "var(--surface)",
+              color: "var(--text)",
+              borderRadius: 6,
+              fontSize: 12,
+              fontFamily: "inherit",
+              cursor: "pointer",
+            }}
           >
             {pageSizes.map((size) => (
               <option key={size} value={size}>
@@ -65,31 +107,38 @@ export function TablePagination({
           </select>
         </label>
 
-        <div className="flex items-center gap-2">
-          <span className="whitespace-nowrap text-sm tabular-nums text-base-content/70">
-            Page {page.toLocaleString()}
-            {totalPages != null ? ` of ${totalPages.toLocaleString()}` : ""}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Previous page"
-              className="btn btn-ghost btn-sm btn-square"
-              disabled={!canGoPrev || isLoading}
-              onClick={() => onPageChange(page - 1)}
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Next page"
-              className="btn btn-ghost btn-sm btn-square"
-              disabled={!canGoNext || isLoading}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
+        <span
+          style={{
+            whiteSpace: "nowrap",
+            fontVariantNumeric: "tabular-nums",
+            letterSpacing: "0.01em",
+          }}
+        >
+          Page {page.toLocaleString()}
+          {totalPages != null ? ` of ${totalPages.toLocaleString()}` : ""}
+        </span>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            type="button"
+            aria-label="Previous page"
+            className="prominence-pager-button"
+            disabled={!canGoPrev}
+            onClick={() => onPageChange(page - 1)}
+            style={pagerButton(!canGoPrev)}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            aria-label="Next page"
+            className="prominence-pager-button"
+            disabled={!canGoNext}
+            onClick={() => onPageChange(page + 1)}
+            style={pagerButton(!canGoNext)}
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

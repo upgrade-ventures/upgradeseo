@@ -43,6 +43,23 @@ function PromptExplorerRoute() {
           replace: true,
         });
       }}
+      onClear={() => {
+        void navigate({ search: {}, replace: true });
+      }}
+      // The other two AI Visibility tabs live on the Brand Lookup route; the
+      // highlighted brand is the closest thing this screen has to a lookup
+      // target, so it carries over.
+      onSelectTab={(nextTab) => {
+        if (nextTab === "prompts") return;
+        void navigate({
+          to: "/p/$projectId/brand-lookup",
+          params: { projectId },
+          search: {
+            q: search.hb || undefined,
+            tab: nextTab === "mentions" ? undefined : nextTab,
+          },
+        });
+      }}
     />
   );
 }

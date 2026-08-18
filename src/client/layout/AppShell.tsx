@@ -1,20 +1,21 @@
 import * as React from "react";
-import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Menu } from "lucide-react";
 import {
-  MissingSeoSetupModal,
   MobileSidebarDrawer,
   SeoApiStatusBanners,
 } from "@/client/layout/AppShellParts";
-import { GscReEngagementModal } from "@/client/features/gsc/GscReEngagementModal";
 import { Sidebar } from "@/client/components/Sidebar";
-import { BILLING_ROUTE } from "@/shared/billing";
 import { getSeoApiKeyStatus } from "@/serverFunctions/config";
 import { getProjects } from "@/serverFunctions/projects";
 import { getLastProjectId } from "@/client/lib/active-project";
-
-const DATAFORSEO_HELP_PATH = "/help/dataforseo-api-key";
+import { CommandPalette } from "@/client/layout/CommandPalette";
+import {
+  ShellHeaderNarrow,
+  ShellHeaderWide,
+} from "@/client/layout/ShellHeader";
+import { useBreadcrumb } from "@/client/layout/useBreadcrumb";
+import { useSession } from "@/lib/auth-client";
+import { useShellBreakpoint } from "@/client/layout/useShellBreakpoint";
 
 export function AuthenticatedAppLayout({
   children,
@@ -25,11 +26,13 @@ export function AuthenticatedAppLayout({
   projectId?: string;
   banner?: React.ReactNode;
 }) {
-  const location = useLocation();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const setupModalRef = React.useRef<HTMLDivElement | null>(null);
-  const [showMissingSeoApiKeyModal, setShowMissingSeoApiKeyModal] =
-    React.useState(false);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const { narrow } = useShellBreakpoint(rootRef);
+  // Drives the top-right account control. Undefined in self-hosted modes,
+  // where there is no session to show and the menu renders its signed-out form.
+  const { data: session } = useSession();
   // On non-project pages (e.g. /settings) there's no projectId in the URL, so
   // derive one for the nav/switcher: prefer the last-visited project, else the
   // most recent. The whole app tree is client-only (see root ClientOnly), so we
@@ -56,133 +59,121 @@ export function AuthenticatedAppLayout({
   // builds links that self-correct via the route guard once data arrives.
   const sidebarProjectId =
     projectId ?? fallbackProjectId ?? rememberedProjectId;
-  const shouldCheckSeoApiKeyStatus = location.pathname !== BILLING_ROUTE;
+  const crumb = useBreadcrumb(sidebarProjectId);
+  // Breadcrumb root. The design shows the site's own domain; fall back to its
+  // name, and render nothing rather than a placeholder when neither has loaded.
+  const activeProject = fallbackProjects.find(
+    (project) => project.id === sidebarProjectId,
+  );
+  // Prefer the domain; the project NAME is the fallback, and "Default" is what
+  // an unnamed project is called, so it is suppressed rather than shown as if
+  // it were a site.
+  const siteLabel =
+    activeProject?.domain ??
+    (activeProject?.name && activeProject.name !== "Default"
+      ? activeProject.name
+      : null);
   const seoApiKeyStatusQuery = useQuery({
     queryKey: ["seoApiKeyStatus"],
     queryFn: () => getSeoApiKeyStatus(),
-    enabled: shouldCheckSeoApiKeyStatus,
   });
-  const isSeoApiKeyConfigured = shouldCheckSeoApiKeyStatus
-    ? (seoApiKeyStatusQuery.data?.configured ?? null)
-    : null;
-  const seoApiKeyStatusError =
-    shouldCheckSeoApiKeyStatus && seoApiKeyStatusQuery.isError;
-
-  React.useEffect(() => {
-    if (!shouldCheckSeoApiKeyStatus) {
-      setShowMissingSeoApiKeyModal(false);
-      return;
-    }
-
-    if (seoApiKeyStatusQuery.isError) {
-      setShowMissingSeoApiKeyModal(false);
-      return;
-    }
-
-    if (!seoApiKeyStatusQuery.isSuccess) return;
-    setShowMissingSeoApiKeyModal(!seoApiKeyStatusQuery.data.configured);
-  }, [
-    location.pathname,
-    seoApiKeyStatusQuery.data,
-    seoApiKeyStatusQuery.isError,
-    seoApiKeyStatusQuery.isSuccess,
-    shouldCheckSeoApiKeyStatus,
-  ]);
-
-  const shouldShowMissingSeoApiKeyModal =
-    showMissingSeoApiKeyModal && location.pathname !== DATAFORSEO_HELP_PATH;
+  const isSeoApiKeyConfigured = seoApiKeyStatusQuery.data?.configured ?? null;
+  const seoApiKeyStatusError = seoApiKeyStatusQuery.isError;
 
   const shouldShowSeoApiWarning =
-    !seoApiKeyStatusError &&
-    isSeoApiKeyConfigured === false &&
-    !shouldShowMissingSeoApiKeyModal;
+    !seoApiKeyStatusError && isSeoApiKeyConfigured === false;
 
+  // ⌘K / Ctrl+K opens the palette from anywhere. Registered in the capture
+  // phase so it still fires while focus is inside an input, which is where a
+  // user reaching for a command palette usually is.
   React.useEffect(() => {
-    if (!shouldShowMissingSeoApiKeyModal) return;
-
-    setupModalRef.current?.focus();
-
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setShowMissingSeoApiKeyModal(false);
-      }
+      if (event.key !== "k" && event.key !== "K") return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      setPaletteOpen((open) => !open);
     };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [shouldShowMissingSeoApiKeyModal]);
+  // Growing past the narrow breakpoint force-closes the drawer, so the overlay
+  // never lingers once the sidebar is back in the layout.
+  React.useEffect(() => {
+    if (!narrow) setDrawerOpen(false);
+  }, [narrow]);
 
   return (
-    <div className="flex h-[100dvh] bg-base-200">
-      <div className="hidden shrink-0 md:block">
-        <Sidebar projectId={sidebarProjectId} />
-      </div>
+    <div
+      ref={rootRef}
+      style={{
+        display: "flex",
+        height: "100dvh",
+        overflow: "hidden",
+        background: "var(--canvas)",
+        color: "var(--text)",
+        // The design drives table row padding and page gutters from these, and
+        // tightens the gutter on narrow screens.
+        ["--rp" as string]: "5px",
+        ["--pad" as string]: narrow ? "14px" : "24px",
+      }}
+    >
+      {!narrow ? (
+        <div style={{ flexShrink: 0 }}>
+          <Sidebar projectId={sidebarProjectId} />
+        </div>
+      ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileTopBar
-          drawerOpen={drawerOpen}
-          onOpenDrawer={() => setDrawerOpen(true)}
+      <main
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          background: "var(--surface)",
+          borderLeft: "1px solid var(--line)",
+        }}
+      >
+        {narrow ? (
+          <ShellHeaderNarrow
+            accountEmail={session?.user?.email}
+            crumb={crumb}
+            drawerOpen={drawerOpen}
+            onOpenDrawer={() => setDrawerOpen(true)}
+            onOpenPalette={() => setPaletteOpen(true)}
+          />
+        ) : (
+          <ShellHeaderWide
+            siteLabel={siteLabel}
+            crumb={crumb}
+            onOpenPalette={() => setPaletteOpen(true)}
+            accountEmail={session?.user?.email}
+          />
+        )}
+
+        <SeoApiStatusBanners
+          shouldShowSeoApiWarning={shouldShowSeoApiWarning}
+          seoApiKeyStatusError={seoApiKeyStatusError}
         />
 
-        {/* PostHog-style cutout: the main content sits on a raised panel with a
-            thin strip of the sidebar background above it and a hairline border. */}
-        <div className="flex min-h-0 flex-1 flex-col md:pt-2">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-base-100 md:rounded-tl-lg md:border-l md:border-t md:border-base-300">
-            <SeoApiStatusBanners
-              shouldShowSeoApiWarning={shouldShowSeoApiWarning}
-              seoApiKeyStatusError={seoApiKeyStatusError}
-            />
+        {banner}
 
-            {banner}
-
-            <div className="min-h-0 flex-1 overflow-auto">{children}</div>
-          </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {children}
         </div>
-      </div>
+      </main>
+
+      <CommandPalette
+        open={paletteOpen}
+        projectId={sidebarProjectId}
+        onClose={() => setPaletteOpen(false)}
+      />
 
       <MobileSidebarDrawer
         open={drawerOpen}
         projectId={sidebarProjectId}
         onClose={() => setDrawerOpen(false)}
       />
-
-      <MissingSeoSetupModal
-        ref={setupModalRef}
-        isOpen={shouldShowMissingSeoApiKeyModal}
-        onClose={() => setShowMissingSeoApiKeyModal(false)}
-      />
-
-      <GscReEngagementModal
-        projectId={sidebarProjectId}
-        suppressed={shouldShowMissingSeoApiKeyModal}
-      />
-    </div>
-  );
-}
-
-function MobileTopBar({
-  drawerOpen,
-  onOpenDrawer,
-}: {
-  drawerOpen: boolean;
-  onOpenDrawer: () => void;
-}) {
-  return (
-    <div className="flex shrink-0 items-center gap-1 border-b border-base-300 bg-base-100 px-2 py-1.5 md:hidden">
-      <button
-        type="button"
-        className="btn btn-square btn-ghost btn-sm"
-        aria-label="Toggle sidebar"
-        aria-expanded={drawerOpen}
-        onClick={onOpenDrawer}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-      <Link to="/" className="ml-1 font-semibold text-base-content">
-        OpenSEO
-      </Link>
     </div>
   );
 }

@@ -1,8 +1,6 @@
 import { buildCsv, type CsvValue, downloadCsv } from "@/client/lib/csv";
-import type {
-  BacklinksSearchState,
-  BacklinksTabRows,
-} from "./backlinksPageTypes";
+import type { AnchorRow } from "./backlinksAnchors";
+import type { BacklinksTabRows, BacklinksUiTab } from "./backlinksPageTypes";
 import type { DomainRatings } from "./useAhrefsDomainRatings";
 
 /**
@@ -11,11 +9,13 @@ import type { DomainRatings } from "./useAhrefsDomainRatings";
  * Backlinks and Referring Domains tabs, matching the on-screen table.
  */
 export function buildBacklinksTabExport(args: {
-  tab: BacklinksSearchState["tab"];
+  tab: BacklinksUiTab;
   rows: BacklinksTabRows;
+  /** The anchors tab is grouped on the client, so its rows arrive separately. */
+  anchorRows?: AnchorRow[];
   domainRatings?: DomainRatings | null;
 }): { headers: string[]; rows: CsvValue[][] } {
-  const { tab, rows, domainRatings } = args;
+  const { tab, rows, anchorRows, domainRatings } = args;
   const ratingFor = (domain: string | null | undefined): CsvValue => {
     if (!domainRatings || !domain) return null;
     return domainRatings[domain.replace(/^www\./, "")] ?? null;
@@ -60,6 +60,17 @@ export function buildBacklinksTabExport(args: {
         row.isLost,
         row.isBroken,
         row.linksCount,
+      ]),
+    };
+  }
+
+  if (tab === "anchors") {
+    return {
+      headers: ["Anchor", "Backlinks", "Share Of Counted Links %"],
+      rows: (anchorRows ?? []).map((row) => [
+        row.anchor,
+        row.backlinks,
+        Math.round(row.share),
       ]),
     };
   }
@@ -110,7 +121,7 @@ export function buildBacklinksTabExport(args: {
 }
 
 export function exportBacklinksTabCsv(args: {
-  tab: BacklinksSearchState["tab"];
+  tab: BacklinksUiTab;
   target: string;
   headers: string[];
   rows: CsvValue[][];
@@ -122,7 +133,7 @@ export function exportBacklinksTabCsv(args: {
 }
 
 export function buildBacklinksTabCsvFilename(
-  tab: BacklinksSearchState["tab"],
+  tab: BacklinksUiTab,
   target: string,
 ) {
   const tabPrefix =
@@ -130,7 +141,9 @@ export function buildBacklinksTabCsvFilename(
       ? "backlinks"
       : tab === "domains"
         ? "referring-domains"
-        : "top-pages";
+        : tab === "anchors"
+          ? "anchors"
+          : "top-pages";
   const normalizedTarget = target
     .toLowerCase()
     .trim()

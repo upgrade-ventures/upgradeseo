@@ -41,7 +41,7 @@ export function ThemePreferenceMenuItems() {
                   role="radio"
                   aria-checked={isActive}
                   aria-label={option.label}
-                  className={`flex flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 py-1.5 transition-colors ${
+                  className={`flex flex-1 cursor-pointer items-center justify-center rounded-md px-2.5 py-1.5 transition-colors max-sm:min-h-11 focus-visible:outline-none focus-visible:shadow-[var(--focus)] ${
                     isActive
                       ? "bg-base-100 text-base-content shadow-sm"
                       : "text-base-content/50 hover:text-base-content/80"

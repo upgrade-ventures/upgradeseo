@@ -1,9 +1,21 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { Icon } from "@/client/components/icons/IconSprite";
 import { Sidebar } from "@/client/components/Sidebar";
-import { dataforseoHelpLinkOptions } from "@/client/navigation/items";
+import { freeSetupHelpLinkOptions } from "@/client/navigation/items";
 
+/**
+ * The setup notice.
+ *
+ * A full-bleed bar flush under the app header: no radius, no shadow, no outer
+ * margin, and the same horizontal gutter as the page body. The previous
+ * floating filled box read as an error and dominated the page it was meant to
+ * annotate.
+ *
+ * `role="status"` rather than `alert` — the app still works, this is
+ * information about what is not connected yet.
+ */
 function SeoApiStatusBanners({
   shouldShowSeoApiWarning,
   seoApiKeyStatusError,
@@ -11,50 +23,95 @@ function SeoApiStatusBanners({
   shouldShowSeoApiWarning: boolean;
   seoApiKeyStatusError: boolean;
 }) {
-  return (
-    <>
-      {shouldShowSeoApiWarning ? (
-        <div className="shrink-0 px-4 py-2.5 md:px-6">
-          <div className="mx-auto max-w-7xl">
-            <div className="alert alert-warning">
-              <AlertTriangle className="size-4 shrink-0" />
-              <span className="text-sm">
-                Setup needed: add your DataForSEO API key to use OpenSEO
-                features. See the quick steps on the{" "}
-                <Link
-                  {...dataforseoHelpLinkOptions}
-                  className="link link-primary font-medium"
-                >
-                  help page
-                </Link>
-                .
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
+  const [dismissed, setDismissed] = React.useState(false);
 
-      {seoApiKeyStatusError ? (
-        <div className="shrink-0 px-4 py-2.5 md:px-6">
-          <div className="mx-auto max-w-7xl">
-            <div className="alert alert-info">
-              <AlertTriangle className="size-4 shrink-0" />
-              <span className="text-sm">
-                We could not verify your DataForSEO setup. If features are not
-                working, check the setup steps on the{" "}
-                <Link
-                  {...dataforseoHelpLinkOptions}
-                  className="link link-primary font-medium"
-                >
-                  help page
-                </Link>
-                .
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+  if (dismissed) return null;
+
+  if (shouldShowSeoApiWarning) {
+    return (
+      <StatusBar
+        tone="warning"
+        // Consequence first, then the reassurance.
+        primary="Keyword research needs a data source."
+        secondary="Site Audit and Competitors already work without one, and connecting is free."
+        actionLabel="Connect a source"
+        onDismiss={() => {
+          setDismissed(true);
+          toast.success("Notice hidden. Reopen it from Settings.");
+        }}
+      />
+    );
+  }
+
+  if (seoApiKeyStatusError) {
+    return (
+      <StatusBar
+        tone="info"
+        primary="We could not check which data sources are connected."
+        secondary="If a feature is not working, review the setup guide."
+        actionLabel="Open setup guide"
+        onDismiss={() => {
+          setDismissed(true);
+          toast.success("Notice hidden. Reopen it from Settings.");
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
+function StatusBar({
+  tone,
+  primary,
+  secondary,
+  actionLabel,
+  onDismiss,
+}: {
+  tone: "warning" | "info";
+  primary: string;
+  secondary: string;
+  actionLabel: string;
+  onDismiss: () => void;
+}) {
+  const soft = tone === "warning" ? "var(--warning-soft)" : "var(--info-soft)";
+  const border =
+    tone === "warning" ? "var(--warning-border)" : "var(--info-border)";
+  const icon = tone === "warning" ? "var(--warning)" : "var(--info)";
+
+  return (
+    <div
+      role="status"
+      style={{
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 9,
+        padding: "9px var(--pad, 24px)",
+        background: soft,
+        borderBottom: `1px solid ${border}`,
+      }}
+    >
+      <Icon name="i-alert" size={15} style={{ color: icon, marginTop: 1 }} />
+      <div style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
+        <span style={{ color: "var(--text)" }}>{primary}</span>{" "}
+        <span style={{ color: "var(--text-2)" }}>{secondary}</span>
+      </div>
+      <Link
+        {...freeSetupHelpLinkOptions}
+        style={{ fontSize: 12.5, whiteSpace: "nowrap" }}
+      >
+        {actionLabel}
+      </Link>
+      <button
+        type="button"
+        aria-label="Hide this notice"
+        onClick={onDismiss}
+        className="prominence-bar-dismiss"
+      >
+        <Icon name="i-x" size={13} />
+      </button>
+    </div>
   );
 }
 
@@ -67,81 +124,51 @@ function MobileSidebarDrawer({
   projectId: string | null;
   onClose: () => void;
 }) {
+  // Escape closes the drawer, matching every other dismissible surface in the
+  // shell. Bound while open only, so it never competes with the palette's.
+  React.useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
+    <>
+      {/* Scrim sits at 55, below the drawer's 60 and above the palette's 50 —
+          the design's z-index ladder, followed exactly. */}
       <button
         type="button"
-        aria-label="Close sidebar"
-        className="absolute inset-0 bg-black/45"
+        aria-label="Close navigation"
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(10, 12, 14, 0.45)",
+          zIndex: 55,
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+        }}
         onClick={onClose}
       />
-      <div className="absolute left-0 top-0 h-full shadow-xl">
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 60,
+          boxShadow: "var(--shadow)",
+        }}
+      >
         <Sidebar projectId={projectId} onNavigate={onClose} onClose={onClose} />
       </div>
-    </div>
+    </>
   );
 }
 
-const MissingSeoSetupModal = React.forwardRef<
-  HTMLDivElement,
-  {
-    isOpen: boolean;
-    onClose: () => void;
-  }
->(({ isOpen, onClose }, ref) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dataforseo-setup-title"
-        aria-describedby="dataforseo-setup-description"
-        tabIndex={-1}
-        className="w-full max-w-lg rounded-xl border border-base-300 bg-base-100 p-5 shadow-2xl"
-      >
-        <div className="flex items-start gap-3">
-          <div className="rounded-full bg-warning/20 p-2 text-warning">
-            <AlertTriangle className="size-5" />
-          </div>
-          <div className="space-y-2">
-            <h2
-              id="dataforseo-setup-title"
-              className="text-lg font-semibold text-base-content"
-            >
-              One quick setup step
-            </h2>
-            <p
-              id="dataforseo-setup-description"
-              className="text-sm text-base-content/75"
-            >
-              Add your DataForSEO API key to start using OpenSEO.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Dismiss
-          </button>
-          <Link
-            {...dataforseoHelpLinkOptions}
-            className="btn btn-primary"
-            onClick={onClose}
-          >
-            Open setup guide
-            <ExternalLink className="size-4" />
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-MissingSeoSetupModal.displayName = "MissingSeoSetupModal";
-
-export { MissingSeoSetupModal, MobileSidebarDrawer, SeoApiStatusBanners };
+export { MobileSidebarDrawer, SeoApiStatusBanners };

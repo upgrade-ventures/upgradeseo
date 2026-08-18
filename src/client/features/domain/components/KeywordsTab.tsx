@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, Download, FileSpreadsheet, Save, Sheet } from "lucide-react";
 import { toast } from "sonner";
+import { Icon } from "@/client/components/icons/IconSprite";
 import {
   TableBulkActionBar,
   TableBulkActionButton,
@@ -10,6 +10,7 @@ import {
 import { DomainKeywordsPagination } from "@/client/features/domain/components/DomainKeywordsPagination";
 import { DomainKeywordsTable } from "@/client/features/domain/components/DomainKeywordsTable";
 import { DomainFilterPanel } from "@/client/features/domain/components/DomainFilterPanel";
+import { NoticeStrip } from "@/client/features/domain/components/DomainNotices";
 import { DomainTableTabSurface } from "@/client/features/domain/components/DomainTableTabSurface";
 import { saveSelectedKeywords } from "@/client/features/domain/domainActions";
 import {
@@ -35,7 +36,7 @@ import { buildCsv, downloadCsv } from "@/client/lib/csv";
 import { exportTableToSheets } from "@/client/lib/exportToSheets";
 import { captureClientEvent } from "@/client/lib/posthog";
 import {
-  MAX_DATAFORSEO_FILTER_CONDITIONS,
+  MAX_FILTER_CONDITIONS,
   type DomainSearchParams,
 } from "@/types/schemas/domain";
 
@@ -114,6 +115,9 @@ export function KeywordsTab({
   });
 
   const rows = query.data?.keywords ?? EMPTY_KEYWORDS;
+  // The E2E fixture payload has no `free` block, so the field is narrowed
+  // rather than read off the union.
+  const free = query.data && "free" in query.data ? query.data.free : undefined;
   const totalCount = query.data?.totalCount ?? null;
   const hasNextPage = query.data?.hasMore ?? false;
   const isLoading = query.isFetching;
@@ -168,10 +172,7 @@ export function KeywordsTab({
 
   const applyFilters = useCallback(
     (values: KeywordsFilterValues) => {
-      if (
-        countKeywordFilterConditions(values) > MAX_DATAFORSEO_FILTER_CONDITIONS
-      )
-        return;
+      if (countKeywordFilterConditions(values) > MAX_FILTER_CONDITIONS) return;
       const update = buildKeywordsSearchUpdate(values);
       debugDomain("KeywordsTab:apply-filters", { values, update });
       savePreferredFilters(values);
@@ -246,32 +247,32 @@ export function KeywordsTab({
   return (
     <>
       <TableBulkActionBar
+        placement="inline"
         selectedCount={selectedKeywords.size}
         onClear={() => setSelectedKeywords(new Set())}
         actions={
-          <div className="flex items-center px-1.5">
+          <>
             <TableBulkActionButton
-              icon={<Save className="size-3.5" />}
               onClick={handleSaveKeywords}
               disabled={!canSaveKeywords}
             >
-              Save Keywords
+              Save keywords
             </TableBulkActionButton>
             <TableBulkExportMenu
               actions={[
                 {
                   label: "Export to Sheets",
-                  icon: <Sheet className="size-4" />,
+                  icon: <Icon name="i-grid" size={14} />,
                   onClick: handleExportSelectionToSheets,
                 },
                 {
                   label: "Download CSV",
-                  icon: <Download className="size-4" />,
+                  icon: <Icon name="i-download" size={14} />,
                   onClick: handleDownloadSelectionCsv,
                 },
               ]}
             />
-          </div>
+          </>
         }
       />
 
@@ -281,28 +282,39 @@ export function KeywordsTab({
         activeFilterCount={activeFilterCount}
         countLabel="keywords"
         totalCount={totalCount}
+        countIsFloor={free?.truncated ?? false}
         fallbackCount={rows.length}
         isLoading={isLoading}
         showTableLoading={showTableLoading}
+        loadingColumns={7}
+        notice={
+          free ? (
+            <NoticeStrip title="Where these rows come from">
+              {[free.source, free.unavailable.sort, free.unavailable.filters]
+                .filter(Boolean)
+                .join(" ")}
+            </NoticeStrip>
+          ) : null
+        }
         exportActions={[
           {
             label: "Export to Sheets",
-            icon: <Sheet className="size-4" />,
+            icon: <Icon name="i-grid" size={14} />,
             onClick: handleExportToSheets,
           },
           {
             label: "Copy data (JSON)",
-            icon: <Copy className="size-4" />,
+            icon: <Icon name="i-clipboard" size={14} />,
             onClick: handleCopy,
           },
           {
             label: "Download CSV",
-            icon: <Download className="size-4" />,
+            icon: <Icon name="i-download" size={14} />,
             onClick: () => handleDownload("csv"),
           },
           {
             label: "Download Excel",
-            icon: <FileSpreadsheet className="size-4" />,
+            icon: <Icon name="i-layers" size={14} />,
             onClick: () => handleDownload("xls"),
           },
         ]}
@@ -334,12 +346,11 @@ export function KeywordsTab({
         }
       >
         <DomainKeywordsTable
-          domain={domain}
           rows={rows}
           selectedKeywords={selectedKeywords}
-          visibleKeywords={visibleKeywords}
           sortMode={routeState.sort}
           currentSortOrder={routeState.order}
+          unavailable={free?.unavailable}
           onSortClick={onSortClick}
           onToggleKeyword={toggleKeywordSelection}
         />

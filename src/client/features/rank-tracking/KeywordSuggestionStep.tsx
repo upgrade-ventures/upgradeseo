@@ -5,22 +5,74 @@ import {
   type RowSelectionState,
   type SortingState,
 } from "@tanstack/react-table";
-import { Loader2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { getDomainKeywordSuggestions } from "@/serverFunctions/domain";
 import { addTrackingKeywords } from "@/serverFunctions/rank-tracking";
 import { isLabsLocationCode } from "@/client/features/keywords/locations";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import {
+  PrimaryButton,
+  SecondaryButton,
+} from "@/client/components/prominence/Primitives";
+import {
   AppDataTable,
   makeSelectionColumn,
   useAppTable,
 } from "@/client/components/table/AppDataTable";
-import { SortableHeader } from "./RankTrackingColumns";
 import {
   applyShiftRangeSelection,
   type SelectionAnchor,
 } from "@/client/components/table/tableSelection";
+import { Dash, Skeleton, useInteractive } from "./RankScreenParts";
+
+/** Sortable column head with an explaining tooltip, used only by this step. */
+function SortableHeader({
+  column,
+  label,
+  tooltip,
+}: {
+  column: {
+    getIsSorted: () => false | "asc" | "desc";
+    getToggleSortingHandler: () => ((event: unknown) => void) | undefined;
+  };
+  label: string;
+  tooltip: string;
+}) {
+  const { focused, interactiveProps } = useInteractive();
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      // Inherits the header cell's own 11px uppercase type rather than
+      // restating it, so sortable and plain columns read identically.
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: 0,
+        border: "none",
+        background: "none",
+        font: "inherit",
+        color: "inherit",
+        textTransform: "inherit",
+        letterSpacing: "inherit",
+        cursor: "pointer",
+        outline: "none",
+        boxShadow: focused ? "var(--focus)" : undefined,
+      }}
+      {...interactiveProps}
+      onClick={column.getToggleSortingHandler()}
+      title={tooltip}
+      aria-label={`Sort by ${label}`}
+      aria-pressed={!!sorted}
+    >
+      {label}
+      <span aria-hidden style={{ opacity: sorted ? 1 : 0 }}>
+        {sorted === "desc" ? "▾" : "▴"}
+      </span>
+    </button>
+  );
+}
 
 type SuggestedKeyword = {
   keyword: string;
@@ -39,12 +91,11 @@ const baseColumns: ColumnDef<SuggestedKeyword>[] = [
       <SortableHeader
         column={column}
         label="Keyword"
-        id="keyword"
         tooltip="The search term this domain ranks for"
       />
     ),
     cell: ({ getValue }) => (
-      <span className="font-medium">{getValue<string>()}</span>
+      <span style={{ fontWeight: 600 }}>{getValue<string>()}</span>
     ),
     sortingFn: "alphanumeric",
   },
@@ -55,23 +106,19 @@ const baseColumns: ColumnDef<SuggestedKeyword>[] = [
       <SortableHeader
         column={column}
         label="Position"
-        id="position"
         tooltip="Current Google ranking position"
       />
     ),
     cell: ({ getValue }) => {
       const pos = getValue<number | null>();
-      return pos != null ? (
-        pos
-      ) : (
-        <span className="text-base-content/40">—</span>
-      );
+      return pos != null ? pos : <Dash />;
     },
     sortingFn: (rowA, rowB) => {
       const a = rowA.original.position ?? 999;
       const b = rowB.original.position ?? 999;
       return a - b;
     },
+    meta: { numeric: true },
   },
   {
     id: "searchVolume",
@@ -80,23 +127,19 @@ const baseColumns: ColumnDef<SuggestedKeyword>[] = [
       <SortableHeader
         column={column}
         label="Volume"
-        id="searchVolume"
         tooltip="Monthly search volume"
       />
     ),
     cell: ({ getValue }) => {
       const vol = getValue<number | null>();
-      return vol != null ? (
-        vol.toLocaleString()
-      ) : (
-        <span className="text-base-content/40">—</span>
-      );
+      return vol != null ? vol.toLocaleString() : <Dash />;
     },
     sortingFn: (rowA, rowB) => {
       const a = rowA.original.searchVolume ?? 0;
       const b = rowB.original.searchVolume ?? 0;
       return a - b;
     },
+    meta: { numeric: true },
   },
   {
     id: "traffic",
@@ -105,23 +148,19 @@ const baseColumns: ColumnDef<SuggestedKeyword>[] = [
       <SortableHeader
         column={column}
         label="Traffic"
-        id="traffic"
         tooltip="Estimated monthly organic traffic"
       />
     ),
     cell: ({ getValue }) => {
       const traffic = getValue<number | null>();
-      return traffic != null ? (
-        Math.round(traffic).toLocaleString()
-      ) : (
-        <span className="text-base-content/40">—</span>
-      );
+      return traffic != null ? Math.round(traffic).toLocaleString() : <Dash />;
     },
     sortingFn: (rowA, rowB) => {
       const a = rowA.original.traffic ?? 0;
       const b = rowB.original.traffic ?? 0;
       return a - b;
     },
+    meta: { numeric: true },
   },
 ];
 
@@ -133,6 +172,41 @@ type Props = {
   onDone: (configId: string) => void;
   onClose: () => void;
 };
+
+/** Message + actions block shared by the four non-table states. */
+function StepMessage({
+  children,
+  actions,
+}: {
+  children: React.ReactNode;
+  actions: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--line)",
+        borderRadius: 8,
+        background: "var(--subtle)",
+        padding: "26px 16px",
+        textAlign: "center",
+        fontSize: 12.5,
+        color: "var(--text-2)",
+      }}
+    >
+      <div>{children}</div>
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          justifyContent: "center",
+          gap: 8,
+        }}
+      >
+        {actions}
+      </div>
+    </div>
+  );
+}
 
 export function KeywordSuggestionStep({
   configId,
@@ -151,7 +225,10 @@ export function KeywordSuggestionStep({
 
   const columns = useMemo<ColumnDef<SuggestedKeyword>[]>(
     () => [
-      makeSelectionColumn<SuggestedKeyword>(selectAnchorRef),
+      makeSelectionColumn<SuggestedKeyword>(selectAnchorRef, {
+        itemNoun: "suggested keyword",
+        describeRow: (row) => row.keyword,
+      }),
       ...baseColumns,
     ],
     [],
@@ -210,7 +287,9 @@ export function KeywordSuggestionStep({
     mutationFn: (keywords: string[]) =>
       addTrackingKeywords({ data: { projectId, configId, keywords } }),
     onSuccess: (result) => {
-      toast.success(`Added ${result.added} keywords for tracking`);
+      toast.success(
+        `${result.added} keyword${result.added === 1 ? "" : "s"} added for tracking`,
+      );
       onDone(configId);
     },
     onError: (error) => {
@@ -227,104 +306,85 @@ export function KeywordSuggestionStep({
     }
   };
 
-  const sectionHeader = (title: string) => (
-    <div className="flex items-center justify-between">
-      <h2 id="keyword-suggestions-title" className="text-lg font-semibold">
-        {title}
-      </h2>
-      <button className="btn btn-ghost btn-sm btn-square" onClick={onClose}>
-        <X className="size-4" />
-      </button>
-    </div>
-  );
-
   if (!labsSupported) {
     return (
-      <>
-        {sectionHeader("Add keywords manually")}
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <p className="text-xs text-base-content/50">
-            Ranked-keyword suggestions aren't available for this country.
-            Continue and add the keywords you want to track manually.
-          </p>
-          <button className="btn btn-primary btn-sm mt-2" onClick={onClose}>
-            Continue
-          </button>
-        </div>
-      </>
+      <StepMessage
+        actions={<PrimaryButton onClick={onClose}>Continue</PrimaryButton>}
+      >
+        Ranked-keyword suggestions are not available for this country. Continue
+        and add the keywords you want to track by hand.
+      </StepMessage>
     );
   }
 
-  // Loading state
   if (suggestionsQuery.isLoading) {
+    // Skeleton rows rather than a spinner, so the panel keeps its height and
+    // the buttons below it do not jump when the suggestions land.
     return (
-      <>
-        {sectionHeader("Finding your top keywords...")}
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-xs text-base-content/50">
-            This usually takes a few seconds
-          </p>
-        </div>
-      </>
+      <div
+        aria-busy
+        aria-label={`Looking up the keywords ${domain} already ranks for`}
+        style={{ display: "flex", flexDirection: "column", gap: 9 }}
+      >
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} width="100%" height={16} />
+        ))}
+      </div>
     );
   }
 
-  // Error state
   if (suggestionsQuery.isError) {
     return (
-      <>
-        {sectionHeader("Couldn't fetch keywords")}
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <AlertCircle className="size-8 text-error" />
-          <p className="text-xs text-base-content/50">
-            You can skip this step and add keywords manually later.
-          </p>
-          <div className="flex gap-2 mt-2">
-            <button className="btn btn-primary btn-sm" onClick={onClose}>
-              Skip
-            </button>
-          </div>
-        </div>
-      </>
+      <StepMessage
+        actions={
+          <>
+            <SecondaryButton onClick={() => void suggestionsQuery.refetch()}>
+              Try again
+            </SecondaryButton>
+            <PrimaryButton onClick={onClose}>Skip</PrimaryButton>
+          </>
+        }
+      >
+        {getStandardErrorMessage(
+          suggestionsQuery.error,
+          "Could not fetch the keywords this domain ranks for.",
+        )}{" "}
+        You can skip this step and add keywords by hand later.
+      </StepMessage>
     );
   }
 
-  // Empty state
   if (data.length === 0) {
     return (
-      <>
-        {sectionHeader("No rankings found")}
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <p className="text-xs text-base-content/50">
-            We couldn't find any keywords {domain} currently ranks for. You can
-            add keywords manually.
-          </p>
-          <button className="btn btn-primary btn-sm mt-2" onClick={onClose}>
-            Skip
-          </button>
-        </div>
-      </>
+      <StepMessage
+        actions={<PrimaryButton onClick={onClose}>Skip</PrimaryButton>}
+      >
+        No keywords {domain} currently ranks for were found, so there is nothing
+        to suggest. You can add keywords by hand.
+      </StepMessage>
     );
   }
 
-  // Data loaded
   return (
-    <div className="flex flex-col gap-3">
-      {sectionHeader("Choose keywords to track")}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-base-content/60">
-          We found {data.length} keywords {domain} ranks for.
-        </p>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)" }}>
+        {data.length.toLocaleString()} keyword
+        {data.length === 1 ? "" : "s"} {domain} ranks for. The top{" "}
+        {Math.min(PRE_SELECT_COUNT, data.length)} by traffic are ticked already.
+      </p>
 
       <AppDataTable
         table={table}
-        className="table table-xs table-pin-rows w-full"
-        wrapperClassName="overflow-y-auto max-h-[400px] border border-base-300 rounded-lg"
+        wrapperStyle={{
+          overflowY: "auto",
+          overflowX: "auto",
+          maxHeight: 400,
+          border: "1px solid var(--line)",
+          borderRadius: 8,
+        }}
         stickyHeader
         getRowProps={(row) => ({
-          className: "hover:bg-base-200/50 cursor-pointer",
+          className: "cursor-pointer",
           onClick: (event) => {
             if (applyShiftRangeSelection(event, row, table, selectAnchorRef)) {
               return;
@@ -335,25 +395,39 @@ export function KeywordSuggestionStep({
         })}
       />
 
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <p className="text-xs text-base-content/60">
-          {selectedCount} of {data.length} selected
-        </p>
-        <div className="flex items-center gap-2">
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>
-            Skip
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11.5,
+            color: "var(--text-3)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {selectedCount.toLocaleString()} of {data.length.toLocaleString()}{" "}
+          selected
+        </span>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <SecondaryButton onClick={onClose}>Skip</SecondaryButton>
+          <PrimaryButton
             onClick={handleAdd}
             disabled={addMutation.isPending || selectedCount === 0}
+            title={
+              selectedCount === 0 ? "Tick at least one keyword" : undefined
+            }
+            style={addMutation.isPending ? { cursor: "progress" } : undefined}
           >
-            {addMutation.isPending && (
-              <Loader2 className="size-3.5 animate-spin" />
-            )}
-            Save Keyword{selectedCount !== 1 ? "s" : ""}
-          </button>
+            {addMutation.isPending
+              ? "Adding…"
+              : `Track ${selectedCount} keyword${selectedCount === 1 ? "" : "s"}`}
+          </PrimaryButton>
         </div>
       </div>
     </div>

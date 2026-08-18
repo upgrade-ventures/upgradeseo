@@ -26,7 +26,10 @@ import {
   useKeywordSearchParams,
   useKeywordUiState,
 } from "./keywordControllerInternals";
-import { useKeywordOverviewState } from "./useKeywordOverviewState";
+import {
+  resolveOverviewKeyword,
+  useKeywordOverviewState,
+} from "./useKeywordOverviewState";
 
 export type KeywordResearchControllerInput = {
   projectId: string;
@@ -163,12 +166,16 @@ export function useKeywordResearchController(
     if (handledSerpSearchKeyRef.current === activeSearchKey) return;
 
     handledSerpSearchKeyRef.current = activeSearchKey;
-    setSerpKeyword(rows.length > 0 ? searchedKeyword : null);
+    // The panel falls back to the first row when the seed itself did not come
+    // back, so the SERP lookup has to resolve the row the same way.
+    setSerpKeyword(
+      resolveOverviewKeyword(rows, searchedKeyword, null)?.keyword ?? null,
+    );
     setSerpPage(0);
   }, [
     activeSearchKey,
     researchQuery.isSuccess,
-    rows.length,
+    rows,
     searchedKeyword,
     setSerpKeyword,
     setSerpPage,
@@ -218,7 +225,7 @@ export function useKeywordResearchController(
       filteredRows,
       input,
       saveKeywordsMutate: saveMutation.mutate,
-      setShowSaveDialog: uiState.setShowSaveDialog,
+      setSaveConfirmOpen: uiState.setSaveConfirmOpen,
     });
 
   const handleToggleAllRows = () => {
@@ -241,6 +248,7 @@ export function useKeywordResearchController(
     sheetsExportRows,
     filteredRows,
     filtersForm,
+    filterValues,
     handleRowClick,
     handleSaveKeywords,
     handleSearchSubmit,
@@ -253,7 +261,6 @@ export function useKeywordResearchController(
     lastSearchKeyword,
     lastSearchLocationCode,
     lastUsedFallback,
-    mobileTab: uiState.mobileTab,
     overviewKeyword,
     removeHistoryItem,
     researchError,
@@ -268,14 +275,14 @@ export function useKeywordResearchController(
     serpPage,
     serpQuery,
     serpResults,
-    setMobileTab: uiState.setMobileTab,
     setSelectedRows,
     setSerpPage,
     setShowFilters: uiState.setShowFilters,
-    setShowSaveDialog: uiState.setShowSaveDialog,
+    setSaveConfirmOpen: uiState.setSaveConfirmOpen,
     showApproximateMatchNotice,
     showFilters: uiState.showFilters,
-    showSaveDialog: uiState.showSaveDialog,
+    saveConfirmOpen: uiState.saveConfirmOpen,
+    savePending: saveMutation.isPending,
     sortDir: input.sortDir,
     sortField: input.sortField,
     toggleAllRows: handleToggleAllRows,

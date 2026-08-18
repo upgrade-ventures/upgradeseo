@@ -2,7 +2,6 @@ import * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Modal } from "@/client/components/Modal";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { setLastProjectId } from "@/client/lib/active-project";
 import {
@@ -12,7 +11,7 @@ import {
 import { ProjectMarketFields } from "@/client/features/projects/ProjectMarketFields";
 import { createProject } from "@/serverFunctions/projects";
 
-export function CreateProjectModal({ onClose }: { onClose: () => void }) {
+export function CreateProjectPanel({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [name, setName] = React.useState("");
@@ -60,10 +59,18 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal
-      maxWidth="max-w-md"
-      onClose={isPending ? undefined : onClose}
-      labelledBy="create-project-title"
+    // Rendered in place, not over the page: the design has no dialogs, so
+    // creating a project is a panel that appears in the flow and can be
+    // dismissed without trapping focus.
+    <section
+      aria-labelledby="create-project-title"
+      style={{
+        border: "1px solid var(--line)",
+        borderRadius: 8,
+        background: "var(--surface)",
+        padding: 16,
+        maxWidth: 480,
+      }}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <h2 id="create-project-title" className="text-lg font-semibold">
@@ -85,7 +92,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">
-            Domain <span className="text-base-content/50">(optional)</span>
+            Domain <span className="text-base-content/60">(optional)</span>
           </span>
           <input
             type="text"
@@ -95,7 +102,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
             maxLength={255}
             className="input input-bordered w-full"
           />
-          <span className="text-xs text-base-content/50">
+          <span className="text-xs text-base-content/60">
             You can connect Search Console and set up rank tracking after
             creating the project.
           </span>
@@ -103,7 +110,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
 
         <div className="flex flex-col gap-1.5">
           <ProjectMarketFields value={market} onChange={setMarket} />
-          <span className="text-xs text-base-content/50">
+          <span className="text-xs text-base-content/60">
             Keyword, SERP, and domain data uses this country and language unless
             a call asks for a different one. Change it later in project
             settings.
@@ -128,6 +135,6 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </form>
-    </Modal>
+    </section>
   );
 }

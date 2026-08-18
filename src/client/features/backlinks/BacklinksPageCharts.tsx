@@ -8,12 +8,43 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Icon } from "@/client/components/icons/IconSprite";
 import type { BacklinksOverviewData } from "./backlinksPageTypes";
 import {
   formatCompactDate,
   formatMonthLabel,
   formatTooltipValue,
 } from "./backlinksPageUtils";
+
+/**
+ * Series colours.
+ *
+ * The design draws no multi-series chart, so it names no palette for one. These
+ * are the four semantic tokens that already carry the right meaning in both
+ * themes: two neutral series (accent, info) and the gain/loss pair
+ * (success, danger). Nothing here is a literal colour, so dark mode swaps with
+ * the rest of the screen.
+ */
+const SERIES = {
+  backlinks: "var(--accent)",
+  referringDomains: "var(--info)",
+  gained: "var(--success)",
+  lost: "var(--danger)",
+} as const;
+
+/** Axis furniture. Recharts defaults to its own greys, which are unreadable on
+ * the dark canvas, so ticks and lines are pinned to the text tokens. */
+const AXIS_TICK = { fill: "var(--text-3)", fontSize: 11 } as const;
+const AXIS_LINE = "var(--line)";
+const TOOLTIP_STYLE = {
+  border: "1px solid var(--line)",
+  borderRadius: 8,
+  background: "var(--overlay)",
+  color: "var(--text)",
+  fontSize: 12.5,
+  boxShadow: "var(--shadow)",
+} as const;
+const LEGEND_STYLE = { fontSize: 12, color: "var(--text-2)" } as const;
 
 export function BacklinksTrendChart({
   data,
@@ -48,24 +79,35 @@ export function BacklinksTrendChart({
             dataKey="date"
             tickFormatter={formatChartTick}
             minTickGap={24}
+            tick={AXIS_TICK}
+            stroke={AXIS_LINE}
           />
-          <YAxis yAxisId="left" tickFormatter={formatAxisValue} width={60} />
+          <YAxis
+            yAxisId="left"
+            tickFormatter={formatAxisValue}
+            width={60}
+            tick={AXIS_TICK}
+            stroke={AXIS_LINE}
+          />
           <YAxis
             yAxisId="right"
             orientation="right"
             tickFormatter={formatAxisValue}
             width={60}
+            tick={AXIS_TICK}
+            stroke={AXIS_LINE}
           />
           <Tooltip
             formatter={formatTooltipValue}
             labelFormatter={formatChartLabel}
+            contentStyle={TOOLTIP_STYLE}
           />
-          <Legend />
+          <Legend wrapperStyle={LEGEND_STYLE} />
           <Line
             yAxisId="left"
             type="monotone"
             dataKey="backlinks"
-            stroke="#2563eb"
+            stroke={SERIES.backlinks}
             strokeWidth={2}
             dot={false}
             name="Backlinks"
@@ -74,7 +116,7 @@ export function BacklinksTrendChart({
             yAxisId="right"
             type="monotone"
             dataKey="referringDomains"
-            stroke="#14b8a6"
+            stroke={SERIES.referringDomains}
             strokeWidth={2}
             dot={false}
             name="Referring domains"
@@ -118,17 +160,25 @@ export function BacklinksNewLostChart({
             dataKey="date"
             tickFormatter={formatChartTick}
             minTickGap={24}
+            tick={AXIS_TICK}
+            stroke={AXIS_LINE}
           />
-          <YAxis tickFormatter={formatAxisValue} width={60} />
+          <YAxis
+            tickFormatter={formatAxisValue}
+            width={60}
+            tick={AXIS_TICK}
+            stroke={AXIS_LINE}
+          />
           <Tooltip
             formatter={formatTooltipValue}
             labelFormatter={formatChartLabel}
+            contentStyle={TOOLTIP_STYLE}
           />
-          <Legend />
+          <Legend wrapperStyle={LEGEND_STYLE} />
           <Line
             type="monotone"
             dataKey="lostBacklinks"
-            stroke="#ef4444"
+            stroke={SERIES.lost}
             strokeWidth={2}
             dot={false}
             name="Lost backlinks"
@@ -136,7 +186,7 @@ export function BacklinksNewLostChart({
           <Line
             type="monotone"
             dataKey="newBacklinks"
-            stroke="#16a34a"
+            stroke={SERIES.gained}
             strokeWidth={2}
             dot={false}
             name="New backlinks"
@@ -174,10 +224,41 @@ function useChartWidth() {
   return { containerRef, chartWidth };
 }
 
+/** Holds the chart's own height so a series arriving never shifts the card. */
 function EmptyChartState() {
   return (
-    <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-base-300 text-sm text-base-content/55">
-      Not enough historical data yet.
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        height: 224,
+        padding: "0 14px",
+        border: "1px dashed var(--line)",
+        borderRadius: 6,
+        background: "var(--subtle)",
+        textAlign: "center",
+      }}
+    >
+      <span style={{ color: "var(--text-3)", display: "flex" }}>
+        <Icon name="i-chart" size={18} />
+      </span>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: "var(--text-2)",
+        }}
+      >
+        Not enough history yet
+      </p>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--text-3)" }}>
+        Monthly snapshots build up from the first lookup. Nothing is backfilled
+        for months we did not measure.
+      </p>
     </div>
   );
 }

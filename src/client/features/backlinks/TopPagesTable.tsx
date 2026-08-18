@@ -1,121 +1,78 @@
-import { createColumnHelper } from "@tanstack/react-table";
-import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { SafeExternalLink } from "@/client/components/SafeExternalLink";
+import { NoValue } from "@/client/components/prominence/Primitives";
 import {
-  AppDataTable,
-  useAppTable,
-} from "@/client/components/table/AppDataTable";
-import { SortableHeader } from "@/client/components/table/SortableHeader";
-import { HeaderHelpLabel } from "@/client/features/keywords/components";
-import { EmptyTableState } from "./BacklinksPageEmptyTableState";
+  BacklinksDataTable,
+  type BacklinksColumn,
+  type BacklinksTableSort,
+} from "./BacklinksDataTable";
 import type { TopPageRow } from "./backlinksPageTypes";
-import type { TopPagesSortField } from "@/types/schemas/backlinks";
-import { formatNumber } from "./backlinksPageUtils";
+import type {
+  BacklinksSortOrder,
+  TopPagesSortField,
+} from "@/types/schemas/backlinks";
+import { formatNumber, truncateMiddle } from "./backlinksPageUtils";
 
-const columnHelper = createColumnHelper<TopPageRow>();
-
-// Column ids map to server-side sort fields; sorting re-queries DataForSEO
-// across all pages, not just the loaded page of results.
-const columns = [
-  columnHelper.accessor("page", {
-    id: "page",
-    enableSorting: false,
-    header: () => (
-      <HeaderHelpLabel
-        label="Page"
-        helpText="Page on the target site receiving backlinks."
-      />
-    ),
-    cell: ({ getValue }) => {
-      const page = getValue();
-      return page ? (
+const columns: BacklinksColumn<TopPageRow>[] = [
+  {
+    key: "page",
+    header: "Your page",
+    variant: "name",
+    help: "Page on the target site receiving backlinks.",
+    render: (row) =>
+      row.page ? (
         <SafeExternalLink
-          url={page}
-          label={page}
+          url={row.page}
+          label={truncateMiddle(row.page, 72)}
           className="link link-hover break-all inline-flex items-center gap-1"
         />
       ) : (
-        "-"
-      );
-    },
-  }),
-  columnHelper.accessor("backlinks", {
-    id: "backlinks" satisfies TopPagesSortField,
-    header: ({ column }) => (
-      <SortableHeader
-        column={column}
-        label="Backlinks"
-        helpText="Total backlinks pointing to this page."
-      />
-    ),
-    cell: ({ getValue }) => formatNumber(getValue()),
-    sortDescFirst: true,
-  }),
-  columnHelper.accessor("referringDomains", {
-    id: "referringDomains" satisfies TopPagesSortField,
-    header: ({ column }) => (
-      <SortableHeader
-        column={column}
-        label="Referring Domains"
-        helpText="Unique domains linking to this page."
-      />
-    ),
-    cell: ({ getValue }) => formatNumber(getValue()),
-    sortDescFirst: true,
-  }),
-  columnHelper.accessor("rank", {
-    id: "rank" satisfies TopPagesSortField,
-    header: ({ column }) => (
-      <SortableHeader
-        column={column}
-        label="Rank"
-        helpText="Authority score for this target page."
-      />
-    ),
-    cell: ({ getValue }) => formatNumber(getValue()),
-    sortDescFirst: true,
-  }),
-  columnHelper.accessor("brokenBacklinks", {
-    id: "brokenBacklinks" satisfies TopPagesSortField,
-    header: ({ column }) => (
-      <SortableHeader
-        column={column}
-        label="Broken Backlinks"
-        helpText="Backlinks pointing here that are currently broken."
-      />
-    ),
-    cell: ({ getValue }) => formatNumber(getValue()),
-    sortDescFirst: true,
-  }),
+        <NoValue />
+      ),
+  },
+  {
+    key: "referringDomains",
+    header: "Referring domains",
+    variant: "text",
+    help: "Bing Webmaster Tools counts links per page, never the distinct domains behind them.",
+    render: (row) =>
+      row.referringDomains == null ? (
+        <NoValue />
+      ) : (
+        formatNumber(row.referringDomains)
+      ),
+  },
+  {
+    key: "backlinks",
+    header: "Backlinks",
+    variant: "text",
+    sortField: "backlinks" satisfies TopPagesSortField,
+    help: "Inbound links Bing Webmaster Tools reports for this page.",
+    render: (row) =>
+      row.backlinks == null ? <NoValue /> : formatNumber(row.backlinks),
+  },
 ];
 
 export function TopPagesTable({
   rows,
-  sorting,
-  onSortingChange,
+  sort,
+  onSortChange,
+  loading,
 }: {
   rows: TopPageRow[];
-  sorting: SortingState;
-  onSortingChange: OnChangeFn<SortingState>;
+  sort: BacklinksTableSort;
+  onSortChange: (field: string, order: BacklinksSortOrder) => void;
+  loading: boolean;
 }) {
-  const table = useAppTable({
-    data: rows,
-    columns,
-    state: { sorting },
-    onSortingChange,
-    manualSorting: true,
-  });
-
-  if (rows.length === 0) {
-    return <EmptyTableState label="No top pages match this filter." />;
-  }
-
   return (
-    <AppDataTable
-      table={table}
-      getCellClassName={(_, columnId) =>
-        columnId === "page" ? "min-w-80" : undefined
-      }
+    <BacklinksDataTable
+      caption="Top pages"
+      columns={columns}
+      rows={rows}
+      getRowKey={(row, index) => row.page ?? `row-${index}`}
+      sort={sort}
+      onSortChange={onSortChange}
+      loading={loading}
+      emptyLabel="No pages match this filter."
     />
   );
 }

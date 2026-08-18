@@ -1,27 +1,19 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { LinkOptions } from "@tanstack/react-router";
-import { useEffect, useState, type ComponentType } from "react";
-import {
-  CircleHelp,
-  CreditCard,
-  LayoutGrid,
-  LogOut,
-  MessageCircle,
-  Settings,
-  User,
-  X,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { LogOut, Settings, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   connectNavGroup,
   getProjectNavGroups,
 } from "@/client/navigation/items";
+import { Icon, type IconName } from "@/client/components/icons/IconSprite";
 import { ProjectSwitcher } from "@/client/features/projects/ProjectSwitcher";
-import { SamSidebarPanel } from "@/client/features/sam/SamSidebarPanel";
 import { ThemePreferenceMenuItems } from "@/client/components/ThemePreferenceMenuItems";
+import { useThemePreference } from "@/client/lib/theme";
 import { closeDropdown } from "@/client/lib/dropdown";
 import { signOutAndRedirect, useSession } from "@/lib/auth-client";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
-import { BILLING_ROUTE } from "@/shared/billing";
 
 interface SidebarProps {
   projectId: string | null;
@@ -29,28 +21,25 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+// Prominence nav item. The design fills hover and active identically with
+// var(--inset); what distinguishes them is the 3px accent bar on the active
+// item, so the hover tint deliberately does NOT get its own lighter shade.
 const navItemBaseClass =
-  "relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-base-content/70";
+  "prominence-nav-item relative flex items-center gap-2.5 rounded-md text-[13px]";
 
-// Hover uses a lighter tint than the active background (bg-base-300/50) so a
-// hovered item next to the active one stays visually distinct instead of
-// merging into a single block.
-const navItemClass = `${navItemBaseClass} transition-colors hover:bg-base-300/30 hover:text-base-content`;
+const navItemClass = navItemBaseClass;
 
 const navItemActiveProps = {
-  // Keep the active tint on hover so the active item does not fall back to the
-  // lighter hover background of navItemClass.
-  className:
-    "bg-base-300/50 hover:bg-base-300/50 font-medium text-base-content",
+  className: "prominence-nav-item-active",
 };
 
 function SidebarNavLink({
-  icon: Icon,
+  icon,
   label,
   onNavigate,
   linkProps,
 }: {
-  icon: ComponentType<{ className?: string }>;
+  icon: IconName;
   label: string;
   onNavigate?: () => void;
   linkProps: LinkOptions;
@@ -63,15 +52,11 @@ function SidebarNavLink({
       className={navItemClass}
       activeProps={navItemActiveProps}
     >
-      {({ isActive }: { isActive: boolean }) => (
-        <>
-          {isActive ? (
-            <div className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary" />
-          ) : null}
-          <Icon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{label}</span>
-        </>
-      )}
+      {/* The bar renders unconditionally and is coloured by the active class,
+          so selection never reflows the row. */}
+      <span className="prominence-nav-bar" />
+      <Icon name={icon} size={15} />
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
@@ -81,52 +66,31 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
     ...(projectId ? getProjectNavGroups(projectId) : []),
     connectNavGroup,
   ];
-  const navigate = useNavigate();
-  const location = useLocation();
-  const onSamRoute = location.pathname.includes("/sam");
-
-  // PostHog-style sidebar tabs: Browse shows the regular nav, Chat shows the
-  // SAM chat history. The tab is view state (switching to Browse leaves the
-  // conversation open in the content panel), but the route wins: landing on
-  // /sam selects Chat, navigating anywhere else flips back to Browse.
-  const [view, setView] = useState<"browse" | "chat">(
-    onSamRoute ? "chat" : "browse",
-  );
-  useEffect(() => {
-    setView(onSamRoute ? "chat" : "browse");
-  }, [onSamRoute]);
-
-  const openChat = () => {
-    setView("chat");
-    if (!projectId) return;
-    if (!onSamRoute) {
-      void navigate({
-        to: "/p/$projectId/sam",
-        params: { projectId },
-        search: {},
-      });
-      onNavigate?.();
-    }
-  };
-
-  // Coming back from Chat, land on the dashboard rather than leaving the
-  // conversation filling the content panel next to a Browse nav.
-  const openBrowse = () => {
-    setView("browse");
-    if (!projectId || !onSamRoute) return;
-    void navigate({ to: "/p/$projectId", params: { projectId } });
-    onNavigate?.();
-  };
 
   return (
-    <div className="flex h-full w-60 flex-col bg-base-200">
-      <div className="flex items-center justify-between px-4 pb-2 pt-3">
+    <div
+      className="flex h-full flex-col"
+      style={{
+        width: 224,
+        background: "var(--canvas)",
+        borderRight: "1px solid var(--line)",
+      }}
+    >
+      <div
+        className="flex items-center justify-between"
+        style={{ padding: "12px 14px 8px" }}
+      >
         <Link
           to="/"
           onClick={onNavigate}
-          className="text-base font-semibold text-base-content"
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            color: "var(--text)",
+          }}
         >
-          OpenSEO
+          UpgradeSEO
         </Link>
         {onClose ? (
           <button
@@ -137,90 +101,43 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
           >
             <X className="h-5 w-5" />
           </button>
-        ) : null}
+        ) : (
+          <ThemeToggleButton />
+        )}
       </div>
 
-      <div className="px-3 pb-1">
+      <div style={{ padding: "0 10px 8px", position: "relative" }}>
         <ProjectSwitcher
           activeProjectId={projectId}
           onCloseDrawer={onNavigate}
         />
       </div>
 
-      {projectId ? (
-        // Same underline tab idiom as the in-page tab strips (e.g. Domain
-        // Overview's Top Keywords / Top Pages).
-        <div className="px-3 pb-1">
-          <div role="tablist" className="tabs tabs-border w-full">
-            <SidebarViewTab
-              icon={LayoutGrid}
-              label="Browse"
-              active={view === "browse"}
-              onClick={openBrowse}
-            />
-            <SidebarViewTab
-              icon={MessageCircle}
-              label="Chat"
-              active={view === "chat"}
-              onClick={openChat}
-            />
+      <nav
+        className="min-h-0 flex-1 overflow-y-auto"
+        style={{ padding: "8px 8px 14px" }}
+      >
+        {navGroups.map((group) => (
+          <div key={group.label} className="prominence-nav-group">
+            <div className="prominence-nav-group-label">{group.label}</div>
+            {group.items.map((item) => {
+              const { icon, label, ...linkProps } = item;
+              return (
+                <SidebarNavLink
+                  key={linkProps.to}
+                  icon={icon}
+                  label={label}
+                  onNavigate={onNavigate}
+                  linkProps={linkProps}
+                />
+              );
+            })}
           </div>
-        </div>
-      ) : null}
-
-      {view === "chat" && projectId ? (
-        <SamSidebarPanel projectId={projectId} onNavigate={onNavigate} />
-      ) : (
-        <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {navGroups.map((group) => (
-            <div key={group.label} className="mb-1">
-              <div className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-base-content/40">
-                {group.label}
-              </div>
-              {group.items.map((item) => {
-                const { icon, label, ...linkProps } = item;
-                return (
-                  <SidebarNavLink
-                    key={linkProps.to}
-                    icon={icon}
-                    label={label}
-                    onNavigate={onNavigate}
-                    linkProps={linkProps}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      )}
+        ))}
+      </nav>
 
       <SidebarFooter onNavigate={onNavigate} />
     </div>
-  );
-}
-
-function SidebarViewTab({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={`tab flex-1 gap-1.5 ${active ? "tab-active" : ""}`}
-    >
-      <Icon className="size-4" />
-      {label}
-    </button>
   );
 }
 
@@ -237,7 +154,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="shrink-0 border-t border-base-300 px-2 py-2 pb-safe">
       <SidebarNavLink
-        icon={CircleHelp}
+        icon="i-help"
         label="Help & Community"
         onNavigate={onNavigate}
         linkProps={{ to: "/support" }}
@@ -251,7 +168,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
             className={`${navItemClass} w-full`}
             aria-label="Open account menu"
           >
-            <User className="h-4 w-4 shrink-0" />
+            <Icon name="i-user" size={15} />
             <span className="truncate" data-ph-mask>
               {email}
             </span>
@@ -266,14 +183,6 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
                 Settings
               </Link>
             </li>
-            {isHostedMode ? (
-              <li>
-                <Link to={BILLING_ROUTE} onClick={closeMenu}>
-                  <CreditCard className="h-4 w-4" />
-                  Billing
-                </Link>
-              </li>
-            ) : null}
             <ThemePreferenceMenuItems />
             {isHostedMode ? (
               <>
@@ -297,12 +206,72 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       ) : (
         <SidebarNavLink
-          icon={Settings}
+          icon="i-plug"
           label="Settings"
           onNavigate={onNavigate}
           linkProps={{ to: "/settings" }}
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The brand-row theme toggle.
+ *
+ * The design labels this with its DESTINATION ("Dark" while you are in light),
+ * not the current state — the less ambiguous of the two conventions, and the
+ * one the design chose.
+ *
+ * It flips between light and dark only, and it branches on the RESOLVED theme,
+ * so pressing it while on "System" pins the opposite of what is on screen. That
+ * costs the user their System preference, so the pinning is announced with a
+ * one-click way back rather than happening silently.
+ */
+function ThemeToggleButton() {
+  const { themePreference, setThemePreference } = useThemePreference();
+  const [systemDark, setSystemDark] = useState(false);
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemDark(query.matches);
+    const onChange = (event: MediaQueryListEvent) =>
+      setSystemDark(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  const isDark =
+    themePreference === "dark" || (themePreference === "system" && systemDark);
+
+  const handleToggle = () => {
+    const next = isDark ? "light" : "dark";
+    setThemePreference(next);
+
+    // Pressing this while on "System" replaces a preference that follows the
+    // OS with a fixed one. Announce that, and offer the way back, so a single
+    // click cannot discard the setting without the user noticing.
+    if (themePreference === "system") {
+      toast(`Theme pinned to ${next === "dark" ? "dark" : "light"}`, {
+        description: "It no longer follows your device.",
+        action: {
+          label: "Use System",
+          onClick: () => setThemePreference("system"),
+        },
+      });
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="prominence-theme-toggle"
+      title="Toggle theme"
+      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
+      onClick={handleToggle}
+    >
+      {isDark ? "Light" : "Dark"}
+    </button>
   );
 }

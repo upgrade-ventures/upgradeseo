@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import {
   copyTableToClipboard,
@@ -8,43 +7,17 @@ import type { CsvValue } from "@/client/lib/csv";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { captureClientEvent } from "@/client/lib/posthog";
 
-type ModalState = { isOpen: false } | { isOpen: true; rowCount: number };
-
-const listeners = new Set<() => void>();
-let state: ModalState = { isOpen: false };
-
-function emit() {
-  for (const listener of listeners) listener();
-}
-
-function setState(next: ModalState) {
-  state = next;
-  emit();
-}
-
-export function useExportToSheetsModalState(): ModalState {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => state,
-    () => state,
-  );
-}
-
-export function closeExportToSheetsModal() {
-  setState({ isOpen: false });
-}
-
-export function openGoogleSheetsTab() {
+function openGoogleSheetsTab() {
   window.open(GOOGLE_SHEETS_NEW_URL, "_blank", "noopener,noreferrer");
 }
 
 /**
- * Copy a table to the clipboard and open the "paste into a new Google Sheet"
- * modal. The modal handles opening sheets.new on user click — we don't auto-
- * redirect because users wouldn't realize the data was on their clipboard.
+ * Copy a table to the clipboard and offer to open a new Google Sheet.
+ *
+ * Reported as a toast with an action rather than a dialog: the design has no
+ * dialogs, and this is a result plus one optional next step. Sheets is opened
+ * on an explicit click, never automatically, because a redirect would leave the
+ * user in a new tab with no idea the data is on their clipboard.
  */
 export async function exportTableToSheets(args: {
   headers: string[];
@@ -62,7 +35,14 @@ export async function exportTableToSheets(args: {
       source_feature: feature,
       result_count: rows.length,
     });
-    setState({ isOpen: true, rowCount: rows.length });
+    toast.success(
+      `Copied ${rows.length} row${rows.length === 1 ? "" : "s"} to your clipboard`,
+      {
+        description: "Open a new sheet and paste to finish.",
+        action: { label: "Open Sheets", onClick: openGoogleSheetsTab },
+        duration: 10000,
+      },
+    );
   } catch (error) {
     toast.error(getStandardErrorMessage(error, "Could not copy to clipboard"));
   }

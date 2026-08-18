@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { MAX_DATAFORSEO_FILTER_CONDITIONS } from "@/types/schemas/domain";
+import { MAX_FILTER_CONDITIONS } from "@/types/schemas/domain";
 import {
   EMPTY_BACKLINKS_FILTERS,
   EMPTY_REFERRING_DOMAINS_FILTERS,
@@ -38,9 +38,9 @@ function loadFromStorage<T extends FilterValues>(tab: string, fallback: T): T {
     }
 
     // Filters persisted before the server-side-filtering change had no
-    // condition budget; values over the DataForSEO cap would fail every
+    // condition budget; values over the provider cap would fail every
     // query on load, so start fresh instead.
-    if (countFilterConditions(result) > MAX_DATAFORSEO_FILTER_CONDITIONS) {
+    if (countFilterConditions(result) > MAX_FILTER_CONDITIONS) {
       return fallbackClone;
     }
 

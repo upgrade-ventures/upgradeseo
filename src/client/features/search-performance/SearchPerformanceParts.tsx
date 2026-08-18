@@ -1,3 +1,4 @@
+import type { PerformanceRow } from "@/client/features/search-performance/SearchPerformanceTable";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy, Loader2, Save } from "lucide-react";
@@ -13,11 +14,7 @@ import {
 } from "@/client/components/table/TableBulkActionBar";
 import { TablePagination } from "@/client/components/table/TablePagination";
 import {
-  buildDimensionColumns,
   buildStrikingColumns,
-  formatCount,
-  formatCtr,
-  formatPosition,
   type Report,
   type SearchPerformanceTableRow,
 } from "@/client/features/search-performance/SearchPerformanceColumns";
@@ -36,8 +33,7 @@ import {
 } from "@/types/schemas/search-performance";
 import { saveKeywords } from "@/serverFunctions/keywords";
 
-export type Tab = "striking" | "queries" | "pages";
-export type ExportTarget = "csv" | "sheets";
+type ExportTarget = "csv" | "sheets";
 
 type ExportTable = { filename: string; headers: string[]; rows: CsvValue[][] };
 
@@ -97,13 +93,13 @@ function runExport(table: ExportTable, target: ExportTarget): void {
   });
 }
 
-export function exportStriking(report: Report, target: ExportTarget): void {
+function exportStriking(report: Report, target: ExportTarget): void {
   runExport(strikingExportTable(report), target);
 }
 
 /** Export the full queries/pages dataset (fetched separately, not the visible
  *  page) so pagination never truncates a download. */
-export function exportDimensionRows(
+function exportDimensionRows(
   dimension: SearchPerformanceTableDimension,
   rows: SearchPerformanceTableRow[],
   range: Report["range"],
@@ -113,137 +109,87 @@ export function exportDimensionRows(
   runExport(dimensionExportTable(dimension, rows, stamp), target);
 }
 
-export function TabButton({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className={`tab ${active ? "tab-active" : ""}`}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
+/** The five tabs the Search Performance screen can export from. */
+export type ExportTab =
+  | "striking"
+  | "queries"
+  | "pages"
+  | "countries"
+  | "devices";
+
+/**
+ * Why export is unavailable right now, or null when it is fine.
+ *
+ * Returned as a sentence so the button's title says what to do rather than
+ * just going grey.
+ */
+export function exportUnavailableReason(
+  report: Report | null | undefined,
+  tab: ExportTab,
+  tableStatus: string,
+  localRowCount: number,
+): string | null {
+  if (report == null) return "Connect Search Console to export.";
+  if (tab === "striking") {
+    return report.strikingDistance.length > 0
+      ? null
+      : "No striking-distance rows in this period.";
+  }
+  if (tab === "countries" || tab === "devices") {
+    return localRowCount > 0 ? null : "No rows in this period.";
+  }
+  // queries and pages are fetched separately, so a failed table read is the
+  // only thing that blocks them.
+  if (tableStatus === "error") return "The table failed to load. Retry first.";
+  if (tableStatus === "pending") return "Still loading this table.";
+  return null;
 }
 
-type Delta = { text: string; improved: boolean } | null;
+/**
+ * Export whatever the active tab is showing, as CSV.
+ *
+ * Queries and pages are re-fetched in full rather than exported from the
+ * visible page, so pagination never silently truncates a download. Returns the
+ * row count so the caller can report it.
+ */
+export async function exportCurrentTab(args: {
+  tab: ExportTab;
+  report: Report;
+  localRows: PerformanceRow[];
+  fetchTable: () => Promise<{
+    rows: SearchPerformanceTableRow[];
+    dimension: SearchPerformanceTableDimension;
+  }>;
+}): Promise<number> {
+  const { tab, report, localRows, fetchTable } = args;
 
-function percentDelta(current: number, previous: number): Delta {
-  if (previous <= 0) return null;
-  const change = (current - previous) / previous;
-  const pct = (change * 100).toFixed(1);
-  return { text: `${change >= 0 ? "+" : ""}${pct}%`, improved: change >= 0 };
-}
+  if (tab === "striking") {
+    exportStriking(report, "csv");
+    return report.strikingDistance.length;
+  }
 
-/** Position falls as rankings improve, so the delta is inverted. */
-function positionDelta(current: number, previous: number): Delta {
-  if (previous <= 0 || current <= 0) return null;
-  const change = previous - current;
-  return {
-    text: `${change >= 0 ? "+" : ""}${change.toFixed(1)}`,
-    improved: change >= 0,
-  };
-}
+  if (tab === "countries" || tab === "devices") {
+    const stamp = `${report.range.startDate}-to-${report.range.endDate}`;
+    runExport(
+      {
+        filename: `search-performance-${tab}-${stamp}.csv`,
+        headers: ["Name", "Clicks", "Impressions", "CTR", "Position"],
+        rows: localRows.map((row) => [
+          row.key,
+          row.clicks,
+          row.impressions,
+          row.ctr,
+          row.position,
+        ]),
+      },
+      "csv",
+    );
+    return localRows.length;
+  }
 
-export function TotalsCards({ report }: { report: Report }) {
-  const { totals, prevTotals, range } = report;
-  const deltaTitle = `vs ${range.prevStartDate} to ${range.prevEndDate}`;
-  return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <TotalCard
-        label="Clicks"
-        value={formatCount(totals.clicks)}
-        delta={percentDelta(totals.clicks, prevTotals.clicks)}
-        deltaTitle={deltaTitle}
-      />
-      <TotalCard
-        label="Impressions"
-        value={formatCount(totals.impressions)}
-        delta={percentDelta(totals.impressions, prevTotals.impressions)}
-        deltaTitle={deltaTitle}
-      />
-      <TotalCard
-        label="CTR"
-        value={formatCtr(totals.ctr)}
-        delta={percentDelta(totals.ctr, prevTotals.ctr)}
-        deltaTitle={deltaTitle}
-      />
-      <TotalCard
-        label="Avg position"
-        value={formatPosition(totals.position)}
-        delta={positionDelta(totals.position, prevTotals.position)}
-        deltaTitle={deltaTitle}
-      />
-    </div>
-  );
-}
-
-function TotalCard({
-  label,
-  value,
-  delta,
-  deltaTitle,
-}: {
-  label: string;
-  value: string;
-  delta: Delta;
-  deltaTitle: string;
-}) {
-  return (
-    <div className="rounded-lg border border-base-300 bg-base-100 p-4">
-      <div className="text-xs uppercase tracking-wide text-base-content/60">
-        {label}
-      </div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-2xl font-semibold">{value}</span>
-        {delta ? (
-          <span
-            className={`text-xs ${delta.improved ? "text-success" : "text-error"}`}
-            title={deltaTitle}
-          >
-            {delta.text}
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-export function DimensionTable({
-  rows,
-  keyLabel,
-}: {
-  rows: SearchPerformanceTableRow[];
-  keyLabel: string;
-}) {
-  const columns = useMemo(() => buildDimensionColumns(keyLabel), [keyLabel]);
-  const table = useAppTable({
-    data: rows,
-    columns,
-    withSorting: true,
-    initialState: { sorting: [{ id: "clicks", desc: true }] },
-  });
-  return (
-    <AppDataTable
-      table={table}
-      className="table table-zebra table-sm"
-      wrapperClassName="overflow-x-auto"
-      empty={
-        <p className="p-6 text-sm text-base-content/60">
-          No data for this period yet. Search Console data trails by a few days.
-        </p>
-      }
-    />
-  );
+  const table = await fetchTable();
+  exportDimensionRows(table.dimension, table.rows, report.range, "csv");
+  return table.rows.length;
 }
 
 export function StrikingDistanceTable({

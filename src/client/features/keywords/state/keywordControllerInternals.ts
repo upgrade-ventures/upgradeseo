@@ -27,18 +27,17 @@ export function useKeywordUiState(initialShowFilters: boolean) {
   const [showFilters, setShowFilters] = useState(initialShowFilters);
   const [selectedKeyword, setSelectedKeyword] =
     useState<KeywordResearchRow | null>(null);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"keywords" | "serp">("keywords");
+  // Named "confirm", not "dialog": saving is confirmed inline, above the table.
+  // The design contains no modal anywhere, and this state must not grow one.
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
 
   return {
-    mobileTab,
     selectedKeyword,
-    setMobileTab,
     setSelectedKeyword,
     setShowFilters,
-    setShowSaveDialog,
+    setSaveConfirmOpen,
     showFilters,
-    showSaveDialog,
+    saveConfirmOpen,
   };
 }
 

@@ -1,8 +1,11 @@
-import type { FormEvent } from "react";
-import { Search } from "lucide-react";
-import { isHostedClientAuthMode } from "@/lib/auth-mode";
-import { applyBillingMarkupUsd } from "@/shared/billing";
+import { useState, type FormEvent } from "react";
+import { SecondaryButton } from "@/client/components/prominence/Primitives";
+import { Field, TextInput } from "@/client/components/prominence/Field";
+import { RunButton } from "@/client/features/ai-search/components/aiControls";
 import { BRAND_LOOKUP_MAX_INPUT_LENGTH } from "@/types/schemas/ai-search";
+
+export type LookupField = "query" | "competitors";
+export type LookupValidationError = { field: LookupField; message: string };
 
 type Props = {
   query: string;
@@ -11,34 +14,30 @@ type Props = {
   onCompetitorsChange: (next: string) => void;
   onSubmit: (event: FormEvent) => void;
   isLoading: boolean;
-  validationError: { field: "query" | "competitors"; message: string } | null;
+  /** Message raised by the last submit attempt. */
+  validationError: LookupValidationError | null;
+  /**
+   * The same rules the submit path applies, so a field can name its own fix on
+   * blur instead of waiting for the user to press the button.
+   */
+  validate: (
+    query: string,
+    competitors: string,
+  ) => LookupValidationError | null;
+  /** Clears the active lookup and returns the panel to recent searches. */
+  onClear?: () => void;
 };
 
 /**
- * One brand lookup = 6 DataForSEO calls (aggregated_metrics + top_pages +
- * mentions_search × 2 platforms). Rounded up with headroom because
- * mentions_search is row-priced at the full 100-row sample per platform.
+ * The lookup control row. The design assumes a single tracked site and shows no
+ * search control at all; this screen points at any brand, so the row is drawn
+ * with the design's own field vocabulary rather than invented ones.
+ *
+ * The Forms & validation page governs it: label always visible and bound with
+ * `for`/`id`, description above the control saying why we are asking,
+ * placeholders showing the shape of a value rather than naming the field, and
+ * the message announced on blur rather than on every keystroke.
  */
-const BRAND_LOOKUP_RAW_COST_USD = 0.85;
-
-/**
- * Adding competitors triggers 2 extra cross_aggregated_metrics calls (one per
- * platform). Measured live (Jun 2026) at $0.101 each — $0.202 total for a
- * 4-group comparison — via `pnpm billing:brand-lookup --competitors=...`. A
- * fixed estimate, marked up once at module load exactly like the base.
- */
-const BRAND_LOOKUP_COMPETITOR_RAW_COST_USD = 0.2;
-
-// Hosted customers are billed the marked-up USD; self-hosted users pay
-// DataForSEO directly at the raw rate.
-const markup = (rawUsd: number) =>
-  isHostedClientAuthMode() ? applyBillingMarkupUsd(rawUsd) : rawUsd;
-
-const BRAND_LOOKUP_DISPLAYED_COST_USD = markup(BRAND_LOOKUP_RAW_COST_USD);
-const BRAND_LOOKUP_COMPETITOR_DISPLAYED_COST_USD = markup(
-  BRAND_LOOKUP_COMPETITOR_RAW_COST_USD,
-);
-
 export function BrandLookupSearchCard({
   query,
   onQueryChange,
@@ -47,94 +46,103 @@ export function BrandLookupSearchCard({
   onSubmit,
   isLoading,
   validationError,
+  validate,
+  onClear,
 }: Props) {
-  const hasCompetitors = competitors.trim().length > 0;
-  const queryError = validationError?.field === "query";
-  const competitorsError = validationError?.field === "competitors";
+  // A message appears once a field has been left, never while it is being
+  // typed into. A failed submit reveals both, since the button spoke for them.
+  const [blurred, setBlurred] = useState<Record<LookupField, boolean>>({
+    query: false,
+    competitors: false,
+  });
+
+  const live = validate(query, competitors);
+  const messageFor = (field: LookupField): string | null => {
+    if (validationError?.field === field) return validationError.message;
+    if (!blurred[field]) return null;
+    return live?.field === field ? live.message : null;
+  };
+
+  const markBlurred = (field: LookupField) =>
+    setBlurred((current) => ({ ...current, [field]: true }));
 
   return (
-    <div className="card border border-base-300 bg-base-100">
-      <div className="card-body gap-4">
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <label
-              className={`input input-bordered flex flex-1 items-center gap-2 ${
-                queryError ? "input-error" : ""
-              }`}
-            >
-              <Search className="size-4 text-base-content/60" />
-              <input
-                type="text"
-                placeholder="Enter a brand name or domain"
-                value={query}
-                maxLength={BRAND_LOOKUP_MAX_INPUT_LENGTH}
-                onChange={(event) => onQueryChange(event.target.value)}
-                aria-invalid={queryError || undefined}
-                aria-describedby={
-                  queryError ? "brand-lookup-input-error" : undefined
-                }
-                autoComplete="off"
-                spellCheck={false}
-                className="grow"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="btn btn-primary shrink-0 px-6"
-              disabled={isLoading}
-            >
-              {isLoading ? "Looking up..." : "Look up"}
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <input
-              type="text"
-              placeholder="Add competitors (comma-separated)"
-              value={competitors}
-              onChange={(event) => onCompetitorsChange(event.target.value)}
+    <form
+      onSubmit={(event) => {
+        setBlurred({ query: true, competitors: true });
+        onSubmit(event);
+      }}
+      style={{ padding: "16px var(--pad, 24px)" }}
+      aria-busy={isLoading || undefined}
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+        }}
+      >
+        <Field
+          label="Brand or domain to look up"
+          required
+          description="The name a customer would use, or the site it belongs to."
+          error={messageFor("query")}
+          style={{ flex: 1, minWidth: 240, maxWidth: 420 }}
+        >
+          {(control) => (
+            <TextInput
+              {...control}
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              onBlur={() => markBlurred("query")}
+              maxLength={BRAND_LOOKUP_MAX_INPUT_LENGTH}
+              placeholder="acme.com"
               autoComplete="off"
               spellCheck={false}
-              className={`input input-bordered w-full ${
-                competitorsError ? "input-error" : ""
-              }`}
-              aria-label="Competitors"
-              aria-invalid={competitorsError || undefined}
-              aria-describedby={
-                competitorsError ? "brand-lookup-input-error" : undefined
-              }
             />
-            <p className="text-xs text-base-content/60">
-              Add up to 5 competitor brands or domains to see your Share of
-              Voice.
-            </p>
-          </div>
-        </form>
+          )}
+        </Field>
 
-        {validationError ? (
-          <p id="brand-lookup-input-error" className="text-sm text-error">
-            {validationError.message}
-          </p>
-        ) : null}
+        <Field
+          label="Competitors"
+          description="Optional. Up to five, comma separated. Compared on the Competitor share tab."
+          error={messageFor("competitors")}
+          style={{ flex: 1, minWidth: 240, maxWidth: 320 }}
+        >
+          {(control) => (
+            <TextInput
+              {...control}
+              value={competitors}
+              onChange={(event) => onCompetitorsChange(event.target.value)}
+              onBlur={() => markBlurred("competitors")}
+              placeholder="ahrefs.com, semrush.com"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          )}
+        </Field>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-base-content/60">
-          <p className="tabular-nums">
-            Est.{" "}
-            <span className="font-medium text-base-content/80">
-              ${BRAND_LOOKUP_DISPLAYED_COST_USD.toFixed(2)}
-            </span>
-            {hasCompetitors ? (
-              <span>
-                {" "}
-                plus ~$
-                {BRAND_LOOKUP_COMPETITOR_DISPLAYED_COST_USD.toFixed(2)} to
-                compare competitors
-              </span>
-            ) : null}
-          </p>
+        {/* Aligns with the control line of the fields, which sit under a label
+            and a description. */}
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            paddingTop: 37,
+          }}
+        >
+          <RunButton
+            running={isLoading}
+            idleLabel="Look up"
+            runningLabel="Asking our model…"
+          />
+          {onClear ? (
+            <SecondaryButton onClick={onClear}>Recent lookups</SecondaryButton>
+          ) : null}
         </div>
       </div>
-    </div>
+    </form>
   );
 }

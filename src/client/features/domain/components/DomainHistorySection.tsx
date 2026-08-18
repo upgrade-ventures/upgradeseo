@@ -1,5 +1,6 @@
-import { Clock, History, X } from "lucide-react";
-import { Globe } from "lucide-react";
+import { Icon } from "@/client/components/icons/IconSprite";
+import { Card } from "@/client/components/prominence/Primitives";
+import { focusRing } from "@/client/features/domain/components/domainTableStyles";
 import type { DomainHistoryItem } from "@/client/features/domain/types";
 
 type Props = {
@@ -9,77 +10,153 @@ type Props = {
   onSelectHistoryItem: (item: DomainHistoryItem) => void;
 };
 
+const DAY_FORMAT: Intl.DateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+};
+
+/**
+ * What the screen shows before a domain is chosen: the lookups this browser has
+ * made for this project. Stored locally, so it is genuinely the user's own
+ * history rather than a sample list.
+ */
 export function DomainHistorySection({
   history,
   historyLoaded,
   onRemoveHistoryItem,
   onSelectHistoryItem,
 }: Props) {
-  if (!historyLoaded) {
-    return null;
-  }
+  if (!historyLoaded) return null;
 
   if (history.length === 0) {
     return (
-      <section className="rounded-2xl border border-dashed border-base-300 bg-base-100/70 p-6 text-center text-base-content/55 space-y-2">
-        <Globe className="size-9 mx-auto opacity-35" />
-        <p className="text-base font-medium text-base-content/80">
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 8,
+          padding: "42px 20px",
+          border: "1px dashed var(--line)",
+          borderRadius: 8,
+          background: "var(--subtle)",
+          textAlign: "center",
+        }}
+      >
+        <span style={{ color: "var(--text-3)", display: "flex" }}>
+          <Icon name="i-globe" size={22} />
+        </span>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
           Enter a domain to get started
         </p>
-      </section>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)" }}>
+          Look up any site to see the keywords it targets and the pages it
+          publishes.
+        </p>
+      </div>
     );
   }
 
   return (
-    <section className="rounded-2xl border border-base-300 bg-base-100 p-5 md:p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <History className="size-4 text-base-content/45" />
-          <span className="text-sm text-base-content/60">
-            {history.length} recent search{history.length !== 1 ? "es" : ""}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        {history.map((item) => (
-          <div
+    <Card
+      title="Recent lookups"
+      count={`${history.length} saved on this device`}
+    >
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {history.map((item, index) => (
+          <li
             key={item.timestamp}
-            className="group flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 p-2"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px var(--pad, 24px) 6px 12px",
+              borderTop:
+                index === 0 ? undefined : "1px solid var(--border-muted)",
+            }}
           >
             <button
               type="button"
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-base-200"
               onClick={() => onSelectHistoryItem(item)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                flex: 1,
+                minWidth: 0,
+                padding: "3px 4px",
+                border: "none",
+                background: "none",
+                borderRadius: 5,
+                outline: "none",
+                textAlign: "left",
+                font: "inherit",
+                color: "inherit",
+                cursor: "pointer",
+              }}
+              {...focusRing<HTMLButtonElement>()}
             >
-              <Clock className="size-4 text-base-content/40 shrink-0" />
-              <div className="min-w-0">
-                <p className="font-medium text-base-content truncate">
-                  {item.domain}
-                </p>
-                <p className="text-sm text-base-content/60 truncate">
-                  {item.subdomains ? "Include subdomains" : "Root domain only"}
-                </p>
-              </div>
-            </button>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs text-base-content/40">
-                {new Date(item.timestamp).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
+              <span style={{ color: "var(--text-3)", display: "flex" }}>
+                <Icon name="i-clock" size={13} />
               </span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 p-1"
-                onClick={() => onRemoveHistoryItem(item.timestamp)}
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          </div>
+              <span style={{ minWidth: 0 }}>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.domain}
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 11.5,
+                    color: "var(--text-2)",
+                  }}
+                >
+                  {item.subdomains
+                    ? "Including subdomains"
+                    : "Root domain only"}
+                </span>
+              </span>
+            </button>
+
+            <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>
+              {new Date(item.timestamp).toLocaleDateString(
+                undefined,
+                DAY_FORMAT,
+              )}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => onRemoveHistoryItem(item.timestamp)}
+              aria-label={`Remove ${item.domain} from recent lookups`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                border: "none",
+                background: "none",
+                borderRadius: 5,
+                outline: "none",
+                color: "var(--text-3)",
+                cursor: "pointer",
+              }}
+              {...focusRing<HTMLButtonElement>()}
+            >
+              <Icon name="i-x" size={12} />
+            </button>
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </Card>
   );
 }

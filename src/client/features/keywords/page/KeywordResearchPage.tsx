@@ -1,8 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
-import { AlertCircle, ArrowLeft } from "lucide-react";
-import { getErrorCode } from "@/client/lib/error-messages";
-import { BILLING_ROUTE } from "@/shared/billing";
+import { useCallback, useMemo, useRef } from "react";
+import { PageHeaderBand } from "@/client/components/prominence/Primitives";
+import { Icon } from "@/client/components/icons/IconSprite";
+import { useShellBreakpoint } from "@/client/layout/useShellBreakpoint";
 import { useKeywordResearchController } from "@/client/features/keywords/state/useKeywordResearchController";
 import type { KeywordResearchControllerInput } from "@/client/features/keywords/state/useKeywordResearchController";
 import type { KeywordControlsValues } from "@/client/features/keywords/hooks/useKeywordControlsForm";
@@ -20,11 +19,17 @@ import {
   tabInputKey,
   useSearchTabNavigation,
 } from "@/client/features/search-tabs/useSearchTabNavigation";
-import { KeywordResearchEmptyState } from "./KeywordResearchEmptyState";
-import { KeywordResearchLoadingState } from "./KeywordResearchLoadingState";
-import { KeywordResearchResults } from "./KeywordResearchResults";
+import { KeywordResearchFilterPanel } from "./keywordResearchFilters";
+import {
+  HeaderActions,
+  KeywordResearchContent,
+  KeywordSaveConfirm,
+  SourceNotes,
+} from "./KeywordResearchScreenParts";
 import { KeywordResearchSearchBar } from "./KeywordResearchSearchBar";
-import type { KeywordResearchControllerState } from "./types";
+import { KeywordResearchSelectionBar } from "./KeywordResearchSelectionBar";
+import { KeywordResearchViewsBar } from "./KeywordResearchViewsBar";
+import { GhostButton } from "./prominenceControls";
 
 type ControllerProps = Omit<KeywordResearchControllerInput, "onFormSubmit">;
 type Props = Omit<
@@ -40,6 +45,11 @@ function isKeywordSearchTab(tab: SearchTab): tab is KeywordSearchTab {
 export function KeywordResearchPage(input: Props) {
   const setSearchParams = useKeywordSearchParams();
   const projectId = input.projectId;
+  // The shell root spans the viewport, so the design's root-width breakpoints
+  // resolve the same from window width, which is what the hook measures when
+  // the ref is empty.
+  const shellRef = useRef<HTMLElement>(null);
+  const { mid, narrow } = useShellBreakpoint(shellRef);
   const { locationCode, displayedLocationCode, setPreferredLocationCode } =
     useResolvedKeywordLocation({
       projectId,
@@ -110,7 +120,7 @@ export function KeywordResearchPage(input: Props) {
       (candidate) => candidate.id === searchTabs.activeTabId,
     );
     // activeTabId syncs in an effect, so it trails urlInput by a render; the
-    // stale tab must not drive a paid query for a market the URL no longer names.
+    // stale tab must not drive a query for a market the URL no longer names.
     return tab &&
       isKeywordSearchTab(tab) &&
       tabInputKey(tab.input) === tabInputKey(urlInput)
@@ -176,129 +186,104 @@ export function KeywordResearchPage(input: Props) {
     onFormSubmit,
   });
 
+  // The triage bars belong to a result set. Before the first search there is
+  // nothing to view, filter or select.
+  const showTriage =
+    controller.hasSearched &&
+    controller.researchError === null &&
+    (controller.isLoading || controller.rows.length > 0);
+
   return (
-    <div className="px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-8 overflow-auto">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <div>
-          <h1 className="text-2xl font-semibold">Keyword Research</h1>
-          <p className="text-sm text-base-content/70">
-            Discover keyword ideas, search demand, and ranking opportunities.
-          </p>
-        </div>
+    <div
+      style={{
+        paddingBottom: 48,
+        // The accessibility floor asks for 44px hit targets on mobile, while
+        // the design's own control heights are 24-30px. Every control on this
+        // screen floors its min-height against `--tap`, so the compact desktop
+        // sizes survive and the narrow layout still clears 44px.
+        ["--tap" as string]: narrow ? "44px" : "0px",
+      }}
+    >
+      <PageHeaderBand
+        title="Keyword Research"
+        subtitle="Find what people search for, then save the ones worth writing about."
+        actions={<HeaderActions controller={controller} />}
+        tabs={
+          <>
+            <KeywordResearchSearchBar controller={controller} />
+            {controller.hasSearched ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  paddingBottom: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <GhostButton
+                  data-testid="keyword-research-recent-searches"
+                  style={{ paddingLeft: 0 }}
+                  onClick={showRecentSearches}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <Icon
+                      name="i-chev-right"
+                      size={12}
+                      style={{ transform: "rotate(180deg)" }}
+                    />
+                    Recent searches
+                  </span>
+                </GhostButton>
+                {/* The strip scrolls its own tabs, so it must be allowed to
+                    shrink rather than push the row wider than the band. */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <SearchTabStrip
+                    projectId={projectId}
+                    tabs={searchTabs.tabs}
+                    activeTabId={searchTabs.activeTabId}
+                    onSelect={searchTabs.selectTab}
+                    onClose={searchTabs.closeTab}
+                    onViewed={searchTabs.markTabViewed}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </>
+        }
+      />
 
-        <KeywordResearchSearchBar controller={controller} />
-        {controller.hasSearched ? (
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              data-testid="keyword-research-recent-searches"
-              className="btn btn-ghost btn-sm w-fit gap-2 px-0 text-base-content/70 hover:bg-transparent"
-              onClick={showRecentSearches}
-            >
-              <ArrowLeft className="size-4" />
-              Recent searches
-            </button>
-            <SearchTabStrip
-              projectId={projectId}
-              tabs={searchTabs.tabs}
-              activeTabId={searchTabs.activeTabId}
-              onSelect={searchTabs.selectTab}
-              onClose={searchTabs.closeTab}
-              onViewed={searchTabs.markTabViewed}
-            />
-          </div>
-        ) : null}
-        <KeywordResearchContent
-          controller={controller}
-          projectId={input.projectId}
-        />
-        <KeywordSaveDialog controller={controller} />
-      </div>
-    </div>
-  );
-}
+      {showTriage ? (
+        <>
+          <KeywordResearchViewsBar
+            controller={controller}
+            loading={controller.isLoading}
+          />
+          {controller.showFilters ? (
+            <KeywordResearchFilterPanel controller={controller} />
+          ) : null}
+          <SourceNotes controller={controller} />
+          <KeywordResearchSelectionBar
+            controller={controller}
+            projectId={projectId}
+          />
+        </>
+      ) : null}
 
-function KeywordResearchContent({
-  controller,
-  projectId,
-}: {
-  controller: KeywordResearchControllerState;
-  projectId: string;
-}) {
-  if (controller.isLoading) {
-    return <KeywordResearchLoadingState />;
-  }
+      {/* Confirmation sits above the table, where the selection it acts on is,
+          rather than over it. */}
+      <KeywordSaveConfirm controller={controller} />
 
-  if (controller.researchError) {
-    const isCreditsError =
-      getErrorCode(controller.researchMutationError) === "INSUFFICIENT_CREDITS";
-
-    return (
-      <div className="flex-1 flex items-center justify-center pt-1">
-        <div className="w-full max-w-xl rounded-xl border border-error/30 bg-error/10 p-5 text-error space-y-3">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <p className="text-sm">{controller.researchError}</p>
-          </div>
-          {isCreditsError ? (
-            <Link to={BILLING_ROUTE} className="btn btn-sm">
-              Go to Billing
-            </Link>
-          ) : (
-            <button className="btn btn-sm" onClick={controller.retrySearch}>
-              Try again
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (controller.rows.length === 0) {
-    return (
-      <KeywordResearchEmptyState
+      <KeywordResearchContent
         controller={controller}
         projectId={projectId}
-      />
-    );
-  }
-
-  return <KeywordResearchResults controller={controller} />;
-}
-
-function KeywordSaveDialog({
-  controller,
-}: {
-  controller: KeywordResearchControllerState;
-}) {
-  if (!controller.showSaveDialog) return null;
-
-  return (
-    <div className="modal modal-open">
-      <div className="modal-box">
-        <h3 className="font-bold text-lg">
-          Save {controller.selectedRows.size} Keywords
-        </h3>
-        <div className="py-4">
-          <p className="text-base-content/70 text-sm">
-            These keywords will be saved to your current project.
-          </p>
-        </div>
-        <div className="modal-action">
-          <button
-            className="btn"
-            onClick={() => controller.setShowSaveDialog(false)}
-          >
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={controller.confirmSave}>
-            Save
-          </button>
-        </div>
-      </div>
-      <div
-        className="modal-backdrop"
-        onClick={() => controller.setShowSaveDialog(false)}
+        stacked={mid}
       />
     </div>
   );

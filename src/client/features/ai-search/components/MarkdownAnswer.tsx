@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Icon } from "@/client/components/icons/IconSprite";
 import { MARKDOWN_COMPONENTS } from "@/client/components/Markdown";
+import { useFocusRing } from "@/client/features/ai-search/components/aiControls";
 
 type Props = {
   text: string;
@@ -43,7 +44,14 @@ export function MarkdownAnswer({ text }: Props) {
 
   if (normalized.trim().length === 0 && thinking.length === 0) {
     return (
-      <p className="text-sm text-base-content/60 italic">
+      <p
+        style={{
+          margin: 0,
+          fontSize: 12.5,
+          fontStyle: "italic",
+          color: "var(--text-3)",
+        }}
+      >
         Model returned an empty response.
       </p>
     );
@@ -52,19 +60,20 @@ export function MarkdownAnswer({ text }: Props) {
   const isCollapsed = needsCollapse && !expanded;
 
   return (
-    <div className="text-sm leading-relaxed">
+    <div style={{ fontSize: 12.5, lineHeight: 1.65 }}>
       {thinking.map((block, index) => (
         <ThinkingBlock key={index} text={block} />
       ))}
 
       {normalized.trim().length > 0 ? (
-        <div className="relative">
+        <div style={{ position: "relative" }}>
           <div
             ref={contentRef}
             style={
-              isCollapsed ? { maxHeight: `${COLLAPSED_MAX_PX}px` } : undefined
+              isCollapsed
+                ? { maxHeight: COLLAPSED_MAX_PX, overflow: "hidden" }
+                : undefined
             }
-            className={isCollapsed ? "overflow-hidden" : undefined}
           >
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -77,33 +86,70 @@ export function MarkdownAnswer({ text }: Props) {
           {isCollapsed ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-base-100 to-transparent"
+              style={{
+                position: "absolute",
+                insetInline: 0,
+                bottom: 0,
+                height: 64,
+                pointerEvents: "none",
+                // The card this sits in is painted --surface, so the fade has
+                // to land on --surface rather than on a DaisyUI base colour.
+                background:
+                  "linear-gradient(to top, var(--surface), transparent)",
+              }}
             />
           ) : null}
         </div>
       ) : null}
 
       {needsCollapse ? (
-        <button
-          type="button"
-          onClick={() => setExpanded((prev) => !prev)}
-          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-          aria-expanded={expanded}
-        >
-          {expanded ? (
-            <>
-              <ChevronUp className="size-3.5" />
-              Show less
-            </>
-          ) : (
-            <>
-              <ChevronDown className="size-3.5" />
-              Read more
-            </>
-          )}
-        </button>
+        <ReadMoreToggle
+          expanded={expanded}
+          onToggle={() => setExpanded((prev) => !prev)}
+        />
       ) : null}
     </div>
+  );
+}
+
+function ReadMoreToggle({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { ring, ringProps } = useFocusRing();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      {...ringProps}
+      // The only control on a long answer, so it has to clear the 44px touch
+      // floor. A media query cannot be written inline.
+      className="max-sm:min-h-11"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        marginTop: 8,
+        padding: "2px 4px",
+        marginInlineStart: -4,
+        border: "none",
+        background: "none",
+        borderRadius: 5,
+        fontFamily: "inherit",
+        fontSize: 12,
+        fontWeight: 600,
+        color: "var(--accent)",
+        cursor: "pointer",
+        ...ring,
+      }}
+    >
+      <Icon name={expanded ? "i-chev-down" : "i-chev-right"} size={13} />
+      {expanded ? "Show less" : "Read more"}
+    </button>
   );
 }
 
@@ -111,13 +157,46 @@ function ThinkingBlock({ text }: { text: string }) {
   return (
     <details
       open
-      className="group mb-3 rounded-lg border border-base-300 bg-base-200/40"
+      style={{
+        marginBottom: 12,
+        border: "1px solid var(--line)",
+        borderRadius: 8,
+        background: "var(--subtle)",
+        overflow: "hidden",
+      }}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-medium text-base-content/70 hover:text-base-content">
-        <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
-        Model Thinking
+      <summary
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "7px 12px",
+          listStyle: "none",
+          cursor: "pointer",
+          fontSize: 12,
+          fontWeight: 600,
+          color: "var(--text-2)",
+        }}
+      >
+        <Icon name="i-chev-down" size={13} />
+        Model thinking
       </summary>
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-b-lg border-t border-base-300 bg-base-200/60 px-3 py-2.5 text-xs font-mono text-base-content/80">
+      <pre
+        style={{
+          margin: 0,
+          padding: "9px 12px",
+          borderTop: "1px solid var(--line)",
+          background: "var(--inset)",
+          // One UI sans stack across the product: the design ships no
+          // monospace, and a <pre> would otherwise inherit the browser's.
+          fontFamily: "inherit",
+          fontSize: 12,
+          color: "var(--text-2)",
+          whiteSpace: "pre-wrap",
+          overflowWrap: "break-word",
+          overflowX: "auto",
+        }}
+      >
         {text}
       </pre>
     </details>

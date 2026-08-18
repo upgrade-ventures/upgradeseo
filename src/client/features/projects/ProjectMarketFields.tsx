@@ -45,7 +45,7 @@ export function ProjectMarketFields({
           onChange={(event) =>
             onChange({ ...value, languageCode: event.target.value })
           }
-          // Most countries have exactly one language DataForSEO serves, so the
+          // Most countries have exactly one language served, so the
           // select is only a real choice where there's more than one.
           disabled={languageOptions.length <= 1}
           className="select select-bordered w-full"

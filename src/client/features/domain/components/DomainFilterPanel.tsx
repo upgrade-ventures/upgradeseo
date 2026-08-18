@@ -1,11 +1,16 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { Icon } from "@/client/components/icons/IconSprite";
+import {
+  PrimaryButton,
+  SecondaryButton,
+} from "@/client/components/prominence/Primitives";
 import {
   FilterNumberInput,
   FilterRangeGroup,
@@ -15,7 +20,7 @@ import {
   debugDomain,
   useDomainRenderDebug,
 } from "@/client/features/domain/domainDebug";
-import { MAX_DATAFORSEO_FILTER_CONDITIONS } from "@/types/schemas/domain";
+import { MAX_FILTER_CONDITIONS } from "@/types/schemas/domain";
 
 type FilterValues = Record<string, string>;
 
@@ -49,6 +54,44 @@ type Props<TValues extends FilterValues> = {
   ) => ReactNode;
 };
 
+/**
+ * Both include/exclude fields are split on commas and plus signs, and every
+ * term spends one of the request's filter conditions. Neither fact is visible
+ * from the field, so the design's rule applies: help text wherever the
+ * requirement is not obvious.
+ */
+const TERMS_HELP =
+  "Separate terms with a comma. Each term spends one filter condition.";
+
+/** Small count pill, on the design's pill geometry. */
+function CountPill({
+  tone,
+  children,
+}: {
+  tone: "accent" | "warning";
+  children: ReactNode;
+}) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 20,
+        padding: "0 8px",
+        borderRadius: 999,
+        fontSize: 11.5,
+        fontWeight: 600,
+        fontVariantNumeric: "tabular-nums",
+        color: `var(--${tone})`,
+        background: `var(--${tone}-soft)`,
+        border: `1px solid var(--${tone}-border)`,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function DomainFilterPanel<TValues extends FilterValues>({
   debugName,
   activeFilterCount,
@@ -61,6 +104,7 @@ export function DomainFilterPanel<TValues extends FilterValues>({
   onClear,
   renderExtra,
 }: Props<TValues>) {
+  const uid = useId();
   const appliedKey = useMemo(
     () => fields.map((key) => appliedFilters[key]).join("|"),
     [appliedFilters, fields],
@@ -137,41 +181,71 @@ export function DomainFilterPanel<TValues extends FilterValues>({
     [debugName],
   );
 
+  // The design's rule for a disabled control: it says why it is off, it is
+  // never just greyed out.
+  const applyDisabledReason = meta.overLimit
+    ? `Remove a term or a bound: at most ${MAX_FILTER_CONDITIONS} filter conditions are accepted per request.`
+    : !meta.isDirty
+      ? "Change a filter to apply it."
+      : null;
+
   return (
     <div
-      className="border-b border-base-300 bg-gradient-to-b from-base-100 to-base-200/30 px-4 py-3 space-y-3"
       onKeyDown={handleKeyDown}
+      style={{
+        display: "grid",
+        gap: 12,
+        padding: "12px var(--pad, 24px)",
+        background: "var(--subtle)",
+        borderBottom: "1px solid var(--line)",
+      }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold">Refine table results</p>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
+            Refine table results
+          </h3>
           {activeFilterCount > 0 ? (
-            <span className="badge badge-xs badge-primary border-0 text-primary-content">
-              {activeFilterCount} active
-            </span>
+            <CountPill tone="accent">{activeFilterCount} active</CountPill>
           ) : null}
           {meta.dirtyCount > 0 ? (
-            <span className="badge badge-xs badge-warning border-0">
-              {meta.dirtyCount} unapplied
-            </span>
+            <CountPill tone="warning">{meta.dirtyCount} unapplied</CountPill>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="btn btn-xs btn-ghost gap-1"
+        <SecondaryButton
+          icon="i-refresh"
           onClick={resetFilters}
           disabled={activeFilterCount === 0 && !meta.isDirty}
+          title={
+            activeFilterCount === 0 && !meta.isDirty
+              ? "Nothing is filtered yet."
+              : undefined
+          }
         >
-          <RotateCcw className="size-3" />
           Clear all
-        </button>
+        </SecondaryButton>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        }}
+      >
         {textFields.map((field) => (
           <FilterTextInput
             key={String(field.key)}
             label={field.label}
+            help={TERMS_HELP}
             placeholder={field.placeholder}
             value={draftFilters[field.key]}
             onChange={(value) => handleValueChange(field.key, value)}
@@ -179,19 +253,29 @@ export function DomainFilterPanel<TValues extends FilterValues>({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div
+        style={{
+          display: "grid",
+          gap: 10,
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        }}
+      >
         {rangeFields.map((field) => (
           <FilterRangeGroup key={String(field.minKey)} title={field.title}>
             <FilterNumberInput
+              id={`${uid}-${String(field.minKey)}`}
+              label="Min"
               value={draftFilters[field.minKey]}
               onChange={(value) => handleValueChange(field.minKey, value)}
-              placeholder="Min"
+              placeholder="Any"
               step={field.step}
             />
             <FilterNumberInput
+              id={`${uid}-${String(field.maxKey)}`}
+              label="Max"
               value={draftFilters[field.maxKey]}
               onChange={(value) => handleValueChange(field.maxKey, value)}
-              placeholder="Max"
+              placeholder="Any"
               step={field.step}
             />
           </FilterRangeGroup>
@@ -200,49 +284,87 @@ export function DomainFilterPanel<TValues extends FilterValues>({
 
       {renderExtra ? renderExtra(draftFilters, handleValueChange) : null}
 
-      {meta.overLimit ? (
-        <div className="alert alert-warning py-2 text-xs">
-          <AlertTriangle className="size-4 shrink-0" />
-          <span>
-            Too many filter conditions ({meta.conditionCount} of{" "}
-            {MAX_DATAFORSEO_FILTER_CONDITIONS} max). Remove some terms or ranges
-            before applying.
-          </span>
-        </div>
-      ) : null}
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <span className="text-xs text-base-content/50 tabular-nums">
-          {meta.conditionCount} / {MAX_DATAFORSEO_FILTER_CONDITIONS} conditions
+      {/* Announced rather than only drawn: the limit is crossed while typing,
+          far from the button it disables. */}
+      <div aria-live="polite">
+        {meta.overLimit ? (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-start",
+              padding: "9px 12px",
+              border: "1px solid var(--warning-border)",
+              background: "var(--warning-soft)",
+              borderRadius: 6,
+              fontSize: 12.5,
+              color: "var(--text)",
+            }}
+          >
+            <Icon
+              name="i-alert"
+              size={15}
+              style={{ color: "var(--warning)", flexShrink: 0, marginTop: 1 }}
+            />
+            <span>
+              Too many filter conditions ({meta.conditionCount} of{" "}
+              {MAX_FILTER_CONDITIONS} max). Remove some terms or ranges before
+              applying.
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--text-3)",
+            fontVariantNumeric: "tabular-nums",
+            letterSpacing: "0.01em",
+          }}
+        >
+          {meta.conditionCount} / {MAX_FILTER_CONDITIONS} conditions
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost"
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <SecondaryButton
             onClick={cancelFilterEdits}
             disabled={!meta.isDirty}
+            title={meta.isDirty ? undefined : "No unapplied changes."}
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm btn-primary"
+          </SecondaryButton>
+          <PrimaryButton
             onClick={applyFilters}
             disabled={!meta.isDirty || meta.overLimit}
-            title={
-              meta.overLimit
-                ? `DataForSEO accepts at most ${MAX_DATAFORSEO_FILTER_CONDITIONS} filter conditions per request`
-                : undefined
-            }
+            title={applyDisabledReason ?? undefined}
           >
             Apply filters
-            {meta.isDirty ? (
-              <span className="badge badge-xs ml-1 border-0 bg-primary-content/20">
-                {meta.dirtyCount}
-              </span>
-            ) : null}
-          </button>
+            {meta.isDirty ? ` (${meta.dirtyCount})` : ""}
+          </PrimaryButton>
         </div>
       </div>
+
+      {applyDisabledReason ? (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: "var(--text-2)",
+            textAlign: "right",
+          }}
+        >
+          {applyDisabledReason}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -268,6 +390,6 @@ function getFilterMeta<TValues extends FilterValues>({
     conditionCount,
     dirtyCount,
     isDirty: dirtyCount > 0,
-    overLimit: conditionCount > MAX_DATAFORSEO_FILTER_CONDITIONS,
+    overLimit: conditionCount > MAX_FILTER_CONDITIONS,
   };
 }

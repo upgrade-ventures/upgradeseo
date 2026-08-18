@@ -115,9 +115,9 @@ export function countActiveFilters(values: Record<string, string>): number {
 }
 
 /**
- * Mirrors how the server translates filters to DataForSEO conditions: each
+ * Mirrors how the server translates filters to provider conditions: each
  * include/exclude term is one condition, every other non-empty field is one.
- * Used to enforce DataForSEO's per-request condition budget before applying.
+ * Used to enforce the per-request condition budget before applying.
  */
 export function countFilterConditions(values: Record<string, string>): number {
   let n = 0;

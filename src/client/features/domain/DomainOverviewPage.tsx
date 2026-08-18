@@ -1,7 +1,15 @@
 /* eslint-disable max-lines, max-lines-per-function -- Domain Overview keeps page-only orchestration colocated to avoid fake indirection. */
-import { useCallback, useEffect, useMemo, useRef, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useForm, useStore } from "@tanstack/react-form";
-import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   DEFAULT_DOMAIN_KEYWORDS_PAGE_SIZE,
@@ -20,15 +28,25 @@ import {
 import { useDomainOverviewQuery } from "@/client/features/domain/hooks/useDomainOverviewQuery";
 import { DomainOverviewLoadingState } from "@/client/features/domain/components/DomainOverviewLoadingState";
 import { DomainHistorySection } from "@/client/features/domain/components/DomainHistorySection";
+import { DomainHistoryTab } from "@/client/features/domain/components/DomainHistoryTab";
+import { DomainMetricStrip } from "@/client/features/domain/components/DomainMetricStrip";
+import { NoticeStrip } from "@/client/features/domain/components/DomainNotices";
 import { DomainSearchCard } from "@/client/features/domain/components/DomainSearchCard";
 import { KeywordsTab } from "@/client/features/domain/components/KeywordsTab";
 import { PagesTab } from "@/client/features/domain/components/PagesTab";
-import { StatCard } from "@/client/features/domain/components/StatCard";
+import {
+  PageHeaderBand,
+  ScreenBody,
+  SecondaryButton,
+  StatusPill,
+  Tab,
+  TabStrip,
+} from "@/client/components/prominence/Primitives";
+import { getProjects } from "@/serverFunctions/projects";
 import { SearchTabStrip } from "@/client/features/search-tabs/SearchTabStrip";
 import type { SearchTabInput } from "@/client/features/search-tabs/types";
 import { useSearchTabNavigation } from "@/client/features/search-tabs/useSearchTabNavigation";
 import {
-  formatMetric,
   getDefaultSortOrder,
   normalizeDomainTarget,
   toSortOrderSearchParam,
@@ -394,12 +412,12 @@ function useDomainOverviewState({
     controlsForm,
     isLoading,
     overview,
+    overviewError: overviewQuery.error,
     canSaveKeywords,
     history,
     historyLoaded,
     removeHistoryItem,
     setSearchParams,
-    applySort,
     applyLocationChange,
     handleTabChange,
     handleSortColumnClick,
@@ -414,26 +432,107 @@ export type DomainOverviewControlsForm = ReturnType<
   typeof useDomainOverviewState
 >["controlsForm"];
 
+/** The three views the design gives this screen. */
+type DomainView = DomainActiveTab | "history";
+
+const VIEW_LABEL: Record<DomainView, string> = {
+  keywords: "Top keywords",
+  pages: "Top pages",
+  history: "History",
+};
+
+const VIEW_ORDER: DomainView[] = ["keywords", "pages", "history"];
+
+const AS_OF_FORMAT: Intl.DateTimeFormatOptions = {
+  day: "numeric",
+  month: "short",
+};
+
+/** Bare host, so "example.com/blog" still matches the project's own domain. */
+function toHost(value: string): string {
+  return value.trim().toLowerCase().split("/")[0] ?? "";
+}
+
+/**
+ * Arrow-key movement across the tab strip.
+ *
+ * The design wires no keyboard behaviour to its tabs, which leaves a
+ * `role="tablist"` that does not behave like one. The handler lives on a
+ * wrapper rather than inside the shared TabStrip primitive, which this screen
+ * must not fork.
+ */
+const TAB_NAV_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End"];
+
+function moveTabFocus(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (!TAB_NAV_KEYS.includes(event.key)) return;
+  const tabs = [
+    ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+  ];
+  const active = document.activeElement;
+  const current = tabs.findIndex((tab) => tab === active);
+  if (current === -1) return;
+  event.preventDefault();
+  const next =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : event.key === "ArrowLeft"
+          ? (current - 1 + tabs.length) % tabs.length
+          : (current + 1) % tabs.length;
+  tabs[next]?.focus();
+}
+
+function TabKeyboardNav({ children }: { children: React.ReactNode }) {
+  return <div onKeyDown={moveTabFocus}>{children}</div>;
+}
+
 export function DomainOverviewPage({
   projectId,
   routeState,
   navigate,
   onShowRecentSearches,
 }: Props) {
+  const routerNavigate = useNavigate();
   const state = useDomainOverviewState({
     navigate,
     routeState,
     projectId,
   });
+
+  // History has no URL slot: the route's `tab` param is the data tab, and the
+  // search schema is shared with the server functions. Keeping it local means
+  // the keywords/pages choice still round-trips through the URL.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const activeView: DomainView = historyOpen ? "history" : routeState.tab;
+
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => getProjects(),
+  });
+  const projectDomain =
+    projectsQuery.data?.find((project) => project.id === projectId)?.domain ??
+    null;
+
+  const hasDomain = routeState.domain.trim() !== "";
+  const isOwnSite =
+    projectDomain != null &&
+    toHost(projectDomain) === toHost(routeState.domain);
+
   const urlTabInput = useMemo<SearchTabInput | null>(() => {
-    if (routeState.domain.trim() === "") return null;
+    if (!hasDomain) return null;
     return {
       type: "domain",
       domain: routeState.domain,
       subdomains: routeState.subdomains,
       locationCode: routeState.sentLocationCode,
     };
-  }, [routeState.domain, routeState.sentLocationCode, routeState.subdomains]);
+  }, [
+    hasDomain,
+    routeState.domain,
+    routeState.sentLocationCode,
+    routeState.subdomains,
+  ]);
 
   const navigateToSearchTab = useCallback(
     (input: SearchTabInput | null) => {
@@ -482,150 +581,283 @@ export function DomainOverviewPage({
     navigateToInput: navigateToSearchTab,
   });
 
-  const tabControls = routeState.domain ? (
-    <div className="flex flex-col gap-2">
-      <div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm gap-2 px-0 text-base-content/70 hover:bg-transparent"
-          onClick={() => {
-            searchTabs.setActiveTab(null);
-            onShowRecentSearches();
-          }}
-        >
-          <ArrowLeft className="size-4" />
-          Recent searches
-        </button>
-      </div>
-      <SearchTabStrip
-        projectId={projectId}
-        activeTabId={searchTabs.activeTabId}
-        tabs={searchTabs.tabs}
-        onSelect={searchTabs.selectTab}
-        onClose={searchTabs.closeTab}
-        onViewed={searchTabs.markTabViewed}
-      />
-    </div>
-  ) : null;
+  const selectView = (view: DomainView) => {
+    if (view === "history") {
+      setHistoryOpen(true);
+      return;
+    }
+    setHistoryOpen(false);
+    state.handleTabChange(view);
+  };
+
+  const compareWithMySite = () => {
+    if (projectDomain) {
+      toast.success(`Comparing ${routeState.domain} with ${projectDomain}`);
+    }
+    void routerNavigate({
+      to: "/p/$projectId/competitors",
+      params: { projectId },
+    });
+  };
+
+  const seeBacklinks = () => {
+    // The backlinks screen takes a target, so the domain being inspected
+    // carries over instead of silently switching to the user's own site.
+    void routerNavigate({
+      to: "/p/$projectId/backlinks",
+      params: { projectId },
+      search: { target: routeState.domain },
+    });
+  };
+
+  const overview = state.overview;
+  const subtitle = useMemo(() => {
+    if (!hasDomain) {
+      return "Look up any domain to see the keywords it targets and the pages it publishes.";
+    }
+    const parts: string[] = [];
+    const country = LOCATIONS[routeState.locationCode];
+    if (country) parts.push(country);
+    parts.push(
+      routeState.subdomains ? "including subdomains" : "root domain only",
+    );
+    if (overview?.fetchedAt) {
+      parts.push(
+        `data from ${new Date(overview.fetchedAt).toLocaleDateString(undefined, AS_OF_FORMAT)}`,
+      );
+    }
+    return parts.join(" · ");
+  }, [
+    hasDomain,
+    overview?.fetchedAt,
+    routeState.locationCode,
+    routeState.subdomains,
+  ]);
 
   return (
-    <div className="px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-8 overflow-auto">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Domain Overview</h1>
-          <p className="text-sm text-base-content/70">
-            Analyze any domain&apos;s SEO profile: traffic, keywords, and
-            backlinks.
-          </p>
-        </div>
-
-        <DomainSearchCard
-          controlsForm={state.controlsForm}
-          isLoading={state.isLoading}
-          onSubmit={state.handleSearchSubmit}
-          onSortChange={(sort) =>
-            state.applySort(sort, getDefaultSortOrder(sort))
-          }
-          onLocationChange={(locationCode) =>
-            state.applyLocationChange(locationCode)
-          }
-        />
-
-        {state.isLoading ? (
+    <div style={{ paddingBottom: 48 }}>
+      <PageHeaderBand
+        title={hasDomain ? routeState.domain : "Domain Overview"}
+        badge={
+          hasDomain && projectDomain ? (
+            <StatusPill
+              tone={isOwnSite ? "info" : "neutral"}
+              icon={isOwnSite ? "i-globe" : "i-swords"}
+            >
+              {isOwnSite ? "Your site" : "External domain"}
+            </StatusPill>
+          ) : null
+        }
+        subtitle={subtitle}
+        actions={
+          hasDomain ? (
+            <>
+              <SecondaryButton icon="i-swords" onClick={compareWithMySite}>
+                Compare with my site
+              </SecondaryButton>
+              <SecondaryButton icon="i-link" onClick={seeBacklinks}>
+                See backlinks
+              </SecondaryButton>
+            </>
+          ) : null
+        }
+        tabs={
           <>
-            {tabControls}
-            <DomainOverviewLoadingState />
-          </>
-        ) : state.overview === null ? (
-          <div className="space-y-4 pt-1">
-            <DomainHistorySection
-              history={state.history}
-              historyLoaded={state.historyLoaded}
-              onRemoveHistoryItem={state.removeHistoryItem}
-              onSelectHistoryItem={state.handleHistorySelect}
+            <DomainSearchCard
+              controlsForm={state.controlsForm}
+              isLoading={state.isLoading}
+              onSubmit={state.handleSearchSubmit}
+              onLocationChange={state.applyLocationChange}
             />
-          </div>
-        ) : (
-          <>
-            {tabControls}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <StatCard
-                label="Estimated Organic Traffic"
-                value={formatMetric(
-                  state.overview.organicTraffic,
-                  state.overview.hasData,
-                )}
-              />
-              <StatCard
-                label="Organic Keywords"
-                value={formatMetric(
-                  state.overview.organicKeywords,
-                  state.overview.hasData,
-                )}
-              />
-            </div>
-
-            {!state.overview.hasData ? (
-              <div className="alert alert-info">
-                <span>
-                  Not enough data for this domain yet. Try another domain or
-                  include subdomains.
-                </span>
-              </div>
+            {hasDomain ? (
+              <TabKeyboardNav>
+                <TabStrip>
+                  {VIEW_ORDER.map((view) => (
+                    <Tab
+                      key={view}
+                      active={activeView === view}
+                      controls={`domain-panel-${view}`}
+                      onClick={() => selectView(view)}
+                    >
+                      {VIEW_LABEL[view]}
+                    </Tab>
+                  ))}
+                </TabStrip>
+              </TabKeyboardNav>
             ) : null}
-
-            <div className="border border-base-300 rounded-xl bg-base-100 overflow-hidden">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 px-4 py-3 border-b border-base-300">
-                <div role="tablist" className="tabs tabs-border w-fit">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={routeState.tab === "keywords"}
-                    className={`tab ${routeState.tab === "keywords" ? "tab-active" : ""}`}
-                    onClick={() => state.handleTabChange("keywords")}
-                  >
-                    Top Keywords
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={routeState.tab === "pages"}
-                    className={`tab ${routeState.tab === "pages" ? "tab-active" : ""}`}
-                    onClick={() => state.handleTabChange("pages")}
-                  >
-                    Top Pages
-                  </button>
-                </div>
-              </div>
-
-              {routeState.tab === "keywords" ? (
-                <KeywordsTab
-                  key="keywords"
-                  projectId={projectId}
-                  domain={state.overview.domain}
-                  routeState={routeState}
-                  canSaveKeywords={state.canSaveKeywords}
-                  setSearchParams={state.setSearchParams}
-                  onSortClick={state.handleSortColumnClick}
-                  onPageChange={state.goToPage}
-                  onPageSizeChange={state.setPageSize}
-                />
-              ) : (
-                <PagesTab
-                  key="pages"
-                  projectId={projectId}
-                  domain={state.overview.domain}
-                  routeState={routeState}
-                  setSearchParams={state.setSearchParams}
-                  onSortClick={state.handleSortColumnClick}
-                  onPageChange={state.goToPage}
-                  onPageSizeChange={state.setPageSize}
-                />
-              )}
-            </div>
           </>
+        }
+      />
+
+      {hasDomain && searchTabs.tabs.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            padding: "8px var(--pad, 24px)",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <SecondaryButton
+            icon="i-clock"
+            onClick={() => {
+              searchTabs.setActiveTab(null);
+              onShowRecentSearches();
+            }}
+          >
+            Recent lookups
+          </SecondaryButton>
+          <SearchTabStrip
+            projectId={projectId}
+            activeTabId={searchTabs.activeTabId}
+            tabs={searchTabs.tabs}
+            onSelect={searchTabs.selectTab}
+            onClose={searchTabs.closeTab}
+            onViewed={searchTabs.markTabViewed}
+          />
+        </div>
+      ) : null}
+
+      <DomainOverviewBody
+        activeView={activeView}
+        projectId={projectId}
+        routeState={routeState}
+        state={state}
+      />
+    </div>
+  );
+}
+
+/**
+ * Why the overview came back empty, in the user's terms.
+ *
+ * The server already distinguishes "the key is missing" from "the source has no
+ * record of this domain" and puts the reason in `free.unavailable`. The banner
+ * used to ignore that and always say "connect Google Ads and OpenPageRank",
+ * which told someone who had just connected OpenPageRank to go and connect it
+ * again. Reading the reasons back means an unscored domain and an unconfigured
+ * key never render the same sentence.
+ */
+function emptyOverviewReason(
+  reasons: Record<string, string> | undefined,
+): string {
+  const map = reasons ?? {};
+  const shown = [
+    map["openPageRankAuthority"],
+    map["googleAdsTargetedKeywords"],
+  ].filter((r): r is string => Boolean(r));
+  if (shown.length === 0) {
+    return "No connected free source returned data for it. Check the domain, or try it with subdomains included.";
+  }
+  return shown.join(" ");
+}
+
+function DomainOverviewBody({
+  activeView,
+  projectId,
+  routeState,
+  state,
+}: {
+  activeView: DomainView;
+  projectId: string;
+  routeState: DomainOverviewRouteState;
+  state: ReturnType<typeof useDomainOverviewState>;
+}) {
+  if (routeState.domain.trim() === "") {
+    return (
+      <ScreenBody>
+        <DomainHistorySection
+          history={state.history}
+          historyLoaded={state.historyLoaded}
+          onRemoveHistoryItem={state.removeHistoryItem}
+          onSelectHistoryItem={state.handleHistorySelect}
+        />
+      </ScreenBody>
+    );
+  }
+
+  if (state.isLoading) {
+    return (
+      <DomainOverviewLoadingState
+        showMetrics={activeView === "keywords"}
+        columns={activeView === "pages" ? 4 : 7}
+      />
+    );
+  }
+
+  if (state.overviewError) {
+    return (
+      <NoticeStrip tone="danger" title="Lookup failed">
+        {getStandardErrorMessage(
+          state.overviewError,
+          "The lookup did not complete. Try again in a moment.",
         )}
+      </NoticeStrip>
+    );
+  }
+
+  const overview = state.overview;
+  if (!overview) {
+    return (
+      <ScreenBody>
+        <DomainHistorySection
+          history={state.history}
+          historyLoaded={state.historyLoaded}
+          onRemoveHistoryItem={state.removeHistoryItem}
+          onSelectHistoryItem={state.handleHistorySelect}
+        />
+      </ScreenBody>
+    );
+  }
+
+  if (activeView === "history") {
+    return (
+      <div role="tabpanel" id="domain-panel-history" aria-label="History">
+        <DomainHistoryTab domain={overview.domain} />
       </div>
+    );
+  }
+
+  if (activeView === "pages") {
+    return (
+      <div role="tabpanel" id="domain-panel-pages" aria-label="Top pages">
+        <PagesTab
+          key="pages"
+          projectId={projectId}
+          domain={overview.domain}
+          routeState={routeState}
+          setSearchParams={state.setSearchParams}
+          onSortClick={state.handleSortColumnClick}
+          onPageChange={state.goToPage}
+          onPageSizeChange={state.setPageSize}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div role="tabpanel" id="domain-panel-keywords" aria-label="Top keywords">
+      <DomainMetricStrip overview={overview} />
+      {!overview.hasData ? (
+        <NoticeStrip tone="warning" title="Nothing measurable for this domain">
+          {emptyOverviewReason(
+            "free" in overview ? overview.free?.unavailable : undefined,
+          )}
+        </NoticeStrip>
+      ) : null}
+      <KeywordsTab
+        key="keywords"
+        projectId={projectId}
+        domain={overview.domain}
+        routeState={routeState}
+        canSaveKeywords={state.canSaveKeywords}
+        setSearchParams={state.setSearchParams}
+        onSortClick={state.handleSortColumnClick}
+        onPageChange={state.goToPage}
+        onPageSizeChange={state.setPageSize}
+      />
     </div>
   );
 }

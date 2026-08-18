@@ -1,4 +1,3 @@
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sortBy } from "remeda";
@@ -178,62 +177,5 @@ export function AreaTrendChart({ trend }: { trend: MonthlySearch[] }) {
         </AreaChart>
       ) : null}
     </div>
-  );
-}
-
-export function SortHeader({
-  label,
-  helpText,
-  field,
-  current,
-  dir,
-  onToggle,
-  className,
-}: {
-  label: string;
-  helpText?: string;
-  field: SortField;
-  current: SortField;
-  dir: SortDir;
-  onToggle: (f: SortField) => void;
-  className?: string;
-}) {
-  const isActive = field === current;
-  const tooltip = useFloatingTooltip<HTMLButtonElement>({
-    enabled: !!helpText,
-  });
-
-  return (
-    <button
-      ref={tooltip.triggerRef}
-      className={`inline-flex items-center gap-0.5 hover:text-primary transition-colors cursor-pointer select-none ${className ?? ""}`}
-      onClick={() => onToggle(field)}
-      onMouseEnter={tooltip.scheduleOpen}
-      onMouseLeave={tooltip.close}
-      onFocus={tooltip.scheduleOpen}
-      onBlur={tooltip.close}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") tooltip.close();
-      }}
-      aria-describedby={
-        tooltip.isOpen && helpText ? tooltip.tooltipId : undefined
-      }
-    >
-      {label}
-      {isActive &&
-        (dir === "asc" ? (
-          <ChevronUp className="size-3" />
-        ) : (
-          <ChevronDown className="size-3" />
-        ))}
-      {tooltip.isOpen && helpText && typeof document !== "undefined"
-        ? createPortal(
-            <FloatingTooltip id={tooltip.tooltipId} position={tooltip.position}>
-              {helpText}
-            </FloatingTooltip>,
-            document.body,
-          )
-        : null}
-    </button>
   );
 }

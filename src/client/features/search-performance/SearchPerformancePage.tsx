@@ -1,28 +1,43 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import {
   keepPreviousData,
   queryOptions,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Download, Loader2, Sheet } from "lucide-react";
 import { toast } from "sonner";
-import { TableExportMenu } from "@/client/components/table/TableBulkActionBar";
-import { TablePagination } from "@/client/components/table/TablePagination";
+import {
+  PageHeaderBand,
+  ScreenBody,
+  Tab,
+  TabStrip,
+} from "@/client/components/prominence/Primitives";
 import { SearchConsoleConnectionCard } from "@/client/features/gsc/SearchConsoleConnectionCard";
 import { SearchPerformanceLoadingState } from "@/client/features/search-performance/SearchPerformanceLoadingState";
 import {
-  DimensionTable,
-  exportDimensionRows,
-  exportStriking,
+  CountriesPanel,
+  DevicesPanel,
+  PagesPanel,
+  QueriesPanel,
+  ReportError,
+} from "@/client/features/search-performance/SearchPerformancePanels";
+import {
+  exportCurrentTab,
+  exportUnavailableReason,
   StrikingDistanceTable,
-  TabButton,
-  TotalsCards,
-  type ExportTarget,
-  type Tab,
+  type ExportTab,
 } from "@/client/features/search-performance/SearchPerformanceParts";
+import type { PerformanceRow } from "@/client/features/search-performance/SearchPerformanceTable";
+import {
+  ALL,
+  COMPARISON_LABELS,
+  deviceLabel,
+  RANGE_LABELS,
+  SearchPerformanceToolbar,
+} from "@/client/features/search-performance/SearchPerformanceToolbar";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
+import { getGscConnection } from "@/serverFunctions/gsc";
 import {
   exportSearchPerformanceTable,
   getSearchPerformanceReport,
@@ -31,46 +46,66 @@ import {
 import {
   GSC_DEVICES,
   SEARCH_PERFORMANCE_DEFAULT_PAGE_SIZE,
-  SEARCH_PERFORMANCE_PAGE_SIZES,
-  SEARCH_PERFORMANCE_RANGES,
   type SearchPerformanceDateRange,
   type SearchPerformanceDevice,
   type SearchPerformanceTableDimension,
 } from "@/types/schemas/search-performance";
 
-const RANGE_LABELS: Record<SearchPerformanceDateRange, string> = {
-  last_7_days: "Last 7 days",
-  last_28_days: "Last 28 days",
-  last_3_months: "Last 3 months",
+/** The tab set is the export set, so it is declared once, next to the export. */
+type TabId = ExportTab;
+
+const TAB_LABELS: Record<TabId, string> = {
+  queries: "Queries",
+  pages: "Pages",
+  countries: "Countries",
+  devices: "Devices",
+  striking: "Striking distance",
 };
-const RANGE_OPTIONS = SEARCH_PERFORMANCE_RANGES.map((value) => ({
-  value,
-  label: RANGE_LABELS[value],
-}));
+const TAB_ORDER: TabId[] = [
+  "queries",
+  "pages",
+  "countries",
+  "devices",
+  "striking",
+];
 
-const DEVICE_LABELS: Record<SearchPerformanceDevice, string> = {
-  DESKTOP: "Desktop",
-  MOBILE: "Mobile",
-  TABLET: "Tablet",
-};
-const DEVICE_OPTIONS = GSC_DEVICES.map((value) => ({
-  value,
-  label: DEVICE_LABELS[value],
-}));
-
-// Sentinel for "no filter" in the selects; never sent to the server.
-const ALL = "ALL";
-
-function isDateRange(value: string): value is SearchPerformanceDateRange {
-  return SEARCH_PERFORMANCE_RANGES.some((option) => option === value);
+/** The verified property, as a hostname. GSC stores domain properties as
+ *  `sc-domain:example.com` and URL-prefix properties as a full URL. */
+function formatSiteLabel(siteUrl: string | null | undefined): string | null {
+  if (!siteUrl) return null;
+  if (siteUrl.startsWith("sc-domain:")) {
+    return siteUrl.slice("sc-domain:".length);
+  }
+  try {
+    return new URL(siteUrl).host;
+  } catch {
+    return siteUrl;
+  }
 }
 
-function isDevice(value: string): value is SearchPerformanceDevice {
-  return GSC_DEVICES.some((option) => option === value);
+/** GSC page keys are absolute URLs on the verified property; the path alone is
+ *  what distinguishes one row from the next. */
+function pagePathLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
 }
 
-function tabDimension(tab: Tab): SearchPerformanceTableDimension {
-  return tab === "pages" ? "page" : "query";
+/** Click change against the previous period, or undefined when that period was
+ *  never measured. Undefined renders as no delta, never as "0%". */
+function clickDelta(
+  clicks: number,
+  previous: { clicks: number; impressions: number },
+): PerformanceRow["delta"] {
+  if (previous.impressions === 0 || previous.clicks === 0) return undefined;
+  const change = ((clicks - previous.clicks) / previous.clicks) * 100;
+  return {
+    text: `${change >= 0 ? "+" : "−"}${Math.abs(change).toFixed(0)}%`,
+    tone: change >= 0 ? "success" : "danger",
+  };
 }
 
 type FilterInput = {
@@ -125,11 +160,12 @@ export function SearchPerformancePage({ projectId }: { projectId: string }) {
     ALL,
   );
   const [country, setCountry] = useState<string>(ALL);
-  const [tab, setTab] = useState<Tab>("striking");
+  const [tab, setTab] = useState<TabId>("queries");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(
     SEARCH_PERFORMANCE_DEFAULT_PAGE_SIZE,
   );
+  const [exporting, setExporting] = useState(false);
 
   // Any change to the query set (tab, filters, page size) restarts at page 1.
   useEffect(() => {
@@ -138,29 +174,50 @@ export function SearchPerformancePage({ projectId }: { projectId: string }) {
 
   const filterInput = buildFilterInput(range, device, country);
 
+  // Shares its key with the connection card, so the property name is already
+  // warm whenever the user has passed through settings.
+  const connectionQuery = useQuery({
+    queryKey: ["gscConnection", projectId],
+    queryFn: () => getGscConnection({ data: { projectId } }),
+  });
+  const site = formatSiteLabel(connectionQuery.data?.siteUrl);
+
   const reportQuery = useQuery({
     queryKey: ["searchPerformance", projectId, range, device, country],
     queryFn: () =>
       getSearchPerformanceReport({ data: { projectId, ...filterInput } }),
     placeholderData: keepPreviousData,
   });
-  const report = reportQuery.data;
+  const report = reportQuery.data?.connected ? reportQuery.data : null;
 
   const isTableTab = tab === "queries" || tab === "pages";
-  const dimension = tabDimension(tab);
+  const dimension: SearchPerformanceTableDimension =
+    tab === "pages" ? "page" : "query";
   const tableQuery = useQuery({
     ...tableQueryOptions(projectId, dimension, page, pageSize, filterInput),
-    enabled: report?.connected === true && isTableTab,
+    enabled: report != null && isTableTab,
     placeholderData: keepPreviousData,
   });
-  const tableData = tableQuery.data;
-  const tableRows = tableData?.connected ? tableData.rows : [];
-  const hasNextPage = tableData?.connected ? tableData.hasNextPage : false;
+  const tableRows = tableQuery.data?.connected ? tableQuery.data.rows : [];
+
+  // The device breakdown is one filtered report per bucket: the overview server
+  // function accepts a device filter but never returns the device dimension.
+  // Only fetched while that tab is open, since each call is a full GSC report.
+  const deviceQueries = useQueries({
+    queries: GSC_DEVICES.map((value) => ({
+      queryKey: ["searchPerformance", projectId, range, value, country],
+      queryFn: () =>
+        getSearchPerformanceReport({
+          data: { projectId, ...buildFilterInput(range, value, country) },
+        }),
+      enabled: report != null && tab === "devices",
+    })),
+  });
 
   // Warm the Queries tab (first page) as soon as the report connects so the tab
   // opens instantly instead of showing a spinner. Free first-party GSC data.
   useEffect(() => {
-    if (report?.connected !== true) return;
+    if (report == null) return;
     void queryClient.prefetchQuery(
       tableQueryOptions(
         projectId,
@@ -170,190 +227,209 @@ export function SearchPerformancePage({ projectId }: { projectId: string }) {
         buildFilterInput(range, device, country),
       ),
     );
-  }, [report?.connected, projectId, range, device, country, queryClient]);
+  }, [report, projectId, range, device, country, queryClient]);
 
-  const handleExport = async (target: ExportTarget) => {
-    if (!report?.connected) return;
+  const dimensionRows: PerformanceRow[] = tableRows.map((row) => ({
+    key: row.key,
+    label: tab === "pages" ? pagePathLabel(row.key) : row.key,
+    labelTitle: row.key,
+    clicks: row.clicks,
+    impressions: row.impressions,
+    ctr: row.ctr,
+    position: row.position,
+  }));
+  const countryRows: PerformanceRow[] = (report?.countries ?? []).map(
+    (row) => ({
+      key: row.key.toUpperCase(),
+      label: row.key.toUpperCase(),
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: row.ctr,
+      position: row.position,
+    }),
+  );
+  const deviceRows: PerformanceRow[] = GSC_DEVICES.flatMap((value, index) => {
+    const data = deviceQueries[index]?.data;
+    if (!data?.connected) return [];
+    return {
+      key: deviceLabel(value),
+      label: deviceLabel(value),
+      clicks: data.totals.clicks,
+      impressions: data.totals.impressions,
+      ctr: data.totals.ctr,
+      position: data.totals.position,
+      delta: clickDelta(data.totals.clicks, data.prevTotals),
+    };
+  });
+
+  const tableFeedback = {
+    status: tableQuery.isError
+      ? ("error" as const)
+      : tableQuery.isPending
+        ? ("loading" as const)
+        : ("ready" as const),
+    errorMessage: getStandardErrorMessage(tableQuery.error),
+    onRetry: () => void tableQuery.refetch(),
+  };
+  const deviceFeedback = {
+    status: deviceQueries.some((query) => query.isError)
+      ? ("error" as const)
+      : deviceQueries.some((query) => query.isPending)
+        ? ("loading" as const)
+        : ("ready" as const),
+    errorMessage: getStandardErrorMessage(
+      deviceQueries.find((query) => query.error)?.error,
+    ),
+    onRetry: () => {
+      for (const query of deviceQueries) void query.refetch();
+    },
+  };
+
+  const localRows = tab === "countries" ? countryRows : deviceRows;
+  const exportReason = exportUnavailableReason(
+    report,
+    tab,
+    tableFeedback.status,
+    localRows.length,
+  );
+
+  const handleExport = async () => {
+    if (report == null) return;
+    setExporting(true);
     try {
-      if (tab === "striking") {
-        exportStriking(report, target);
-        return;
-      }
-      const data = await exportSearchPerformanceTable({
-        data: { projectId, dimension, ...filterInput },
+      const rowCount = await exportCurrentTab({
+        tab,
+        report,
+        localRows,
+        fetchTable: () =>
+          exportSearchPerformanceTable({
+            data: { projectId, dimension, ...filterInput },
+          }),
       });
-      exportDimensionRows(dimension, data.rows, report.range, target);
+      toast.success(
+        `Exported ${rowCount} ${rowCount === 1 ? "row" : "rows"} to CSV`,
+      );
     } catch (error) {
       toast.error(getStandardErrorMessage(error, "Export failed"));
+    } finally {
+      setExporting(false);
     }
   };
 
-  return (
-    <div className="px-4 py-4 pb-24 overflow-auto md:px-6 md:py-6 md:pb-8">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Search Performance</h1>
-            <p className="text-sm text-base-content/70">
-              See your site&apos;s clicks, impressions, CTR, and position from
-              Google Search Console.
-            </p>
-          </div>
-          {report?.connected ? (
-            <Link
-              to="/p/$projectId/settings"
-              params={{ projectId }}
-              hash="search-console"
-              className="link link-hover shrink-0 self-start text-sm font-medium text-base-content/60 transition-colors hover:text-base-content sm:mt-1"
-            >
-              Change property
-            </Link>
-          ) : null}
-        </div>
+  const comparisonTitle = report
+    ? `${report.range.startDate} to ${report.range.endDate}, compared with ${report.range.prevStartDate} to ${report.range.prevEndDate}`
+    : "";
+  const pagination = {
+    page,
+    pageSize,
+    hasNextPage: tableQuery.data?.connected
+      ? tableQuery.data.hasNextPage
+      : false,
+    isLoading: tableQuery.isFetching,
+    onPageChange: setPage,
+    onPageSizeChange: setPageSize,
+  };
 
-        {reportQuery.isPending ? (
-          <SearchPerformanceLoadingState />
-        ) : reportQuery.isError ? (
-          <div className="alert alert-error">
-            <span className="text-sm">
-              {getStandardErrorMessage(reportQuery.error)}
+  return (
+    <div style={{ paddingBottom: 48 }}>
+      <PageHeaderBand
+        title="Search performance"
+        subtitle={
+          <>
+            Straight from Google Search Console
+            {site ? ` · ${site}` : ""} ·{" "}
+            <span title={comparisonTitle || undefined}>
+              {RANGE_LABELS[range].toLowerCase()} vs. {COMPARISON_LABELS[range]}
             </span>
-          </div>
-        ) : !report?.connected ? (
-          <div className="max-w-2xl">
+          </>
+        }
+        actions={
+          <SearchPerformanceToolbar
+            projectId={projectId}
+            connected={report != null}
+            refreshing={reportQuery.isFetching && !reportQuery.isPending}
+            range={range}
+            onRangeChange={setRange}
+            device={device}
+            onDeviceChange={setDevice}
+            deviceDisabled={tab === "devices"}
+            country={country}
+            onCountryChange={setCountry}
+            countryDisabled={tab === "countries"}
+            countryOptions={(report?.countries ?? []).map((row) => row.key)}
+            exportReason={exportReason ?? undefined}
+            exporting={exporting}
+            onExport={() => void handleExport()}
+          />
+        }
+        tabs={
+          <TabStrip>
+            {TAB_ORDER.map((id) => (
+              <Tab
+                key={id}
+                active={tab === id}
+                onClick={() => setTab(id)}
+                // Only the open panel is mounted, so only the selected tab has
+                // a live element to point at.
+                controls={tab === id ? `gsc-panel-${id}` : undefined}
+              >
+                {id === "striking" && report
+                  ? `Striking distance (${report.strikingDistance.length})`
+                  : TAB_LABELS[id]}
+              </Tab>
+            ))}
+          </TabStrip>
+        }
+      />
+
+      {reportQuery.isPending ? (
+        <SearchPerformanceLoadingState />
+      ) : reportQuery.isError ? (
+        <ScreenBody>
+          <ReportError
+            message={getStandardErrorMessage(reportQuery.error)}
+            onRetry={() => void reportQuery.refetch()}
+          />
+        </ScreenBody>
+      ) : report == null ? (
+        <ScreenBody>
+          <div style={{ maxWidth: 640 }}>
             <SearchConsoleConnectionCard projectId={projectId} />
           </div>
-        ) : (
-          <>
-            <TotalsCards report={report} />
-            <div className="overflow-hidden rounded-xl border border-base-300 bg-base-100">
-              <div className="flex flex-col gap-3 border-b border-base-300 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-                <div role="tablist" className="tabs tabs-border w-fit">
-                  <TabButton
-                    active={tab === "striking"}
-                    onClick={() => setTab("striking")}
-                    label={`Striking distance (${report.strikingDistance.length})`}
-                  />
-                  <TabButton
-                    active={tab === "queries"}
-                    onClick={() => setTab("queries")}
-                    label="Queries"
-                  />
-                  <TabButton
-                    active={tab === "pages"}
-                    onClick={() => setTab("pages")}
-                    label="Pages"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {reportQuery.isFetching && !reportQuery.isPending ? (
-                    <Loader2 className="size-4 animate-spin text-base-content/40" />
-                  ) : null}
-                  <select
-                    className="select select-bordered select-sm w-36"
-                    value={device}
-                    onChange={(event) => {
-                      setDevice(
-                        isDevice(event.target.value) ? event.target.value : ALL,
-                      );
-                    }}
-                    aria-label="Device filter"
-                  >
-                    <option value={ALL}>All devices</option>
-                    {DEVICE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="select select-bordered select-sm w-36"
-                    value={country}
-                    onChange={(event) => setCountry(event.target.value)}
-                    aria-label="Country filter"
-                  >
-                    <option value={ALL}>All countries</option>
-                    {report.countries.map((row) => (
-                      <option key={row.key} value={row.key}>
-                        {row.key.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="select select-bordered select-sm w-36"
-                    value={range}
-                    onChange={(event) => {
-                      if (isDateRange(event.target.value)) {
-                        setRange(event.target.value);
-                      }
-                    }}
-                    aria-label="Date range"
-                  >
-                    {RANGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <TableExportMenu
-                    buttonClassName="btn btn-ghost btn-sm gap-1"
-                    actions={[
-                      {
-                        label: "Export to Sheets",
-                        icon: <Sheet className="size-4" />,
-                        onClick: () => void handleExport("sheets"),
-                      },
-                      {
-                        label: "Download CSV",
-                        icon: <Download className="size-4" />,
-                        onClick: () => void handleExport("csv"),
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              {tab === "striking" ? (
-                <StrikingDistanceTable
-                  projectId={projectId}
-                  rows={report.strikingDistance}
-                />
-              ) : tableQuery.isPending ? (
-                <div className="flex items-center gap-2 p-8 text-sm text-base-content/60">
-                  <Loader2 className="size-4 animate-spin" /> Loading…
-                </div>
-              ) : tableQuery.isError ? (
-                <div className="p-4">
-                  <div className="alert alert-error">
-                    <span className="text-sm">
-                      {getStandardErrorMessage(tableQuery.error)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="p-4">
-                    <DimensionTable
-                      rows={tableRows}
-                      keyLabel={tab === "queries" ? "Query" : "Page"}
-                    />
-                  </div>
-                  <TablePagination
-                    page={page}
-                    pageSize={pageSize}
-                    pageSizes={SEARCH_PERFORMANCE_PAGE_SIZES}
-                    totalCount={null}
-                    hasNextPage={hasNextPage}
-                    isLoading={tableQuery.isFetching}
-                    onPageChange={setPage}
-                    onPageSizeChange={setPageSize}
-                  />
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+        </ScreenBody>
+      ) : (
+        <div
+          role="tabpanel"
+          id={`gsc-panel-${tab}`}
+          aria-label={TAB_LABELS[tab]}
+        >
+          {tab === "queries" ? (
+            <QueriesPanel
+              totals={report.totals}
+              prevTotals={report.prevTotals}
+              comparisonTitle={comparisonTitle}
+              rows={dimensionRows}
+              feedback={tableFeedback}
+              pagination={pagination}
+            />
+          ) : tab === "pages" ? (
+            <PagesPanel
+              rows={dimensionRows}
+              feedback={tableFeedback}
+              pagination={pagination}
+            />
+          ) : tab === "countries" ? (
+            <CountriesPanel rows={countryRows} />
+          ) : tab === "devices" ? (
+            <DevicesPanel rows={deviceRows} feedback={deviceFeedback} />
+          ) : (
+            <StrikingDistanceTable
+              projectId={projectId}
+              rows={report.strikingDistance}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

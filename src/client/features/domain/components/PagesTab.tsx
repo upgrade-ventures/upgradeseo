@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { Copy, Download, FileSpreadsheet, Sheet } from "lucide-react";
 import { toast } from "sonner";
+import { Icon } from "@/client/components/icons/IconSprite";
 import { DomainKeywordsPagination } from "@/client/features/domain/components/DomainKeywordsPagination";
 import { DomainFilterPanel } from "@/client/features/domain/components/DomainFilterPanel";
 import { DomainPagesTable } from "@/client/features/domain/components/DomainPagesTable";
+import { NoticeStrip } from "@/client/features/domain/components/DomainNotices";
 import { DomainTableTabSurface } from "@/client/features/domain/components/DomainTableTabSurface";
 import {
   PAGE_FILTER_FIELDS,
@@ -28,7 +29,7 @@ import { buildCsv, downloadCsv } from "@/client/lib/csv";
 import { exportTableToSheets } from "@/client/lib/exportToSheets";
 import { captureClientEvent } from "@/client/lib/posthog";
 import {
-  MAX_DATAFORSEO_FILTER_CONDITIONS,
+  MAX_FILTER_CONDITIONS,
   type DomainSearchParams,
 } from "@/types/schemas/domain";
 
@@ -106,6 +107,9 @@ export function PagesTab({
   });
 
   const rows = query.data?.pages ?? EMPTY_PAGES_ROWS;
+  // The E2E fixture payload has no `free` block, so the field is narrowed
+  // rather than read off the union.
+  const free = query.data && "free" in query.data ? query.data.free : undefined;
   const totalCount = query.data?.totalCount ?? null;
   const hasNextPage = query.data?.hasMore ?? false;
   const isLoading = query.isFetching;
@@ -124,8 +128,7 @@ export function PagesTab({
 
   const applyFilters = useCallback(
     (values: PagesFilterValues) => {
-      if (countPageFilterConditions(values) > MAX_DATAFORSEO_FILTER_CONDITIONS)
-        return;
+      if (countPageFilterConditions(values) > MAX_FILTER_CONDITIONS) return;
       const update = buildPagesSearchUpdate(values);
       debugDomain("PagesTab:apply-filters", { values, update });
       savePreferredFilters(values);
@@ -182,28 +185,50 @@ export function PagesTab({
         activeFilterCount={activeFilterCount}
         countLabel="pages"
         totalCount={totalCount}
+        countIsFloor={free?.truncated ?? false}
         fallbackCount={rows.length}
         isLoading={isLoading}
         showTableLoading={showTableLoading}
+        loadingColumns={4}
+        notice={
+          free ? (
+            <NoticeStrip
+              tone={free.unavailable.pages ? "warning" : "info"}
+              title={
+                free.unavailable.pages
+                  ? "Page list unavailable"
+                  : "Where these rows come from"
+              }
+            >
+              {[
+                free.unavailable.pages ?? free.source,
+                free.unavailable.sort,
+                free.unavailable.filters,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            </NoticeStrip>
+          ) : null
+        }
         exportActions={[
           {
             label: "Export to Sheets",
-            icon: <Sheet className="size-4" />,
+            icon: <Icon name="i-grid" size={14} />,
             onClick: handleExportToSheets,
           },
           {
             label: "Copy data (JSON)",
-            icon: <Copy className="size-4" />,
+            icon: <Icon name="i-clipboard" size={14} />,
             onClick: handleCopy,
           },
           {
             label: "Download CSV",
-            icon: <Download className="size-4" />,
+            icon: <Icon name="i-download" size={14} />,
             onClick: () => handleDownload("csv"),
           },
           {
             label: "Download Excel",
-            icon: <FileSpreadsheet className="size-4" />,
+            icon: <Icon name="i-layers" size={14} />,
             onClick: () => handleDownload("xls"),
           },
         ]}
@@ -235,10 +260,10 @@ export function PagesTab({
         }
       >
         <DomainPagesTable
-          domain={domain}
           rows={rows}
           sortMode={routeState.sort}
           currentSortOrder={routeState.order}
+          unavailable={free?.unavailable}
           onSortClick={onSortClick}
         />
       </DomainTableTabSurface>

@@ -1,11 +1,22 @@
 import { memo, useMemo } from "react";
-import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
+import { Icon } from "@/client/components/icons/IconSprite";
 import {
-  AppDataTable,
-  useAppTable,
-} from "@/client/components/table/AppDataTable";
-import { ExternalUrlCell } from "@/client/components/table/url";
+  Unavailable,
+  TableEmptyState,
+} from "@/client/features/domain/components/DomainNotices";
 import { SortableHeader } from "@/client/features/domain/components/SortableHeader";
+import {
+  bodyRow,
+  dataTable,
+  focusRing,
+  headRow,
+  rowHoverHandlers,
+  tableScrollShell,
+  tdLead,
+  tdPagesNumeric,
+  thLead,
+  thNumeric,
+} from "@/client/features/domain/components/domainTableStyles";
 import { useDomainRenderDebug } from "@/client/features/domain/domainDebug";
 import {
   formatNumber,
@@ -19,90 +30,161 @@ import type {
 } from "@/client/features/domain/types";
 
 type Props = {
-  domain: string;
   rows: PageRow[];
   sortMode: DomainSortMode;
   currentSortOrder: SortOrder;
+  /** Why a column is empty on every row, keyed by field. From the server. */
+  unavailable: Record<string, string> | undefined;
   onSortClick: (sort: DomainSortMode) => void;
 };
 
-const pageColumnHelper = createColumnHelper<PageRow>();
+/** Copy for the one design column our API has no field for at all. */
+const TRAFFIC_VALUE_UNAVAILABLE =
+  "Traffic value prices a page's ranked traffic against what the same clicks would cost as ads. It needs ranked positions, which no free source publishes for a domain you do not own.";
 
 function DomainPagesTableComponent({
-  domain,
   rows,
   sortMode,
   currentSortOrder,
+  unavailable,
   onSortClick,
 }: Props) {
-  const renderStarted = performance.now();
-  const columns = useMemo<ColumnDef<PageRow>[]>(
-    () => [
-      pageColumnHelper.display({
-        id: "page",
-        header: () => "Page",
-        cell: ({ row }) => (
-          <ExternalUrlCell
-            value={row.original.relativePath ?? row.original.page}
-            label={row.original.relativePath ?? row.original.page}
-            baseDomain={domain}
-            className="link link-primary inline-flex items-center gap-1"
-          />
-        ),
-        meta: {
-          cellClassName: "max-w-[420px] truncate",
-        },
-      }),
-      pageColumnHelper.accessor("organicTraffic", {
-        header: () => (
-          <SortableHeader
-            label="Organic Traffic"
-            isActive={toPageSortMode(sortMode) === "traffic"}
-            order={currentSortOrder}
-            onClick={() => onSortClick("traffic")}
-          />
-        ),
-        cell: ({ getValue }) => formatRounded(getValue()),
-      }),
-      pageColumnHelper.accessor("keywords", {
-        header: () => (
-          <SortableHeader
-            label="Keywords"
-            isActive={toPageSortMode(sortMode) === "keywords"}
-            order={currentSortOrder}
-            onClick={() => onSortClick("volume")}
-          />
-        ),
-        cell: ({ getValue }) => formatNumber(getValue()),
-      }),
-    ],
-    [currentSortOrder, domain, onSortClick, sortMode],
-  );
-  // Memoized on purpose: a fresh slice every render defeats TanStack Table's
-  // data-keyed memo, so _autoResetPageIndex fires each render and its setState
-  // schedules another one — an unbounded render loop that freezes the tab.
-  const tableData = useMemo(() => rows.slice(0, 100), [rows]);
-  const table = useAppTable({
-    data: tableData,
-    columns,
-  });
+  // Memoized on purpose: a fresh slice every render defeats the memo below and
+  // re-renders the whole table on every parent tick.
+  const visibleRows = useMemo(() => rows.slice(0, 100), [rows]);
   useDomainRenderDebug("DomainPagesTable", {
     rows: rows.length,
-    durationMs: Math.round(performance.now() - renderStarted),
     sortMode,
     currentSortOrder,
   });
 
+  if (visibleRows.length === 0) {
+    return (
+      <TableEmptyState title="No pages match this search.">
+        Common Crawl lists what a site publishes, so a very new or very small
+        site can legitimately have nothing indexed yet.
+      </TableEmptyState>
+    );
+  }
+
+  const sortDirection = currentSortOrder === "asc" ? "ascending" : "descending";
+  const pageSort = toPageSortMode(sortMode);
+
   return (
-    <AppDataTable
-      table={table}
-      className="table table-sm"
-      empty={
-        <div className="py-6 text-center text-base-content/60">
-          No pages match this search.
-        </div>
-      }
-    />
+    <div style={tableScrollShell}>
+      <table style={dataTable}>
+        <thead>
+          <tr style={headRow}>
+            <th scope="col" style={thLead}>
+              Page
+            </th>
+            <th
+              scope="col"
+              style={thNumeric}
+              aria-sort={pageSort === "traffic" ? sortDirection : "none"}
+            >
+              <SortableHeader
+                label="Est. traffic"
+                isActive={pageSort === "traffic"}
+                order={currentSortOrder}
+                onClick={() => onSortClick("traffic")}
+                title={unavailable?.organicTraffic}
+              />
+            </th>
+            <th
+              scope="col"
+              style={thNumeric}
+              aria-sort={pageSort === "keywords" ? sortDirection : "none"}
+            >
+              <SortableHeader
+                label="Keywords"
+                isActive={pageSort === "keywords"}
+                order={currentSortOrder}
+                onClick={() => onSortClick("volume")}
+                title={unavailable?.keywords}
+              />
+            </th>
+            <th
+              scope="col"
+              style={{
+                ...thNumeric,
+                padding: "6px var(--pad, 24px) 6px 12px",
+              }}
+            >
+              Traffic value
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleRows.map((row) => (
+            <tr key={row.page} style={bodyRow} {...rowHoverHandlers}>
+              <td style={{ ...tdLead, textAlign: "left" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    maxWidth: 420,
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={row.page}
+                  >
+                    {row.relativePath ?? row.page}
+                  </span>
+                  {/* The design draws paths as inert text. Opening the page is
+                      an existing capability of this table, so it survives as an
+                      icon link rather than by recolouring the path itself. */}
+                  <a
+                    href={row.page}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={`Open ${row.page} in a new tab`}
+                    style={{
+                      color: "var(--text-3)",
+                      display: "inline-flex",
+                      borderRadius: 3,
+                      outline: "none",
+                    }}
+                    {...focusRing<HTMLAnchorElement>()}
+                  >
+                    <Icon name="i-external" size={12} />
+                  </a>
+                </span>
+              </td>
+              <td style={tdPagesNumeric}>
+                {row.organicTraffic == null ? (
+                  <Unavailable reason={unavailable?.organicTraffic} />
+                ) : (
+                  formatRounded(row.organicTraffic)
+                )}
+              </td>
+              <td style={tdPagesNumeric}>
+                {row.keywords == null ? (
+                  <Unavailable reason={unavailable?.keywords} />
+                ) : (
+                  formatNumber(row.keywords)
+                )}
+              </td>
+              <td
+                style={{
+                  ...tdPagesNumeric,
+                  padding:
+                    "var(--rp, 5px) var(--pad, 24px) var(--rp, 5px) 12px",
+                }}
+              >
+                <Unavailable reason={TRAFFIC_VALUE_UNAVAILABLE} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

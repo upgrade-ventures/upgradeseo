@@ -1,15 +1,16 @@
-import { useState, type ReactNode } from "react";
-import {
-  ChevronDown,
-  Copy,
-  Download,
-  FileDown,
-  MoreHorizontal,
-  Play,
-  RefreshCw,
-  Sheet,
-} from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import type { IconName } from "@/client/components/icons/IconSprite";
+import { SecondaryButton } from "@/client/components/prominence/Primitives";
+import { Spinner, useInteractive } from "./RankScreenParts";
 
+/**
+ * The two overflow menus the rank screen keeps.
+ *
+ * The design draws no menus on this screen, so these are built from the same
+ * tokens as the command palette it does draw: surface, hairline, 8px radius,
+ * one elevation. Hover lives in component state because this screen cannot add
+ * CSS rules.
+ */
 function ToolbarMenu({
   label,
   icon,
@@ -17,113 +18,144 @@ function ToolbarMenu({
   children,
 }: {
   label?: string;
-  icon?: ReactNode;
-  title?: string;
+  icon?: IconName;
+  title: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   return (
-    <div className="relative">
-      <button
-        type="button"
-        className={`btn btn-ghost btn-sm ${label ? "gap-1" : "btn-square"}`}
-        onClick={() => setOpen((c) => !c)}
+    <div style={{ position: "relative" }}>
+      <SecondaryButton
+        icon={icon}
+        onClick={() => setOpen((current) => !current)}
         title={title}
-        aria-label={title ?? label}
+        aria-label={label ? undefined : title}
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        {icon}
         {label}
-        {label && <ChevronDown className="size-3.5 opacity-60" />}
-      </button>
-      {open && (
+      </SecondaryButton>
+      {open ? (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          {/* Click-away catcher: a menu that only closes on re-click strands
+              the next click somewhere the user did not mean it. */}
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 40 }}
+            onClick={() => setOpen(false)}
+          />
           <div
             role="menu"
-            className="absolute right-0 top-full mt-1 z-50 rounded-lg border border-base-300 bg-base-100 shadow-lg py-1 min-w-[230px]"
             onClick={() => setOpen(false)}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: "100%",
+              marginTop: 4,
+              zIndex: 50,
+              minWidth: 232,
+              padding: "4px 0",
+              background: "var(--overlay)",
+              border: "1px solid var(--line)",
+              borderRadius: 8,
+              boxShadow: "var(--shadow)",
+            }}
           >
             {children}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
 
 function MenuItem({
-  icon,
   label,
   description,
   onClick,
   disabled,
+  busy,
 }: {
-  icon: ReactNode;
   label: string;
   description?: string;
   onClick: () => void;
   disabled?: boolean;
+  busy?: boolean;
 }) {
+  const { hovered, focused, interactiveProps } = useInteractive();
   return (
     <button
       type="button"
       role="menuitem"
-      className="flex w-full items-start gap-2 px-3 py-2 text-sm hover:bg-base-200 disabled:opacity-50"
       onClick={onClick}
       disabled={disabled}
+      {...interactiveProps}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        width: "100%",
+        padding: "6px 13px",
+        border: "none",
+        background: hovered && !disabled ? "var(--subtle)" : "transparent",
+        color: "var(--text)",
+        fontFamily: "inherit",
+        fontSize: 12.5,
+        textAlign: "left",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.55 : 1,
+        outline: "none",
+        boxShadow: focused ? "var(--focus)" : undefined,
+      }}
     >
-      <span className="mt-0.5 shrink-0">{icon}</span>
-      <span className="flex flex-col items-start text-left">
-        <span>{label}</span>
-        {description && (
-          <span className="text-xs text-base-content/50">{description}</span>
-        )}
+      {busy ? <Spinner size={11} color="var(--text-3)" /> : null}
+      <span>
+        <span style={{ display: "block" }}>{label}</span>
+        {description ? (
+          <span
+            style={{ display: "block", fontSize: 11, color: "var(--text-3)" }}
+          >
+            {description}
+          </span>
+        ) : null}
       </span>
     </button>
   );
 }
 
 export function MoreMenu({
-  onCheckNow,
-  checkBusy,
-  checkDisabled,
+  onConfigure,
   onRefreshMetrics,
   metricsRefreshing,
   hasData,
 }: {
-  onCheckNow: () => void;
-  checkBusy: boolean;
-  checkDisabled: boolean;
+  onConfigure: () => void;
   onRefreshMetrics: () => void;
   metricsRefreshing: boolean;
   hasData: boolean;
 }) {
   return (
-    <ToolbarMenu
-      icon={<MoreHorizontal className="size-4" />}
-      title="More actions"
-    >
-      {!checkDisabled && (
-        <MenuItem
-          icon={<Play className="size-3.5" />}
-          label={checkBusy ? "Running..." : "Check rankings"}
-          description="Fetch current Google positions"
-          onClick={onCheckNow}
-          disabled={checkBusy}
-        />
-      )}
+    <ToolbarMenu label="More" icon="i-chev-down" title="More actions">
       <MenuItem
-        icon={
-          <RefreshCw
-            className={`size-3.5 ${metricsRefreshing ? "animate-spin" : ""}`}
-          />
-        }
-        label={metricsRefreshing ? "Refreshing..." : "Update keyword stats"}
-        description="Volume, difficulty & CPC — not rankings"
+        label="Configure tracking"
+        description="Location, devices, depth and schedule"
+        onClick={onConfigure}
+      />
+      <MenuItem
+        label={metricsRefreshing ? "Updating…" : "Update keyword stats"}
+        description="Volume, difficulty and CPC — not positions"
         onClick={onRefreshMetrics}
         disabled={metricsRefreshing || !hasData}
+        busy={metricsRefreshing}
       />
     </ToolbarMenu>
   );
@@ -141,21 +173,18 @@ export function ExportMenu({
   hasData: boolean;
 }) {
   return (
-    <ToolbarMenu label="Export" icon={<Download className="size-3.5" />}>
+    <ToolbarMenu
+      label="Export"
+      icon="i-download"
+      title="Export the keywords shown"
+    >
+      <MenuItem label="Export CSV" onClick={onExport} disabled={!hasData} />
       <MenuItem
-        icon={<Sheet className="size-3.5" />}
         label="Export to Sheets"
         onClick={onExportToSheets}
         disabled={!hasData}
       />
       <MenuItem
-        icon={<FileDown className="size-3.5" />}
-        label="Export CSV"
-        onClick={onExport}
-        disabled={!hasData}
-      />
-      <MenuItem
-        icon={<Copy className="size-3.5" />}
         label="Copy keywords"
         onClick={onCopyKeywords}
         disabled={!hasData}

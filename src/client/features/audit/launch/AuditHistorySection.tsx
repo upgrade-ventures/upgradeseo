@@ -1,70 +1,138 @@
-import { Link } from "@tanstack/react-router";
-import { ScanSearch, Trash2 } from "lucide-react";
-import type { getAuditHistory } from "@/serverFunctions/audit";
-import { PortalMenu } from "@/client/components/PortalMenu";
-import { formatDate, StatusBadge } from "@/client/features/audit/shared";
+import { useState } from "react";
+import {
+  PanelMessage,
+  Skeleton,
+  SmallGhostButton,
+} from "@/client/features/audit/AuditParts";
+import {
+  BODY_ROW,
+  DATA_TABLE,
+  HEAD_ROW,
+  rowHoverHandlers,
+  TABLE_SCROLL,
+  TD_LEAD,
+  TD_VALUE,
+  TH_LEAD,
+  TH_NUMERIC,
+} from "@/client/features/audit/auditStyles";
+import {
+  CrawlStatusPill,
+  extractHostname,
+  formatAuditRef,
+  formatStartedAt,
+} from "@/client/features/audit/shared";
+import type { AuditHistoryRow } from "@/client/features/audit/results/useCrawlComparison";
 
 export function AuditHistorySection({
-  projectId,
   history,
   isLoading,
+  onOpen,
   onDelete,
 }: {
-  projectId: string;
-  history: Awaited<ReturnType<typeof getAuditHistory>>;
+  history: AuditHistoryRow[];
   isLoading: boolean;
+  onOpen: (auditId: string) => void;
   onDelete: (auditId: string) => void;
 }) {
-  if (history.length === 0 && !isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center text-base-content/40 space-y-3">
-          <ScanSearch className="size-12 mx-auto opacity-30" />
-          <p className="text-lg font-medium">No audits yet</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (history.length === 0) return null;
-
   return (
-    <div className="card bg-base-100 border border-base-300">
-      <div className="card-body gap-3">
-        <h2 className="card-title text-base">Previous Audits</h2>
-        <div className="overflow-x-auto">
-          <table className="table table-sm">
+    <>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px var(--pad, 24px)",
+          borderTop: "1px solid var(--line)",
+          borderBottom: "1px solid var(--line)",
+          background: "var(--subtle)",
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
+          Previous crawls
+        </h2>
+        {!isLoading ? (
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--text-3)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {history.length.toLocaleString()}
+          </span>
+        ) : null}
+      </div>
+
+      {isLoading ? (
+        <div style={{ padding: "14px var(--pad, 24px)" }}>
+          <Skeleton width="46%" height={12} />
+          <Skeleton width="62%" height={12} style={{ marginTop: 10 }} />
+          <Skeleton width="38%" height={12} style={{ marginTop: 10 }} />
+        </div>
+      ) : history.length === 0 ? (
+        <PanelMessage title="No crawls yet.">
+          Enter the site URL above and start the first one.
+        </PanelMessage>
+      ) : (
+        <div style={TABLE_SCROLL}>
+          <table style={DATA_TABLE}>
             <thead>
-              <tr>
-                <th>Date</th>
-                <th>URL</th>
-                <th>Status</th>
-                <th>Pages</th>
-                <th>Lighthouse</th>
-                <th></th>
+              <tr style={HEAD_ROW}>
+                <th scope="col" style={TH_LEAD}>
+                  Crawl
+                </th>
+                <th scope="col" style={{ ...TH_NUMERIC, textAlign: "left" }}>
+                  Started
+                </th>
+                <th scope="col" style={{ ...TH_NUMERIC, textAlign: "left" }}>
+                  Status
+                </th>
+                <th scope="col" style={TH_NUMERIC}>
+                  Pages
+                </th>
+                <th scope="col" style={TH_NUMERIC}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {history.map((audit) => (
-                <tr key={audit.id} className="hover group">
-                  <td className="text-xs text-base-content/70">
-                    {formatDate(audit.startedAt)}
+              {history.map((crawl) => (
+                <tr key={crawl.id} style={BODY_ROW} {...rowHoverHandlers}>
+                  <td style={TD_LEAD}>
+                    <span title={crawl.id}>{formatAuditRef(crawl.id)}</span>
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontWeight: 400,
+                        color: "var(--text-2)",
+                      }}
+                      title={crawl.startUrl}
+                    >
+                      {extractHostname(crawl.startUrl)}
+                    </span>
                   </td>
-                  <td className="max-w-[220px] truncate">{audit.startUrl}</td>
-                  <td>
-                    <StatusBadge status={audit.status} />
+                  <td style={{ ...TD_VALUE, textAlign: "left" }}>
+                    {formatStartedAt(crawl.startedAt)}
                   </td>
-                  <td>{audit.pagesTotal || audit.pagesCrawled}</td>
-                  <td>
-                    {audit.ranLighthouse ? (
-                      <span className="badge badge-ghost badge-xs">Yes</span>
+                  <td style={{ ...TD_VALUE, textAlign: "left" }}>
+                    <CrawlStatusPill status={crawl.status} />
+                  </td>
+                  <td style={TD_VALUE}>
+                    {crawl.pagesCrawled.toLocaleString()}
+                    {crawl.ranLighthouse ? (
+                      <span
+                        style={{ marginLeft: 6, color: "var(--text-3)" }}
+                        title="Lighthouse ran for this crawl"
+                      >
+                        LH
+                      </span>
                     ) : null}
                   </td>
-                  <td>
-                    <HistoryActions
-                      projectId={projectId}
-                      auditId={audit.id}
-                      onDelete={onDelete}
+                  <td style={{ ...TD_VALUE, whiteSpace: "nowrap" }}>
+                    <RowActions
+                      crawlRef={formatAuditRef(crawl.id)}
+                      onOpen={() => onOpen(crawl.id)}
+                      onDelete={() => onDelete(crawl.id)}
                     />
                   </td>
                 </tr>
@@ -72,46 +140,67 @@ export function AuditHistorySection({
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
-function HistoryActions({
-  projectId,
-  auditId,
+/**
+ * The row's own actions.
+ *
+ * Deleting a crawl throws away every page and issue it recorded, so it asks
+ * first. The question is asked in place, as a second step on the same row: the
+ * design carries no dialog anywhere, and a confirm that stays next to the row
+ * it is about cannot be misread as being about a different one.
+ */
+function RowActions({
+  crawlRef,
+  onOpen,
   onDelete,
 }: {
-  projectId: string;
-  auditId: string;
-  onDelete: (auditId: string) => void;
+  crawlRef: string;
+  onOpen: () => void;
+  onDelete: () => void;
 }) {
-  return (
-    <div className="flex items-center justify-end gap-2 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-      <Link
-        to="/p/$projectId/audit"
-        params={{ projectId }}
-        search={{ auditId, tab: "pages" }}
-        className="btn btn-primary btn-xs"
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <span
+        role="group"
+        aria-label={`Delete crawl ${crawlRef}`}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
       >
-        View
-      </Link>
-      <PortalMenu ariaLabel="Audit actions">
-        {(close) => (
-          <li>
-            <button
-              className="text-error"
-              onClick={() => {
-                close();
-                onDelete(auditId);
-              }}
-            >
-              <Trash2 className="size-3.5" />
-              Delete audit
-            </button>
-          </li>
-        )}
-      </PortalMenu>
-    </div>
+        <span style={{ color: "var(--text)", whiteSpace: "nowrap" }}>
+          Delete {crawlRef} and its results?
+        </span>
+        <SmallGhostButton
+          onClick={() => {
+            setConfirming(false);
+            onDelete();
+          }}
+        >
+          Delete
+        </SmallGhostButton>
+        <SmallGhostButton muted onClick={() => setConfirming(false)}>
+          Keep
+        </SmallGhostButton>
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <SmallGhostButton onClick={onOpen} title={`Open crawl ${crawlRef}`}>
+        Open
+      </SmallGhostButton>
+      <SmallGhostButton
+        muted
+        onClick={() => setConfirming(true)}
+        title={`Delete crawl ${crawlRef}`}
+      >
+        Delete
+      </SmallGhostButton>
+    </span>
   );
 }

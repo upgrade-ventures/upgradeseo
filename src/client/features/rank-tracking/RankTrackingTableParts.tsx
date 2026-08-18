@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import type { CSSProperties } from "react";
 import { toast } from "sonner";
 import { buildCsv, downloadCsv } from "@/client/lib/csv";
 import { exportTableToSheets } from "@/client/lib/exportToSheets";
@@ -9,16 +9,18 @@ import type {
   RankTrackingRow,
 } from "@/types/schemas/rank-tracking";
 
-const FEATURE_SHORT_LABELS: Record<string, string> = {
-  featured_snippet: "FS",
-  people_also_ask: "PAA",
-  ai_overview: "AI",
-  local_pack: "Local",
-  knowledge_panel: "KP",
+// The design writes SERP features out in full ("AI Overview", "People Also
+// Ask"), so the chip carries the name rather than an initialism.
+const FEATURE_LABELS: Record<string, string> = {
+  featured_snippet: "Featured Snippet",
+  people_also_ask: "People Also Ask",
+  ai_overview: "AI Overview",
+  local_pack: "Local Pack",
+  knowledge_panel: "Knowledge Panel",
   video: "Video",
-  images: "Img",
-  shopping: "Shop",
-  top_stories: "News",
+  images: "Images",
+  shopping: "Shopping",
+  top_stories: "Top Stories",
 };
 
 const FEATURE_TOOLTIPS: Record<string, string> = {
@@ -34,25 +36,44 @@ const FEATURE_TOOLTIPS: Record<string, string> = {
   top_stories: "Top Stories — news articles carousel",
 };
 
-export function SerpFeatureTags({ features }: { features: string[] }) {
-  const notable = features.filter((f) => f in FEATURE_SHORT_LABELS);
-  if (notable.length === 0) return null;
-  return (
-    <div className="flex gap-1 flex-wrap">
-      {notable.map((f) => (
-        <span
-          key={f}
-          className="badge badge-xs gap-0.5 cursor-help bg-base-300 border-0 text-base-content/70"
-          title={FEATURE_TOOLTIPS[f] ?? f}
-        >
-          {f === "ai_overview" && <Sparkles className="size-2.5" />}
-          {FEATURE_SHORT_LABELS[f]}
-        </span>
-      ))}
-    </div>
-  );
+/** Null for a feature we have no name for, so the chip is never a raw enum. */
+export function serpFeatureLabel(feature: string): string | null {
+  return FEATURE_LABELS[feature] ?? null;
 }
 
+export function serpFeatureTooltip(feature: string): string {
+  return FEATURE_TOOLTIPS[feature] ?? feature;
+}
+
+const ARROW_ROW: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+};
+
+const FROM: CSSProperties = {
+  fontVariantNumeric: "tabular-nums",
+  letterSpacing: ".01em",
+  fontSize: 11.5,
+  color: "var(--text-3)",
+  width: 24,
+  textAlign: "right",
+};
+
+const TO: CSSProperties = {
+  fontVariantNumeric: "tabular-nums",
+  letterSpacing: ".01em",
+  borderRadius: 5,
+  padding: "0 5px",
+  fontSize: 11,
+  fontWeight: 600,
+};
+
+/**
+ * "Where it was → where it is" for one device, in the four readings a check can
+ * produce. Colour never carries the reading on its own: the lost case says the
+ * word, and the rest show the position itself.
+ */
 export function DeviceRankCell({
   result,
 }: {
@@ -60,104 +81,85 @@ export function DeviceRankCell({
 }) {
   const { position, previousPosition } = result;
 
-  // Nothing at all
+  // Never measured on either check.
   if (position === null && previousPosition === null) {
-    return <span className="text-base-content/40">-</span>;
+    return <span style={{ color: "var(--text-3)" }}>—</span>;
   }
 
-  // Was ranking, now lost
+  // Was ranking, now absent from the tracked depth.
   if (position === null && previousPosition !== null) {
     return (
-      <span className="inline-flex items-center gap-1.5">
-        <span className="font-mono text-xs text-base-content/40 w-6 text-right">
-          {previousPosition}
+      <span style={ARROW_ROW}>
+        <span style={FROM}>{previousPosition}</span>
+        <span style={{ color: "var(--text-3)" }} aria-hidden>
+          →
         </span>
-        <span className="text-base-content/30">→</span>
-        <span className="font-mono rounded px-1.5 py-0.5 text-xs font-semibold bg-error/20 text-error">
+        <span
+          style={{
+            ...TO,
+            background: "var(--danger-soft)",
+            color: "var(--danger)",
+            border: "1px solid var(--danger-border)",
+          }}
+        >
           lost
         </span>
       </span>
     );
   }
 
-  // First check — no previous data
+  // First check for this device, so there is nothing to compare against.
   if (previousPosition === null) {
-    return <span className="font-mono">{position}</span>;
+    return (
+      <span
+        style={{
+          fontVariantNumeric: "tabular-nums",
+          letterSpacing: ".01em",
+        }}
+      >
+        {position}
+      </span>
+    );
   }
 
-  // Both exist — show old → new with colored badge
   const change = previousPosition - position!;
-  let badgeClass = "bg-base-200 text-base-content";
-  if (change > 0) badgeClass = "bg-success/20 text-success";
-  if (change < 0) badgeClass = "bg-warning/20 text-warning";
+  const tone =
+    change > 0
+      ? {
+          background: "var(--success-soft)",
+          color: "var(--success)",
+          border: "1px solid var(--success-border)",
+        }
+      : change < 0
+        ? {
+            background: "var(--warning-soft)",
+            color: "var(--warning)",
+            border: "1px solid var(--warning-border)",
+          }
+        : {
+            background: "var(--inset)",
+            color: "var(--text-2)",
+            border: "1px solid var(--line)",
+          };
 
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="font-mono text-xs text-base-content/40 w-6 text-right">
-        {previousPosition}
+    <span style={ARROW_ROW}>
+      <span style={FROM}>{previousPosition}</span>
+      <span style={{ color: "var(--text-3)" }} aria-hidden>
+        →
       </span>
-      <span className="text-base-content/30">→</span>
       <span
-        className={`font-mono rounded px-1.5 py-0.5 text-xs font-semibold ${badgeClass}`}
+        style={{ ...TO, ...tone }}
+        aria-label={
+          change === 0
+            ? `no change, position ${position}`
+            : `${change > 0 ? "up" : "down"} ${Math.abs(change)}, now position ${position}`
+        }
       >
         {position}
       </span>
     </span>
   );
-}
-
-export function DeviceUrlCell({
-  result,
-  domain,
-}: {
-  result: RankTrackingDeviceResult;
-  domain: string;
-}) {
-  if (!result.rankingUrl) {
-    return <span className="text-base-content/40 text-xs">-</span>;
-  }
-  return (
-    <a
-      href={toFullUrl(result.rankingUrl, domain)}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="link link-hover block truncate text-xs"
-      title={result.rankingUrl}
-    >
-      {toPath(result.rankingUrl)}
-    </a>
-  );
-}
-
-const compactFormatter = new Intl.NumberFormat("en-US", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-
-export function VolumeCell({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-base-content/40">-</span>;
-  return (
-    <span className="font-mono text-sm">{compactFormatter.format(value)}</span>
-  );
-}
-
-export function DifficultyCell({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-base-content/40">-</span>;
-  let badgeClass = "bg-success/20 text-success";
-  if (value > 60) badgeClass = "bg-error/20 text-error";
-  else if (value > 30) badgeClass = "bg-warning/20 text-warning";
-  return (
-    <span
-      className={`font-mono rounded px-1.5 py-0.5 text-xs font-semibold ${badgeClass}`}
-    >
-      {value}
-    </span>
-  );
-}
-
-export function CpcCell({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-base-content/40">-</span>;
-  return <span className="font-mono text-sm">${value.toFixed(2)}</span>;
 }
 
 /** Numeric change for CSV export — numbers bypass the CSV formula-injection sanitizer */
@@ -271,7 +273,7 @@ export function exportRankTrackingCsv(
   captureClientEvent("rank_tracking:export_csv");
 }
 
-function toPath(url: string): string {
+export function toPath(url: string): string {
   try {
     return new URL(url).pathname;
   } catch {
@@ -279,7 +281,7 @@ function toPath(url: string): string {
   }
 }
 
-function toFullUrl(url: string, domain: string): string {
+export function toFullUrl(url: string, domain: string): string {
   if (url.startsWith("http")) return url;
   return `https://${domain}${url}`;
 }

@@ -1,113 +1,57 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
 import { toast } from "sonner";
-import { GoogleGlyph } from "@/client/features/gsc/GoogleGlyph";
+import { Icon } from "@/client/components/icons/IconSprite";
+import { PrimaryButton } from "@/client/components/prominence/Primitives";
 import { SelfHostedSetupWarning } from "@/client/features/gsc/SelfHostedSetupWarning";
 import {
   SitePicker,
   type GscSiteSelection,
 } from "@/client/features/gsc/SitePicker";
 import { startGoogleLink } from "@/client/features/integrations/startGoogleLink";
+import {
+  ErrorLine,
+  Skeleton,
+  WorkingPanel,
+} from "@/client/features/onboarding/onboardingControls";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { captureClientEvent } from "@/client/lib/posthog";
-import { ProjectMarketFields } from "@/client/features/projects/ProjectMarketFields";
-import type { ProjectMarket } from "@/client/features/projects/types";
 import {
   getGscConnection,
   listGscSites,
   setGscSite,
 } from "@/serverFunctions/gsc";
-import { getProjects, setProjectMarket } from "@/serverFunctions/projects";
 
 const GRANT_STATUS_KEY = ["gscGrantStatus"];
 
 /**
- * Onboarding step for connecting Google Search Console: link the account-level
- * OAuth grant, then bind a verified property to the user's first project —
- * the same binding the project's Integrations page does — so it's done in one
+ * The controls behind the checklist's Search Console step: link the
+ * account-level OAuth grant, then bind a verified property to the project,
+ * the same binding the project's Integrations page does, so it's done in one
  * place.
+ *
+ * The step's done presentation belongs to the checklist, which reads the same
+ * `gscConnection` query; this component only covers the work still to do.
  */
-export function SearchConsoleOnboardingStep() {
-  const projectsQuery = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => getProjects(),
-  });
-  const project = projectsQuery.data?.[0];
-
-  return (
-    <div className="space-y-8">
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">
-          Connect with Google Search Console now?
-        </h2>
-
-        {project ? <GscConnect projectId={project.id} /> : <Checking />}
-
-        <p className="hidden sm:block text-xs leading-relaxed text-base-content/55">
-          For now, Search Console data flows through the OpenSEO MCP. We're
-          building it into the OpenSEO app soon too.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Choose country &amp; language</h2>
-        {project ? <DefaultMarketPicker project={project} /> : <Checking />}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Sets the project's default market during onboarding, so keyword, SERP, and
- * domain data lands on the user's market from their first search instead of
- * defaulting to the US. Saves on change — the step's Continue button belongs
- * to the wizard, so a separate Save here would be easy to walk past.
- */
-function DefaultMarketPicker({
-  project,
+export function SearchConsoleOnboardingStep({
+  projectId,
+  skipAction,
 }: {
-  project: { id: string; locationCode: number; languageCode: string };
+  projectId: string;
+  /**
+   * The checklist's "Skip for now" control. Rendered here rather than beside
+   * this component so it can share the design's button row with Connect, and
+   * fall below the panel in the states that have no button of their own.
+   */
+  skipAction?: React.ReactNode;
 }) {
-  const queryClient = useQueryClient();
-  const [market, setMarket] = React.useState<ProjectMarket>({
-    locationCode: project.locationCode,
-    languageCode: project.languageCode,
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (next: ProjectMarket) =>
-      setProjectMarket({ data: { projectId: project.id, ...next } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
-    onError: (error) => toast.error(getStandardErrorMessage(error)),
-  });
-
-  const handleChange = (next: ProjectMarket) => {
-    setMarket(next);
-    saveMutation.mutate(next);
-  };
-
-  return (
-    <div className="space-y-2">
-      <ProjectMarketFields
-        value={market}
-        onChange={handleChange}
-        hideLanguageOnMobile
-      />
-      <p className="hidden sm:block text-xs leading-relaxed text-base-content/55">
-        We'll use this country and language for keyword, SERP, and domain data
-        unless you pick a different one. You can change it in project settings.
-      </p>
-    </div>
-  );
-}
-
-/** Connect + pick-a-property flow, scoped to a known project. */
-function GscConnect({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [selection, setSelection] = React.useState<GscSiteSelection | null>(
     null,
   );
+  // startGoogleLink navigates the whole page to Google, so this only survives
+  // long enough to cover the round trip to our own server for the link URL.
+  const [connecting, setConnecting] = React.useState(false);
 
   const connectionKey = ["gscConnection", projectId];
   const connectionQuery = useQuery({
@@ -154,61 +98,116 @@ function GscConnect({ projectId }: { projectId: string }) {
 
   const handleConnect = () => {
     captureClientEvent("onboarding:gsc_connect_clicked");
-    void startGoogleLink("gsc", window.location.href);
+    setConnecting(true);
+    // Resolves only when the redirect never happens (a failed link start),
+    // which is exactly when the panel has to go back to the button.
+    void startGoogleLink("gsc", window.location.href).finally(() =>
+      setConnecting(false),
+    );
   };
 
-  if (connectionQuery.isLoading) return <Checking />;
+  // Every branch below the connect button keeps the skip control reachable, so
+  // a broken or unconfigurable connection is never a dead end.
+  const skipRow = skipAction ? (
+    <div style={{ marginTop: 9 }}>{skipAction}</div>
+  ) : null;
+
+  if (connectionQuery.isLoading) {
+    return (
+      <div style={{ display: "grid", gap: 6, maxWidth: 340 }}>
+        <Skeleton width={200} />
+        <Skeleton width={130} />
+      </div>
+    );
+  }
+
+  if (connectionQuery.isError) {
+    return (
+      <div>
+        <ErrorLine onRetry={() => void connectionQuery.refetch()}>
+          Could not check your Google connection.
+        </ErrorLine>
+        {skipRow}
+      </div>
+    );
+  }
 
   if (needsSetup) {
-    return <SelfHostedSetupWarning />;
+    return (
+      <div>
+        <SelfHostedSetupWarning />
+        {skipRow}
+      </div>
+    );
   }
 
   if (connected) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-success/30 bg-success/10 p-3.5 text-sm">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/20 text-success">
-          <Check className="size-3.5" />
-        </span>
-        <span className="text-base-content/80">
-          Connected to <span className="font-mono">{connection?.siteUrl}</span>.
-        </span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 12.5,
+          color: "var(--success)",
+        }}
+      >
+        <Icon name="i-check" size={13} style={{ strokeWidth: 2 }} />
+        <span>Connected to {connection?.siteUrl}.</span>
       </div>
     );
   }
 
   if (hasGrant) {
     return (
-      <SitePicker
-        loading={sitesQuery.isLoading}
-        error={sitesQuery.isError}
-        accounts={accounts}
-        selection={selection}
-        onSelect={setSelection}
-        onSave={() => selection && setSiteMutation.mutate(selection)}
-        saving={setSiteMutation.isPending}
-        onRetry={() => void sitesQuery.refetch()}
-        onReconnect={handleConnect}
-      />
+      <div>
+        <SitePicker
+          loading={sitesQuery.isLoading}
+          error={sitesQuery.isError}
+          accounts={accounts}
+          selection={selection}
+          onSelect={setSelection}
+          onSave={() => selection && setSiteMutation.mutate(selection)}
+          saving={setSiteMutation.isPending}
+          onRetry={() => void sitesQuery.refetch()}
+          onReconnect={handleConnect}
+        />
+        <p
+          style={{ margin: "9px 0 0", fontSize: 11.5, color: "var(--text-3)" }}
+        >
+          Pick the property that matches this site. Only properties your Google
+          account is verified on can be selected.
+        </p>
+        {skipRow}
+      </div>
+    );
+  }
+
+  if (connecting) {
+    return (
+      <WorkingPanel title="Waiting for Google">
+        Opening Google&rsquo;s consent screen. You land back here once you
+        finish it.
+      </WorkingPanel>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleConnect}
-      className="inline-flex items-center gap-2.5 rounded-lg border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-semibold text-base-content shadow-sm transition hover:bg-base-200 hover:shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-    >
-      <GoogleGlyph className="size-[18px]" />
-      Connect with Google
-    </button>
-  );
-}
-
-function Checking() {
-  return (
-    <div className="flex items-center gap-2 text-sm text-base-content/50">
-      <span className="loading loading-spinner loading-sm" />
-      Checking…
+    <div>
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+        <PrimaryButton onClick={handleConnect}>
+          Connect Search Console
+        </PrimaryButton>
+        {skipAction}
+      </div>
+      <p style={{ margin: "7px 0 0", fontSize: 11.5, color: "var(--text-3)" }}>
+        Opens Google&rsquo;s consent screen. We ask for read-only access and
+        never post anything.
+      </p>
+      <p style={{ margin: "5px 0 0", fontSize: 11.5, color: "var(--text-3)" }}>
+        For now, Search Console data flows through the UpgradeSEO MCP. We are
+        building it into the app too.
+      </p>
     </div>
   );
 }

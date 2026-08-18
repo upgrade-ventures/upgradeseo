@@ -57,7 +57,7 @@ export function SitePicker({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-base-content/50">
+      <div className="flex items-center gap-2 text-sm text-base-content/60">
         <span className="loading loading-spinner loading-sm" />
         Loading properties…
       </div>

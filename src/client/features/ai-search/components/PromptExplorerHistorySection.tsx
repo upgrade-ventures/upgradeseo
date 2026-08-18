@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { MessageSquare } from "lucide-react";
 import {
-  HISTORY_ITEM_LINK_CLASS,
+  HISTORY_ROW_STYLE,
   SearchHistorySection,
 } from "@/client/features/ai-search/components/SearchHistorySection";
 import { formatModelLabel } from "@/client/features/ai-search/platformLabels";
@@ -18,8 +17,8 @@ export function PromptExplorerHistorySection({ projectId, ...props }: Props) {
   return (
     <SearchHistorySection
       {...props}
-      emptyIcon={MessageSquare}
-      emptyMessage="Enter a prompt to compare model answers"
+      emptyIcon="i-message"
+      emptyMessage="Ask a prompt to see how an AI answer names the brands in your category."
       noun="prompt"
       renderItemLink={(item, content) => (
         <Link
@@ -37,20 +36,38 @@ export function PromptExplorerHistorySection({ projectId, ...props }: Props) {
             hb: item.highlightBrand || undefined,
           }}
           replace
-          className={HISTORY_ITEM_LINK_CLASS}
+          style={HISTORY_ROW_STYLE}
         >
           {content}
         </Link>
       )}
       renderItem={(item) => (
-        <>
-          <p className="font-medium text-base-content truncate">
+        <span style={{ minWidth: 0 }}>
+          <span
+            style={{
+              display: "block",
+              fontSize: 12.5,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {item.prompt}
-          </p>
-          <p className="text-sm text-base-content/60 truncate">
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: 11.5,
+              color: "var(--text-3)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {item.models.map(formatModelLabel).join(", ")}
-          </p>
-        </>
+          </span>
+        </span>
       )}
     />
   );

@@ -1,10 +1,13 @@
-import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Card, PrimaryButton } from "@/client/components/prominence/Primitives";
+import {
+  CheckboxField,
+  Field,
+  TextInput,
+} from "@/client/components/prominence/Field";
 import { MIN_PAGES } from "@/client/features/audit/launch/types";
 import type { useLaunchController } from "@/client/features/audit/launch/useLaunchController";
 import { getFieldError, getFormError } from "@/client/lib/forms";
-import { PAID_MAX_AUDIT_PAGES } from "@/shared/audit-limits";
-import { SUBSCRIBE_ROUTE } from "@/shared/billing";
 
 type Props = {
   launchForm: ReturnType<typeof useLaunchController>["launchForm"];
@@ -12,199 +15,173 @@ type Props = {
   maxPagesLimit: number;
 };
 
+/**
+ * The control that raises the confirm step. It is addressed by id so the
+ * confirm can hand focus back to it when it is dismissed.
+ */
+export const SUBMIT_BUTTON_ID = "audit-launch-submit";
+
+const OPTION_BOX: CSSProperties = {
+  border: "1px solid var(--line)",
+  borderRadius: 8,
+  background: "var(--subtle)",
+  padding: "10px 12px",
+};
+
+/**
+ * The crawl form.
+ *
+ * Fields follow the design's anatomy: a visible label bound to the control, a
+ * description above it saying why we are asking, and errors below it tied to
+ * the input and announced when the field is left. The submit button does not
+ * start the crawl — it opens the scope confirm.
+ */
 export function LaunchFormCard({
   commitMaxPagesInput,
   launchForm,
   maxPagesLimit,
 }: Props) {
   return (
-    <div className="card bg-base-100 border border-base-300">
-      <div className="card-body gap-4">
-        <h2 className="card-title text-base">Start New Audit</h2>
+    <Card title="Start a crawl">
+      <form
+        style={{
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void launchForm.handleSubmit();
+        }}
+      >
+        <launchForm.Field name="url">
+          {(field) => {
+            const urlError = getFieldError(field.state.meta.errors);
+            return (
+              <Field
+                label="Start URL"
+                required
+                description="The address we crawl out from. Every page we can reach from here, on the same site, is included."
+                error={urlError}
+                hint="Include the protocol, for example https://example.com."
+              >
+                {(control) => (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <TextInput
+                      {...control}
+                      placeholder="https://example.com"
+                      value={field.state.value}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                        if (launchForm.state.errorMap.onSubmit) {
+                          launchForm.setErrorMap({ onSubmit: undefined });
+                        }
+                      }}
+                      onBlur={field.handleBlur}
+                      style={{ flex: 1, minWidth: 220, width: "auto" }}
+                    />
+                    <launchForm.Subscribe
+                      selector={(state) => state.isSubmitting}
+                    >
+                      {(isSubmitting) => (
+                        <PrimaryButton
+                          id={SUBMIT_BUTTON_ID}
+                          type="submit"
+                          disabled={isSubmitting}
+                        >
+                          Start crawl
+                        </PrimaryButton>
+                      )}
+                    </launchForm.Subscribe>
+                  </div>
+                )}
+              </Field>
+            );
+          }}
+        </launchForm.Field>
 
-        <form
-          className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-center"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void launchForm.handleSubmit();
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 10,
           }}
         >
-          <launchForm.Field name="url">
-            {(field) => {
-              const urlError = getFieldError(field.state.meta.errors);
-
-              return (
-                <label
-                  className={`input input-bordered w-full lg:col-span-9 ${urlError ? "input-error" : ""}`}
+          <div style={OPTION_BOX}>
+            <launchForm.Field name="maxPagesInput">
+              {(field) => (
+                <Field
+                  label="Crawl limit"
+                  description="The most pages we will fetch. The crawl stops there even if the site is larger."
+                  hint={`Any value from ${MIN_PAGES} to ${maxPagesLimit.toLocaleString()}. Out-of-range entries are pulled back into it.`}
                 >
-                  <input
-                    placeholder="https://example.com"
-                    value={field.state.value}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                      if (launchForm.state.errorMap.onSubmit) {
-                        launchForm.setErrorMap({ onSubmit: undefined });
-                      }
-                    }}
-                  />
-                </label>
-              );
-            }}
-          </launchForm.Field>
-
-          <launchForm.Subscribe selector={(state) => state.isSubmitting}>
-            {(isSubmitting) => (
-              <button
-                type="submit"
-                className="btn btn-primary btn-sm w-full lg:col-span-3"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Starting...
-                  </>
-                ) : (
-                  "Start Audit"
-                )}
-              </button>
-            )}
-          </launchForm.Subscribe>
-
-          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 lg:col-span-12 lg:items-start">
-            <LaunchOptions
-              launchForm={launchForm}
-              commitMaxPagesInput={commitMaxPagesInput}
-              maxPagesLimit={maxPagesLimit}
-            />
-            <LighthouseOptions launchForm={launchForm} />
+                  {(control) => (
+                    <TextInput
+                      {...control}
+                      type="number"
+                      inputMode="numeric"
+                      min={MIN_PAGES}
+                      max={maxPagesLimit}
+                      value={field.state.value}
+                      onChange={(event) => {
+                        const next = event.target.value;
+                        if (!/^\d*$/.test(next)) return;
+                        field.handleChange(next);
+                        if (launchForm.state.errorMap.onSubmit) {
+                          launchForm.setErrorMap({ onSubmit: undefined });
+                        }
+                      }}
+                      // Clamping on blur is what keeps an out-of-range entry
+                      // from ever reaching submit.
+                      onBlur={() => {
+                        field.handleBlur();
+                        commitMaxPagesInput();
+                      }}
+                      style={{ width: 130 }}
+                    />
+                  )}
+                </Field>
+              )}
+            </launchForm.Field>
           </div>
-        </form>
 
-        <LaunchErrors launchForm={launchForm} />
-      </div>
-    </div>
-  );
-}
+          <div style={OPTION_BOX}>
+            <launchForm.Field name="runLighthouse">
+              {(field) => (
+                <CheckboxField
+                  checked={Boolean(field.state.value)}
+                  onChange={(checked) => field.handleChange(checked)}
+                  label="Include Lighthouse"
+                  description="Scores come from Google PageSpeed Insights, on a sample of up to 20 pages chosen to skip duplicate templates. It adds several minutes to the run."
+                />
+              )}
+            </launchForm.Field>
+          </div>
+        </div>
 
-function LaunchOptions({
-  launchForm,
-  commitMaxPagesInput,
-  maxPagesLimit,
-}: Props) {
-  const isFreeLimited = maxPagesLimit < PAID_MAX_AUDIT_PAGES;
-
-  return (
-    <div className="rounded-lg border border-base-300 bg-base-200/20 p-3 space-y-2">
-      <label className="text-xs font-medium uppercase tracking-wide text-base-content/60">
-        Crawl limit
-      </label>
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-base-content/70">Max pages</span>
-        <launchForm.Field name="maxPagesInput">
-          {(field) => (
-            <input
-              type="number"
-              min={MIN_PAGES}
-              max={maxPagesLimit}
-              className="input input-bordered input-sm w-28"
-              value={field.state.value}
-              onChange={(event) => {
-                const next = event.target.value;
-                if (!/^\d*$/.test(next)) return;
-                field.handleChange(next);
-                if (launchForm.state.errorMap.onSubmit) {
-                  launchForm.setErrorMap({ onSubmit: undefined });
-                }
-              }}
-              onBlur={commitMaxPagesInput}
-            />
-          )}
-        </launchForm.Field>
-      </div>
-      <p className="text-xs text-base-content/50">
-        Enter any value from {MIN_PAGES} to {maxPagesLimit.toLocaleString()}.
-        {isFreeLimited ? (
-          <>
-            {" "}
-            <Link
-              to={SUBSCRIBE_ROUTE}
-              search={{ upgrade: true }}
-              className="link link-primary"
-            >
-              Upgrade
-            </Link>{" "}
-            to crawl up to {PAID_MAX_AUDIT_PAGES.toLocaleString()} pages.
-          </>
-        ) : null}
-      </p>
-    </div>
-  );
-}
-
-function LighthouseOptions({ launchForm }: Pick<Props, "launchForm">) {
-  return (
-    <div className="rounded-lg border border-base-300 bg-base-200/20 p-3 space-y-2">
-      <label className="label cursor-pointer justify-start gap-2 p-0">
-        <launchForm.Field name="runLighthouse">
-          {(field) => (
-            <input
-              type="checkbox"
-              className="toggle toggle-sm toggle-primary"
-              checked={Boolean(field.state.value)}
-              onChange={(event) => field.handleChange(event.target.checked)}
-            />
-          )}
-        </launchForm.Field>
-        <span
-          className="text-sm font-medium text-base-content/80"
-          title="Lighthouse measures the performance of your pages and identifies issues."
-        >
-          Include Lighthouse
-        </span>
-      </label>
-
-      <launchForm.Subscribe
-        selector={(snapshot) => snapshot.values.runLighthouse}
-      >
-        {(runLighthouse) =>
-          runLighthouse ? (
-            <div className="space-y-1">
-              <p className="text-xs text-base-content/60">
-                We choose a sample of 20 pages to audit, removing pages from
-                duplicate templates.
+        <launchForm.Subscribe selector={(state) => state.errorMap.onSubmit}>
+          {(submitError) => {
+            const errorMessage = getFormError(submitError);
+            return errorMessage ? (
+              <p
+                role="alert"
+                style={{
+                  margin: 0,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  background: "var(--danger-soft)",
+                  border: "1px solid var(--danger-border)",
+                  fontSize: 12.5,
+                  color: "var(--danger)",
+                }}
+              >
+                {errorMessage}
               </p>
-            </div>
-          ) : null
-        }
-      </launchForm.Subscribe>
-    </div>
-  );
-}
-
-function LaunchErrors({ launchForm }: Pick<Props, "launchForm">) {
-  return (
-    <div className="space-y-2">
-      <launchForm.Field name="url">
-        {(field) => {
-          const urlError = getFieldError(field.state.meta.errors);
-
-          return urlError ? (
-            <p className="text-sm text-error">{urlError}</p>
-          ) : null;
-        }}
-      </launchForm.Field>
-
-      <launchForm.Subscribe selector={(state) => state.errorMap.onSubmit}>
-        {(submitError) => {
-          const errorMessage = getFormError(submitError);
-
-          return errorMessage ? (
-            <div className="alert alert-error py-2">
-              <span className="text-sm">{errorMessage}</span>
-            </div>
-          ) : null;
-        }}
-      </launchForm.Subscribe>
-    </div>
+            ) : null;
+          }}
+        </launchForm.Subscribe>
+      </form>
+    </Card>
   );
 }

@@ -2,7 +2,7 @@
 // there on the next visit. Browser-local only (per-device); the server never
 // trusts it — landing and the route guard always re-validate the id against the
 // org's project list.
-const LAST_PROJECT_KEY = "openseo:lastProjectId";
+const LAST_PROJECT_KEY = "upgradeseo:lastProjectId";
 
 export function getLastProjectId(): string | null {
   if (typeof window === "undefined") return null;

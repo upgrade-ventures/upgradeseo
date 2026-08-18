@@ -1,10 +1,15 @@
 import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, FolderCog, Plus, Search } from "lucide-react";
-import { getProjects } from "@/serverFunctions/projects";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronsUpDown, FolderCog, Search } from "lucide-react";
+import { createProject, getProjects } from "@/serverFunctions/projects";
 import { setLastProjectId } from "@/client/lib/active-project";
-import { CreateProjectModal } from "@/client/features/projects/CreateProjectModal";
+import { toast } from "sonner";
+import { getStandardErrorMessage } from "@/client/lib/error-messages";
+import {
+  DEFAULT_LOCATION_CODE,
+  getLanguageCode,
+} from "@/shared/keyword-locations";
 import type { ProjectSummary } from "./types";
 
 // Below this many projects the plain list is faster to scan than a search box.
@@ -20,7 +25,6 @@ export function ProjectSwitcher({
   onCloseDrawer?: () => void;
 }) {
   const navigate = useNavigate();
-  const [creating, setCreating] = React.useState(false);
   // Controlled open state rather than daisyUI's CSS focus-within dropdown:
   // focus-within can't guarantee the search input ends up focused on open
   // (Safari never focuses buttons on click, and moving focus into the panel
@@ -198,23 +202,39 @@ export function ProjectSwitcher({
         aria-haspopup="listbox"
         onClick={() => (open ? closePanel() : openPanel())}
         onKeyDown={handleTriggerKeyDown}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-1.5 text-left transition-colors hover:border-base-content/25"
+        className="prominence-switcher-trigger"
       >
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-medium text-base-content">
-            {activeProject?.name ?? "Select project"}
-          </span>
-          {activeProject?.domain ? (
-            <span className="truncate text-xs font-normal text-base-content/50">
-              {activeProject.domain}
-            </span>
-          ) : null}
+        {/* Initials badge. The design shows the site's own mark here; two
+            letters derived from the name is the closest honest stand-in. */}
+        <span className="prominence-switcher-badge" aria-hidden="true">
+          {initialsFor(activeProject?.name ?? activeProject?.domain ?? "?")}
         </span>
-        <ChevronsUpDown className="size-3.5 shrink-0 text-base-content/40" />
+        <span className="min-w-0 flex-1 truncate text-left">
+          <span
+            style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}
+          >
+            {activeProject?.domain ?? activeProject?.name ?? "Select project"}
+          </span>
+        </span>
+        <ChevronsUpDown
+          className="size-3.5 shrink-0"
+          style={{ color: "var(--text-3)" }}
+        />
       </button>
 
       {open ? (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg">
+        // z-index 40: the design's ladder puts the switcher below the palette
+        // (50), the scrim (55) and the drawer (60).
+        <div
+          className="absolute left-0 right-0 top-full mt-1 overflow-hidden"
+          style={{
+            zIndex: 40,
+            border: "1px solid var(--line)",
+            borderRadius: 8,
+            background: "var(--overlay)",
+            boxShadow: "var(--shadow)",
+          }}
+        >
           {showSearch ? (
             <div className="border-b border-base-300 p-2">
               <label className="input input-sm w-full">
@@ -275,7 +295,7 @@ export function ProjectSwitcher({
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate">{project.name}</span>
                         {project.domain ? (
-                          <span className="truncate text-xs text-base-content/50">
+                          <span className="truncate text-xs text-base-content/60">
                             {project.domain}
                           </span>
                         ) : null}
@@ -289,7 +309,7 @@ export function ProjectSwitcher({
               })}
               {filteredProjects.length === 0 ? (
                 <li className="menu-disabled">
-                  <span className="text-base-content/50">
+                  <span className="text-base-content/60">
                     No projects match “{query.trim()}”
                   </span>
                 </li>
@@ -303,21 +323,6 @@ export function ProjectSwitcher({
             }`}
           >
             <li>
-              <button
-                type="button"
-                onClick={() => {
-                  closePanel();
-                  // Deliberately leave the mobile drawer open: the modal is
-                  // rendered inside it, so closing the drawer would unmount the
-                  // modal. The drawer closes when the modal does.
-                  setCreating(true);
-                }}
-              >
-                <Plus className="size-4" />
-                New project
-              </button>
-            </li>
-            <li>
               <Link
                 to="/projects"
                 onClick={() => {
@@ -330,17 +335,118 @@ export function ProjectSwitcher({
               </Link>
             </li>
           </ul>
+          <AddSiteField
+            onCreated={() => {
+              closePanel();
+              onCloseDrawer?.();
+            }}
+          />
         </div>
-      ) : null}
-
-      {creating ? (
-        <CreateProjectModal
-          onClose={() => {
-            setCreating(false);
-            onCloseDrawer?.();
-          }}
-        />
       ) : null}
     </div>
   );
+}
+
+/**
+ * The design's inline add-site field, in the switcher footer.
+ *
+ * Creating a site is a one-field action, so it happens in place rather than in
+ * a dialog. The site is created with the domain as its name and the workspace
+ * default market; everything else is edited afterwards in project settings.
+ */
+function AddSiteField({ onCreated }: { onCreated: () => void }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [domain, setDomain] = React.useState("");
+
+  const createMutation = useMutation({
+    mutationFn: (value: string) =>
+      createProject({
+        data: {
+          name: value,
+          domain: value,
+          locationCode: DEFAULT_LOCATION_CODE,
+          languageCode: getLanguageCode(DEFAULT_LOCATION_CODE),
+        },
+      }),
+    onSuccess: async (created) => {
+      setLastProjectId(created.id);
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setDomain("");
+      onCreated();
+      toast.success(`${created.name} added`);
+      // Land on the new site's settings so the next step (connecting Search
+      // Console) is in front of them.
+      void navigate({
+        to: "/p/$projectId/settings",
+        params: { projectId: created.id },
+      });
+    },
+    onError: (error) =>
+      toast.error(getStandardErrorMessage(error, "Could not add the site")),
+  });
+
+  // Users paste full URLs; store the bare host.
+  const normalized = domain
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/.*$/, "");
+
+  const submit = () => {
+    if (!normalized || createMutation.isPending) return;
+    createMutation.mutate(normalized);
+  };
+
+  return (
+    <div
+      style={{
+        borderTop: "1px solid var(--border-muted)",
+        padding: "7px 10px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="text"
+          value={domain}
+          onChange={(event) => setDomain(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="Add another site…"
+          aria-label="Add another site"
+          disabled={createMutation.isPending}
+          className="prominence-add-site-input"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!normalized || createMutation.isPending}
+          className="prominence-add-site-button"
+        >
+          {createMutation.isPending ? "Adding…" : "Add"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Two-letter mark for the switcher badge.
+ *
+ * Prefers the initials of the first two words ("Acme Labs" -> "AL"); falls back
+ * to the first two characters for a single word or a bare domain.
+ */
+function initialsFor(label: string): string {
+  const words = label
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split(/[\s.-]+/)
+    .filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return (words[0] ?? label).slice(0, 2).toUpperCase();
 }

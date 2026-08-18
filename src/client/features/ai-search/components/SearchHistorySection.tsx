@@ -1,5 +1,7 @@
-import type { ComponentType, ReactNode } from "react";
-import { Clock, History, X } from "lucide-react";
+import type { ReactNode } from "react";
+import { Icon, type IconName } from "@/client/components/icons/IconSprite";
+import { Card } from "@/client/components/prominence/Primitives";
+import { useFocusRing } from "@/client/features/ai-search/components/aiControls";
 
 type Props<TItem extends { timestamp: number }> = {
   history: TItem[];
@@ -11,8 +13,8 @@ type Props<TItem extends { timestamp: number }> = {
    * cmd+click and right-click → "open in new tab" behave natively.
    */
   renderItemLink: (item: TItem, content: ReactNode) => ReactNode;
-  /** Icon component rendered in the empty state (e.g. Sparkles, MessageSquare). */
-  emptyIcon: ComponentType<{ className?: string }>;
+  /** Sprite icon shown in the empty state. */
+  emptyIcon: IconName;
   /** Empty-state headline copy. */
   emptyMessage: string;
   /**
@@ -20,82 +22,128 @@ type Props<TItem extends { timestamp: number }> = {
    * "prompt"). Pluralization is handled by the component.
    */
   noun: string;
-  /** Item body — primary (and optional secondary) text shown in each row. */
+  /** Item body: primary (and optional secondary) text shown in each row. */
   renderItem: (item: TItem) => ReactNode;
 };
 
+/**
+ * Recent searches, kept in local storage. The design has no empty state and no
+ * history list; both are drawn out of its own vocabulary (card, subtle head
+ * strip, muted caption) so a screen with nothing on it yet still explains
+ * itself.
+ */
 export function SearchHistorySection<TItem extends { timestamp: number }>({
   history,
   historyLoaded,
   onRemoveHistoryItem,
   renderItemLink,
-  emptyIcon: EmptyIcon,
+  emptyIcon,
   emptyMessage,
   noun,
   renderItem,
 }: Props<TItem>) {
-  if (!historyLoaded) {
-    return null;
-  }
+  if (!historyLoaded) return null;
 
   if (history.length === 0) {
     return (
-      <section className="rounded-2xl border border-dashed border-base-300 bg-base-100/70 p-6 text-center text-base-content/55 space-y-2">
-        <EmptyIcon className="size-9 mx-auto opacity-35" />
-        <p className="text-base font-medium text-base-content/80">
-          {emptyMessage}
-        </p>
-      </section>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 8,
+          padding: "40px 12px",
+          border: "1px dashed var(--border-strong)",
+          borderRadius: 8,
+          color: "var(--text-2)",
+          textAlign: "center",
+        }}
+      >
+        <Icon name={emptyIcon} size={22} style={{ color: "var(--text-3)" }} />
+        <p style={{ margin: 0, fontSize: 12.5 }}>{emptyMessage}</p>
+      </div>
     );
   }
 
   return (
-    <section className="rounded-2xl border border-base-300 bg-base-100 p-5 md:p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <History className="size-4 text-base-content/45" />
-          <span className="text-sm text-base-content/60">
-            {history.length} recent {noun}
-            {history.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        {history.map((item) => (
-          <div
+    <Card
+      title="Recent"
+      count={`${history.length} ${noun}${history.length === 1 ? "" : "s"}`}
+    >
+      <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+        {history.map((item, index) => (
+          <li
             key={item.timestamp}
-            className="group flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 p-2"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 12px",
+              borderBottom:
+                index === history.length - 1
+                  ? undefined
+                  : "1px solid var(--border-muted)",
+            }}
           >
-            {renderItemLink(
-              item,
-              <>
-                <Clock className="size-4 text-base-content/40 shrink-0" />
-                <div className="min-w-0">{renderItem(item)}</div>
-              </>,
-            )}
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs text-base-content/40">
-                {new Date(item.timestamp).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 p-1"
-                onClick={() => onRemoveHistoryItem(item.timestamp)}
-                aria-label="Remove from history"
-              >
-                <X className="size-3" />
-              </button>
-            </div>
-          </div>
+            {renderItemLink(item, renderItem(item))}
+            <span
+              style={{
+                fontSize: 11.5,
+                color: "var(--text-3)",
+                flexShrink: 0,
+              }}
+            >
+              {new Date(item.timestamp).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            <RemoveButton onClick={() => onRemoveHistoryItem(item.timestamp)} />
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </Card>
   );
 }
 
-export const HISTORY_ITEM_LINK_CLASS =
-  "flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-base-200";
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  const { ring, ringProps } = useFocusRing();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Remove from history"
+      {...ringProps}
+      // Icon-only and 22px square, well under the 44px touch floor. A media
+      // query cannot be written inline.
+      className="max-sm:size-11"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 22,
+        height: 22,
+        flexShrink: 0,
+        border: "none",
+        background: "none",
+        borderRadius: 6,
+        color: "var(--text-3)",
+        cursor: "pointer",
+        ...ring,
+      }}
+    >
+      <Icon name="i-x" size={12} />
+    </button>
+  );
+}
+
+/** Shared by both history sections so their rows click alike. */
+export const HISTORY_ROW_STYLE = {
+  display: "flex",
+  minWidth: 0,
+  flex: 1,
+  alignItems: "center",
+  gap: 8,
+  color: "inherit",
+  padding: "2px 0",
+} satisfies React.CSSProperties;

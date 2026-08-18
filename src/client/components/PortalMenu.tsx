@@ -68,8 +68,9 @@ export function PortalMenu({
       <button
         ref={buttonRef}
         type="button"
-        className={triggerClassName}
+        className={`${triggerClassName} max-sm:min-h-11 max-sm:min-w-11 focus-visible:outline-none focus-visible:shadow-[var(--focus)]`}
         aria-label={ariaLabel}
+        aria-haspopup="menu"
         aria-expanded={isOpen}
         onClick={() => {
           const rect = buttonRef.current?.getBoundingClientRect();

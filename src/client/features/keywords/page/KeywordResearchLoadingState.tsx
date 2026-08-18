@@ -1,71 +1,126 @@
-export function KeywordResearchLoadingState() {
+import { Skeleton } from "./prominenceControls";
+
+/**
+ * The design ships no loading state for this screen: its rows stay fully
+ * rendered while a search runs. Real rows take seconds to arrive, and leaving
+ * the previous result on screen would read as the answer to the new query, so
+ * the table's own geometry is redrawn as placeholders.
+ */
+export function KeywordResearchLoadingState({ stacked }: { stacked: boolean }) {
   return (
-    <div className="flex-1 w-full">
-      <div className="hidden md:flex h-full gap-4">
-        <div className="flex-1 flex flex-col min-w-0 gap-2">
-          <div className="rounded-xl border border-base-300 bg-base-100 p-4">
-            <div className="skeleton h-5 w-56" />
-          </div>
-          <div className="flex-1 rounded-xl border border-base-300 bg-base-100 overflow-hidden">
-            <div className="border-b border-base-300 px-4 py-3 flex items-center gap-3">
-              <div className="skeleton h-8 w-24" />
-              <div className="skeleton h-4 w-40" />
-            </div>
-            <div className="p-4 space-y-3">
+    <div
+      aria-busy
+      aria-live="polite"
+      aria-label="Loading keywords"
+      style={{
+        display: "grid",
+        gridTemplateColumns: stacked
+          ? "minmax(0, 1fr)"
+          : "minmax(360px, 1fr) minmax(240px, 320px)",
+        alignItems: "start",
+      }}
+    >
+      <div>
+        <div style={{ overflowX: "auto", maxWidth: "100%" }}>
+          <table
+            style={{
+              width: "100%",
+              minWidth: 560,
+              borderCollapse: "collapse",
+              fontSize: 12.5,
+            }}
+          >
+            <tbody>
               {Array.from({ length: 10 }).map((_, index) => (
-                <div
+                <tr
                   key={index}
-                  className="grid grid-cols-[24px_minmax(0,1fr)_64px_56px_48px_40px] items-center gap-3"
+                  style={{ borderBottom: "1px solid var(--border-muted)" }}
                 >
-                  <div className="skeleton h-3 w-3" />
-                  <div className="skeleton h-4 w-10/12" />
-                  <div className="skeleton h-3 w-12 justify-self-end" />
-                  <div className="skeleton h-3 w-10 justify-self-end" />
-                  <div className="skeleton h-3 w-10 justify-self-end" />
-                  <div className="skeleton h-6 w-6 rounded-full justify-self-end" />
-                </div>
+                  <td
+                    style={{
+                      width: 32,
+                      padding:
+                        "var(--rp, 5px) 0 var(--rp, 5px) var(--pad, 24px)",
+                    }}
+                  >
+                    <Skeleton width={12} height={12} />
+                  </td>
+                  <td style={{ padding: "var(--rp, 5px) 8px" }}>
+                    <Skeleton width="70%" height={13} />
+                  </td>
+                  <td style={{ padding: "var(--rp, 5px) 8px" }}>
+                    <Skeleton
+                      width={48}
+                      height={13}
+                      style={{ marginLeft: "auto" }}
+                    />
+                  </td>
+                  <td style={{ padding: "var(--rp, 5px) 8px" }}>
+                    <Skeleton
+                      width={36}
+                      height={13}
+                      style={{ marginLeft: "auto" }}
+                    />
+                  </td>
+                  <td style={{ padding: "var(--rp, 5px) 8px" }}>
+                    <Skeleton
+                      width={36}
+                      height={13}
+                      style={{ marginLeft: "auto" }}
+                    />
+                  </td>
+                  <td style={{ padding: "var(--rp, 5px) 8px" }}>
+                    <Skeleton
+                      width={26}
+                      height={15}
+                      style={{ marginLeft: "auto", borderRadius: 5 }}
+                    />
+                  </td>
+                  <td
+                    style={{
+                      padding:
+                        "var(--rp, 5px) var(--pad, 24px) var(--rp, 5px) 8px",
+                    }}
+                  >
+                    <Skeleton
+                      width={62}
+                      height={15}
+                      style={{ margin: "0 auto", borderRadius: 5 }}
+                    />
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 flex flex-col min-w-0 gap-2">
-          <div className="rounded-xl border border-base-300 bg-base-100 p-4 space-y-3">
-            <div className="skeleton h-4 w-36" />
-            <div className="skeleton h-56 w-full" />
-          </div>
-          <div className="flex-1 rounded-xl border border-base-300 bg-base-100 p-4 space-y-3">
-            <div className="skeleton h-4 w-44" />
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="grid grid-cols-[24px_1fr_72px] gap-2">
-                <div className="skeleton h-3 w-4" />
-                <div className="skeleton h-3 w-10/12" />
-                <div className="skeleton h-3 w-12 justify-self-end" />
-              </div>
-            ))}
-          </div>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div className="md:hidden space-y-3">
-        <div className="rounded-xl border border-base-300 bg-base-100 p-4 space-y-3">
-          <div className="skeleton h-8 w-full" />
-          <div className="skeleton h-8 w-2/3" />
-        </div>
-        <div className="rounded-xl border border-base-300 bg-base-100 p-4 space-y-2">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div
-              key={index}
-              className="space-y-2 rounded-lg border border-base-300 p-3"
-            >
-              <div className="skeleton h-4 w-9/12" />
-              <div className="grid grid-cols-3 gap-2">
-                <div className="skeleton h-3 w-full" />
-                <div className="skeleton h-3 w-full" />
-                <div className="skeleton h-3 w-full" />
-              </div>
-            </div>
+      <div
+        style={{
+          borderLeft: stacked ? "none" : "1px solid var(--line)",
+          borderTop: stacked ? "1px solid var(--line)" : "none",
+          alignSelf: "stretch",
+          minHeight: "100%",
+          padding: "12px 14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <Skeleton width={120} height={13} />
+        <Skeleton width="60%" height={18} />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+          }}
+        >
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} width="100%" height={34} />
           ))}
         </div>
+        <Skeleton width="100%" height={72} />
       </div>
     </div>
   );

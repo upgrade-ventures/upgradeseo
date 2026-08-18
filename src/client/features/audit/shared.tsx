@@ -1,6 +1,7 @@
-import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
-
-export const SUPPORT_EMAIL = "ben@openseo.so";
+import {
+  JobStatusPill,
+  runJobState,
+} from "@/client/components/prominence/JobStatus";
 
 export function extractPathname(url: string): string {
   try {
@@ -18,16 +19,21 @@ export function extractHostname(url: string): string {
   }
 }
 
-export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+/**
+ * A crawl timestamp as a Date.
+ *
+ * `audits.started_at` defaults to the database's `current_timestamp`, which
+ * SQLite writes as "YYYY-MM-DD HH:MM:SS" in UTC with no zone marker — JS would
+ * otherwise read that as local time and shift every crawl by the viewer's
+ * offset. Postgres and our own writes are already ISO and parse unchanged.
+ */
+function parseTimestamp(value: string): Date {
+  const bareUtc = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value);
+  return new Date(bareUtc ? `${value.replace(" ", "T")}Z` : value);
 }
 
 export function formatStartedAt(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-US", {
+  return parseTimestamp(dateStr).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -35,46 +41,93 @@ export function formatStartedAt(dateStr: string): string {
   });
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  if (status === "running") {
-    return (
-      <span className="badge badge-info badge-sm gap-1">
-        <Loader2 className="size-3 animate-spin" /> Running
-      </span>
-    );
-  }
+const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
-  if (status === "completed") {
-    return (
-      <span className="badge badge-outline badge-sm gap-1 text-success/80 border-success/30 bg-success/5">
-        <CheckCircle className="size-3" /> Done
-      </span>
-    );
-  }
+const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["second", 60],
+  ["minute", 60],
+  ["hour", 24],
+  ["day", 7],
+  ["week", 4.345],
+  ["month", 12],
+];
 
-  return (
-    <span className="badge badge-error badge-sm gap-1">
-      <AlertCircle className="size-3" /> Failed
-    </span>
-  );
+export function formatRelativeTime(dateStr: string): string {
+  let delta = (parseTimestamp(dateStr).getTime() - Date.now()) / 1000;
+  for (const [unit, size] of RELATIVE_STEPS) {
+    if (Math.abs(delta) < size) return RELATIVE.format(Math.round(delta), unit);
+    delta /= size;
+  }
+  return RELATIVE.format(Math.round(delta), "year");
 }
 
+/** Wall-clock length of a finished crawl, e.g. "6m 21s". */
+export function formatDuration(
+  startedAt: string,
+  completedAt: string | null,
+): string | null {
+  if (!completedAt) return null;
+  const ms =
+    parseTimestamp(completedAt).getTime() - parseTimestamp(startedAt).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const totalSeconds = Math.round(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+/**
+ * Short reference for a crawl.
+ *
+ * The design labels crawls "AUD-2411"; nothing in this product mints such a
+ * number, so the run's own id is shortened rather than a sequence invented for
+ * it. Callers pair this with a title carrying the full id.
+ */
+export function formatAuditRef(auditId: string): string {
+  return `#${auditId.slice(0, 8)}`;
+}
+
+/**
+ * A crawl's state, in the product's one status vocabulary.
+ *
+ * Crawls are stored as running / completed / failed; there is no queued row,
+ * because a crawl is inserted at the moment the workflow starts. `needsAttention`
+ * is passed by callers that know the crawl completed while leaving something to
+ * decide, such as a crawl that only ever reached its start URL.
+ */
+export function CrawlStatusPill({
+  status,
+  needsAttention,
+}: {
+  status: string;
+  needsAttention?: boolean;
+}) {
+  return <JobStatusPill state={runJobState(status, { needsAttention })} />;
+}
+
+/** HTTP status, coloured by class. */
 export function HttpStatusBadge({ code }: { code: number | null }) {
-  if (!code) return <span className="badge badge-ghost badge-sm">-</span>;
-  if (code >= 200 && code < 300) {
-    return <span className="badge badge-success badge-sm">{code}</span>;
-  }
-  if (code >= 300 && code < 400) {
-    return <span className="badge badge-warning badge-sm">{code}</span>;
-  }
-  return <span className="badge badge-error badge-sm">{code}</span>;
-}
-
-export function LighthouseScoreBadge({ score }: { score: number | null }) {
-  if (score == null) {
-    return <span className="text-xs text-base-content/40">-</span>;
+  if (!code) {
+    return <span style={{ color: "var(--text-3)" }}>&mdash;</span>;
   }
   const color =
-    score >= 90 ? "text-success" : score >= 50 ? "text-warning" : "text-error";
-  return <span className={`font-medium text-sm ${color}`}>{score}</span>;
+    code < 300
+      ? "var(--success)"
+      : code < 400
+        ? "var(--warning)"
+        : "var(--danger)";
+  return (
+    <span
+      style={{
+        color,
+        fontVariantNumeric: "tabular-nums",
+        fontWeight: 600,
+      }}
+    >
+      {code}
+    </span>
+  );
 }

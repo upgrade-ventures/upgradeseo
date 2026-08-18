@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -16,12 +15,16 @@ import {
   TrendRangeToggle,
   useChartWidth,
 } from "./RankTrackingTrendChart";
+import { Dash, Skeleton } from "./RankScreenParts";
+import { CHART_TICK, ChartTooltipBox } from "./RankChartParts";
 
+// Token colours rather than hex: the chart has to survive the theme swap the
+// same way the rest of the screen does.
 const BUCKETS = [
-  { key: "top3", label: "Top 3", color: "#16a34a" },
-  { key: "top4to10", label: "4–10", color: "#2563eb" },
-  { key: "top11to20", label: "11–20", color: "#f59e0b" },
-  { key: "notRanking", label: "Not in top 20", color: "#6b7280" },
+  { key: "top3", label: "Top 3", color: "var(--success)" },
+  { key: "top4to10", label: "4–10", color: "var(--accent)" },
+  { key: "top11to20", label: "11–20", color: "var(--warning)" },
+  { key: "notRanking", label: "Not in top 20", color: "var(--text-3)" },
 ] as const;
 
 /** Narrowed recharts tooltip payload entry (typed `any` upstream). */
@@ -64,22 +67,52 @@ export function RankTrackingOverview({
   const { containerRef, width } = useChartWidth();
 
   return (
-    <div className="px-4 pt-4 pb-4">
-      <div className="rounded-lg border border-base-300 p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium">Position distribution</span>
+    <div style={{ padding: "16px var(--pad,24px) 0" }}>
+      <div
+        style={{
+          border: "1px solid var(--line)",
+          borderRadius: 8,
+          background: "var(--surface)",
+          padding: 12,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
+            Position distribution
+          </h2>
           <TrendRangeToggle value={sinceDays} onChange={setSinceDays} />
         </div>
 
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <div
+          style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px" }}
+          aria-hidden
+        >
           {BUCKETS.map((b) => (
             <span
               key={b.key}
-              className="inline-flex items-center gap-1 text-[11px] text-base-content/60"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11,
+                color: "var(--text-2)",
+              }}
             >
               <span
-                className="size-2 rounded-sm"
-                style={{ backgroundColor: b.color }}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 2,
+                  background: b.color,
+                }}
               />
               {b.label}
             </span>
@@ -87,20 +120,32 @@ export function RankTrackingOverview({
         </div>
 
         {trendLoading ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="size-4 animate-spin text-base-content/50" />
+          // A skeleton the size of the plot, so the card does not collapse and
+          // then jump back to 220px when the trend arrives.
+          <div
+            aria-busy
+            aria-label="Loading the position distribution"
+            style={{ marginTop: 8 }}
+          >
+            <Skeleton width="100%" height={220} />
           </div>
         ) : chartData.length <= 1 ? (
-          <div className="rounded-lg border border-dashed border-base-300 p-8 text-center text-xs text-base-content/60">
+          <div
+            style={{
+              padding: "26px 12px",
+              textAlign: "center",
+              fontSize: 12,
+              color: "var(--text-2)",
+            }}
+          >
             {chartData.length === 0
-              ? "No history yet — run a check to start tracking positions over time."
-              : "Only 1 check so far — the trend fills in after the next check."}
+              ? "No completed check has recorded a position yet, so there is no trend to draw."
+              : "One check so far. The trend starts after the next one."}
           </div>
         ) : (
           <div
             ref={containerRef}
-            className="w-full min-w-0"
-            style={{ height: 220 }}
+            style={{ width: "100%", minWidth: 0, height: 220 }}
           >
             {width > 0 ? (
               <AreaChart
@@ -121,14 +166,14 @@ export function RankTrackingOverview({
                   scale="time"
                   domain={["dataMin", "dataMax"]}
                   tickFormatter={formatDateTick}
-                  tick={{ fontSize: 10, fill: "#888" }}
+                  tick={CHART_TICK}
                   tickLine={false}
                   axisLine={false}
                   minTickGap={32}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fontSize: 10, fill: "#888" }}
+                  tick={CHART_TICK}
                   tickLine={false}
                   axisLine={false}
                   width={28}
@@ -151,7 +196,7 @@ export function RankTrackingOverview({
                     );
                     return <DistributionTooltip label={label} byKey={byKey} />;
                   }}
-                  cursor={{ stroke: "rgba(150,150,150,0.3)" }}
+                  cursor={{ stroke: "var(--border-strong)" }}
                 />
                 {BUCKETS.map((b) => (
                   <Area
@@ -183,26 +228,41 @@ function DistributionTooltip({
   byKey: Map<string, number>;
 }) {
   return (
-    <div className="rounded-md border border-base-300 bg-base-100 px-3 py-2 shadow-sm space-y-0.5">
-      <p className="text-xs text-base-content/60">
+    <ChartTooltipBox>
+      <div style={{ fontSize: 11.5, color: "var(--text-2)", marginBottom: 3 }}>
         {new Date(label).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
         })}
-      </p>
+      </div>
       {BUCKETS.map((b) => (
-        <p key={b.key} className="text-xs flex items-center gap-1.5">
+        <div
+          key={b.key}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+          }}
+        >
           <span
-            className="size-2 rounded-sm"
-            style={{ backgroundColor: b.color }}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 2,
+              background: b.color,
+              flexShrink: 0,
+            }}
           />
-          <span className="text-base-content/60">{b.label}:</span>
-          <span className="font-medium tabular-nums">
-            {byKey.get(b.key) ?? 0}
+          <span style={{ color: "var(--text-2)" }}>{b.label}:</span>
+          <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {/* The payload always carries every stacked bucket, so a missing
+                key is a recharts shape change rather than an unmeasured value. */}
+            {byKey.get(b.key) ?? <Dash />}
           </span>
-        </p>
+        </div>
       ))}
-    </div>
+    </ChartTooltipBox>
   );
 }

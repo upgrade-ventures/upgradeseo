@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { Search } from "lucide-react";
+import { Icon } from "@/client/components/icons/IconSprite";
+import { PrimaryButton } from "@/client/components/prominence/Primitives";
 import {
   createFormValidationErrors,
   getFieldError,
   getFormError,
   shouldValidateFieldOnChange,
 } from "@/client/lib/forms";
+import { useFocusRing } from "./BacklinksDataTable";
 import type { BacklinksSearchState } from "./backlinksPageTypes";
 import {
   inferBacklinksSearchScopeFromTarget,
@@ -34,7 +36,46 @@ function getBacklinksValidationErrors(
   return null;
 }
 
-export function BacklinksSearchCard({
+function ScopeButton({
+  selected,
+  label,
+  onSelect,
+}: {
+  selected: boolean;
+  label: string;
+  onSelect: () => void;
+}) {
+  const { focusProps, focusStyle } = useFocusRing();
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      {...focusProps}
+      style={{
+        padding: "3px 8px",
+        borderRadius: 999,
+        border: `1px solid ${selected ? "var(--accent-border)" : "transparent"}`,
+        background: selected ? "var(--accent-soft)" : "transparent",
+        color: selected ? "var(--accent)" : "var(--text-2)",
+        fontSize: 11.5,
+        fontWeight: selected ? 600 : 400,
+        fontFamily: "inherit",
+        cursor: "pointer",
+        ...focusStyle,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * The lookup bar. The design assumes a single site is already in view; this
+ * screen answers for any target the user types, so the search stays, drawn as
+ * a row inside the header band between the title and the tabs.
+ */
+export function BacklinksSearchBand({
   errorMessage,
   initialValues,
   onSubmit,
@@ -44,6 +85,7 @@ export function BacklinksSearchCard({
   onSubmit: (values: SearchDraft) => void;
 }) {
   const [userSelectedScope, setUserSelectedScope] = useState(false);
+  const { focusProps, focusStyle } = useFocusRing();
   const form = useForm({
     defaultValues: initialValues,
     validators: {
@@ -62,11 +104,7 @@ export function BacklinksSearchCard({
         userSelectedScope,
       });
 
-      onSubmit({
-        ...value,
-        target,
-        scope,
-      });
+      onSubmit({ ...value, target, scope });
     },
   });
 
@@ -76,115 +114,152 @@ export function BacklinksSearchCard({
   }, [form, initialValues]);
 
   return (
-    <div className="card bg-base-100 border border-base-300">
-      <div className="card-body gap-4">
-        <form
-          className="space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-        >
-          <div className="space-y-3">
-            <div className="flex flex-col gap-3 lg:flex-row">
-              <form.Field name="target">
-                {(field) => {
-                  const targetError = getFieldError(field.state.meta.errors);
-
-                  return (
-                    <label
-                      className={`input input-bordered flex flex-1 items-center gap-2 ${targetError ? "input-error" : ""}`}
-                    >
-                      <Search className="size-4 text-base-content/60" />
-                      <input
-                        placeholder="Enter a domain or URL"
-                        value={field.state.value}
-                        onChange={(event) => {
-                          const nextTarget = event.target.value;
-                          field.handleChange(nextTarget);
-                          if (!userSelectedScope) {
-                            form.setFieldValue(
-                              "scope",
-                              inferBacklinksSearchScopeFromTarget(nextTarget),
-                            );
-                          }
-                        }}
-                      />
-                    </label>
-                  );
+    <div>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <form.Field name="target">
+          {(field) => {
+            const targetError = getFieldError(field.state.meta.errors);
+            return (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flex: "1 1 260px",
+                  minWidth: 0,
+                  minHeight: 28,
+                  padding: "3px 9px",
+                  border: `1px solid ${targetError ? "var(--danger-border)" : "var(--line)"}`,
+                  borderRadius: 6,
+                  background: "var(--surface)",
+                  ...focusStyle,
                 }}
-              </form.Field>
+              >
+                <Icon
+                  name="i-search"
+                  size={13}
+                  style={{ color: "var(--text-3)" }}
+                />
+                <input
+                  placeholder="Enter a domain or URL"
+                  aria-label="Domain or URL to analyze"
+                  value={field.state.value}
+                  {...focusProps}
+                  onChange={(event) => {
+                    const nextTarget = event.target.value;
+                    field.handleChange(nextTarget);
+                    if (!userSelectedScope) {
+                      form.setFieldValue(
+                        "scope",
+                        inferBacklinksSearchScopeFromTarget(nextTarget),
+                      );
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: "none",
+                    outline: "none",
+                    background: "none",
+                    color: "var(--text)",
+                    fontSize: 12.5,
+                    fontFamily: "inherit",
+                  }}
+                />
+              </label>
+            );
+          }}
+        </form.Field>
 
-              <form.Subscribe selector={(state) => state.isSubmitting}>
-                {(isSubmitting) => (
-                  <button
-                    type="submit"
-                    className="btn btn-primary shrink-0 px-6"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Loading..." : "Search"}
-                  </button>
-                )}
-              </form.Subscribe>
+        <form.Field name="scope">
+          {(field) => (
+            <div
+              role="group"
+              aria-label="Lookup scope"
+              style={{ display: "flex", gap: 4 }}
+            >
+              <ScopeButton
+                selected={field.state.value === "domain"}
+                label="Site-wide"
+                onSelect={() => {
+                  setUserSelectedScope(true);
+                  field.handleChange("domain");
+                }}
+              />
+              <ScopeButton
+                selected={field.state.value === "page"}
+                label="Exact page"
+                onSelect={() => {
+                  setUserSelectedScope(true);
+                  field.handleChange("page");
+                }}
+              />
             </div>
+          )}
+        </form.Field>
 
-            <form.Field name="target">
-              {(field) => {
-                const targetError = getFieldError(field.state.meta.errors);
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <PrimaryButton type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Loading..." : "Search"}
+            </PrimaryButton>
+          )}
+        </form.Subscribe>
+      </form>
 
-                return targetError ? (
-                  <p className="text-sm text-error">{targetError}</p>
-                ) : null;
+      <form.Field name="target">
+        {(field) => {
+          const targetError = getFieldError(field.state.meta.errors);
+          return targetError ? (
+            <p
+              style={{
+                margin: "6px 0 0",
+                fontSize: 12,
+                color: "var(--danger)",
               }}
-            </form.Field>
+            >
+              {targetError}
+            </p>
+          ) : null;
+        }}
+      </form.Field>
 
-            <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
-              {(submitError) => {
-                const formError = getFormError(submitError);
-
-                return formError ? (
-                  <p className="text-sm text-error">{formError}</p>
-                ) : null;
+      <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
+        {(submitError) => {
+          const formError = getFormError(submitError);
+          return formError ? (
+            <p
+              style={{
+                margin: "6px 0 0",
+                fontSize: 12,
+                color: "var(--danger)",
               }}
-            </form.Subscribe>
+            >
+              {formError}
+            </p>
+          ) : null;
+        }}
+      </form.Subscribe>
 
-            <div className="flex items-center gap-1">
-              <form.Field name="scope">
-                {(field) => (
-                  <>
-                    <button
-                      type="button"
-                      className={`btn btn-xs ${field.state.value === "domain" ? "btn-soft" : "btn-ghost"}`}
-                      onClick={() => {
-                        setUserSelectedScope(true);
-                        field.handleChange("domain");
-                      }}
-                    >
-                      Site-wide
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn btn-xs ${field.state.value === "page" ? "btn-soft" : "btn-ghost"}`}
-                      onClick={() => {
-                        setUserSelectedScope(true);
-                        field.handleChange("page");
-                      }}
-                    >
-                      Exact page
-                    </button>
-                  </>
-                )}
-              </form.Field>
-            </div>
-          </div>
-        </form>
-
-        {errorMessage ? (
-          <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
-            {errorMessage}
-          </div>
-        ) : null}
-      </div>
+      {errorMessage ? (
+        <p
+          style={{ margin: "6px 0 0", fontSize: 12, color: "var(--danger)" }}
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   );
 }

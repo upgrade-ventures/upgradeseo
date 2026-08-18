@@ -44,7 +44,7 @@ type SaveExportActionParams = {
       onError: (error: unknown) => void;
     },
   ) => void;
-  setShowSaveDialog: (show: boolean) => void;
+  setSaveConfirmOpen: (open: boolean) => void;
 };
 
 export function parseKeywordInput(value: string) {
@@ -97,7 +97,7 @@ export function useSaveAndExportActions(params: SaveExportActionParams) {
     filteredRows,
     input,
     saveKeywordsMutate,
-    setShowSaveDialog,
+    setSaveConfirmOpen,
   } = params;
 
   const handleSaveKeywords = () => {
@@ -105,7 +105,7 @@ export function useSaveAndExportActions(params: SaveExportActionParams) {
       toast.error("Select at least one keyword first");
       return;
     }
-    setShowSaveDialog(true);
+    setSaveConfirmOpen(true);
   };
 
   const confirmSave = () => {
@@ -135,7 +135,7 @@ export function useSaveAndExportActions(params: SaveExportActionParams) {
             keyword_count: selectedRows.size,
           });
           toast.success(`Saved ${selectedRows.size} keywords`);
-          setShowSaveDialog(false);
+          setSaveConfirmOpen(false);
         },
         onError: (error: unknown) => {
           toast.error(getStandardErrorMessage(error, "Save failed."));

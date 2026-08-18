@@ -12,7 +12,6 @@ import {
 } from "@/client/lib/error-messages";
 import { AuthConfigErrorCard } from "@/client/components/AuthConfigErrorCard";
 import { UnauthenticatedErrorCard } from "@/client/components/UnauthenticatedErrorCard";
-import { SUBSCRIBE_ROUTE } from "@/shared/billing";
 
 export const Route = createFileRoute("/_app/")({
   component: IndexRedirect,
@@ -45,14 +44,6 @@ function IndexRedirect() {
     });
   }, [data, navigate]);
 
-  useEffect(() => {
-    if (getErrorCode(error) !== "PAYMENT_REQUIRED") {
-      return;
-    }
-
-    void navigate({ href: SUBSCRIBE_ROUTE });
-  }, [error, navigate]);
-
   if (isError) {
     const errorCode = getErrorCode(error);
 
@@ -76,23 +67,11 @@ function IndexRedirect() {
       return (
         <div className="flex items-center justify-center h-full p-4">
           <UnauthenticatedErrorCard
-            message="Please sign in to access your OpenSEO workspace."
+            message="Please sign in to access your UpgradeSEO workspace."
             onRetry={() => {
               void refetch();
             }}
           />
-        </div>
-      );
-    }
-
-    if (errorCode === "PAYMENT_REQUIRED") {
-      return (
-        <div className="flex items-center justify-center h-full p-4">
-          <div className="flex flex-col items-center gap-3 max-w-xl text-center">
-            <p className="text-base-content/80">
-              Redirecting you to billing so you can start a hosted subscription.
-            </p>
-          </div>
         </div>
       );
     }

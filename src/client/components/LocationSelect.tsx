@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Search } from "lucide-react";
 import { LOCATION_OPTIONS } from "@/shared/keyword-locations";
 
@@ -11,6 +11,8 @@ type Props = {
   options?: readonly LocationOption[];
   /** Width utilities for the wrapper/trigger. Defaults to full width. */
   className?: string;
+  /** Put on the trigger, so a visible `<label for>` can name this control. */
+  id?: string;
 };
 
 function matches(option: LocationOption, query: string): boolean {
@@ -31,10 +33,12 @@ export function LocationSelect({
   onChange,
   options = LOCATION_OPTIONS,
   className = "w-full",
+  id,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const listboxId = useId();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -107,9 +111,11 @@ export function LocationSelect({
     <div ref={containerRef} className={`relative ${className}`}>
       <button
         type="button"
-        className="select select-bordered flex w-full items-center justify-between gap-2 text-left font-normal"
+        id={id}
+        className="select select-bordered flex w-full items-center justify-between gap-2 text-left font-normal max-sm:min-h-11 focus-visible:outline-none focus-visible:shadow-[var(--focus)]"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className="truncate">{selected?.label ?? "Select country"}</span>
@@ -122,8 +128,17 @@ export function LocationSelect({
             <input
               ref={inputRef}
               type="text"
-              className="grow min-w-0 bg-transparent text-sm outline-none placeholder:text-base-content/40"
+              className="grow min-w-0 bg-transparent text-sm outline-none placeholder:text-base-content/60"
               placeholder="Search countries"
+              // The placeholder is not an accessible name: it goes away as
+              // soon as the user types.
+              aria-label="Search countries"
+              aria-controls={listboxId}
+              aria-activedescendant={
+                filtered[activeIndex]
+                  ? `${listboxId}-${filtered[activeIndex].code}`
+                  : undefined
+              }
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -135,25 +150,29 @@ export function LocationSelect({
 
           <ul
             ref={listRef}
+            id={listboxId}
             role="listbox"
+            aria-label="Countries"
             className="menu mt-2 max-h-64 w-full flex-nowrap overflow-y-auto p-0"
           >
             {filtered.length === 0 ? (
-              <li className="w-full break-all px-3 py-2 text-sm text-base-content/50">
+              <li className="w-full break-all px-3 py-2 text-sm text-base-content/60">
                 No countries match “{query.trim()}”
               </li>
             ) : (
               filtered.map((option, index) => {
                 const isSelected = option.code === value;
                 return (
-                  <li
-                    key={option.code}
-                    role="option"
-                    aria-selected={isSelected}
-                  >
+                  // The option role sits on the button, not the <li>: a
+                  // focusable control nested inside an option is not a valid
+                  // listbox.
+                  <li key={option.code} role="presentation">
                     <button
                       type="button"
-                      className={`w-full ${index === activeIndex ? "menu-focus" : ""}`}
+                      id={`${listboxId}-${option.code}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`w-full max-sm:min-h-11 focus-visible:outline-none focus-visible:shadow-[var(--focus)] ${index === activeIndex ? "menu-focus" : ""}`}
                       onClick={() => select(option)}
                       onMouseEnter={() => setActiveIndex(index)}
                     >

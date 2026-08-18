@@ -4,11 +4,7 @@ import { isErrorCode, type ErrorCode } from "@/shared/error-codes";
 const STANDARD_MESSAGES: Record<ErrorCode, string> = {
   UNAUTHENTICATED: "Please sign in and try again.",
   AUTH_CONFIG_MISSING:
-    "OpenSEO auth is not configured. Follow the README setup steps for Cloudflare Access.",
-  PAYMENT_REQUIRED:
-    "An active hosted subscription is required before you can use OpenSEO.",
-  INSUFFICIENT_CREDITS:
-    "You've run out of credits. Add more credits or upgrade your plan to continue.",
+    "UpgradeSEO auth is not configured. Follow the README setup steps for Cloudflare Access.",
   FORBIDDEN: "You do not have access to this resource.",
   NOT_FOUND: "The requested resource was not found.",
   AUDIT_CAPACITY_REACHED:
@@ -18,12 +14,12 @@ const STANDARD_MESSAGES: Record<ErrorCode, string> = {
     "You already have an audit running. Wait for it to finish or delete it before starting another.",
   VALIDATION_ERROR: "Please check your input and try again.",
   CRAWL_TARGET_BLOCKED: "This crawl target is blocked by security policy.",
-  BACKLINKS_BILLING_ISSUE:
-    "The connected DataForSEO account has a billing or balance issue.",
-  AI_SEARCH_BILLING_ISSUE:
-    "The connected DataForSEO account has a billing or balance issue.",
-  DATAFORSEO_AUTH_FAILED:
-    "DataForSEO rejected the API key. Check that DATAFORSEO_API_KEY is the base64 of your DataForSEO login:password.",
+  // Fallback only. The server sends a per-feature reason naming the exact free
+  // source to connect, and that detail is preserved (see CLIENT_DETAIL_ERROR_CODES).
+  DATA_SOURCE_NOT_CONFIGURED:
+    "No data source is connected for this feature yet. Open Settings, Data provider keys — every provider there is free.",
+  PROVIDER_AUTH_FAILED:
+    "The data provider rejected the API key. Check it in Settings, Data provider keys.",
   RATE_LIMITED: "Too many requests. Please wait and try again.",
   UPSTREAM_UNAVAILABLE:
     "The data provider is temporarily unavailable. Please retry in a moment.",

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { OnboardingAccountMenu } from "@/client/features/onboarding/OnboardingAccountMenu";
+import { AccountMenu } from "@/client/layout/AccountMenu";
 import { PostSignupOnboarding } from "@/client/features/onboarding/PostSignupOnboarding";
 import {
   buildOnboardingPayload,
@@ -25,7 +25,9 @@ export const Route = createFileRoute("/_authenticated/onboarding/")({
   // through a module-scoped query client. Keep it out of server requests so one
   // worker isolate cannot reuse another account's cached onboarding state.
   ssr: false,
-  // Step lives in the URL so it survives refresh and works with back/forward.
+  // The checklist derives where the user is from what they have actually saved,
+  // so `step` is no longer read here. It stays validated because links into
+  // onboarding (the redirect guard, browser history) still carry it.
   validateSearch: (search: Record<string, unknown>): { step: number } => {
     const raw = Number(search.step);
     return { step: Number.isFinite(raw) ? clampStep(raw) : 0 };
@@ -81,42 +83,49 @@ function OnboardingFlow({
   email: string | undefined;
 }) {
   const navigate = useNavigate();
-  const { step } = Route.useSearch();
   const [answers, setAnswers] = useState<OnboardingAnswers>(initialAnswers);
 
   const saveMutation = useMutation({
-    mutationFn: (extra: { completed?: boolean }) =>
+    mutationFn: (variables: { stepIndex: number; completed?: boolean }) =>
       saveOnboardingAnswers({
-        data: buildOnboardingPayload(answers, step, extra),
+        data: buildOnboardingPayload(
+          answers,
+          variables.stepIndex,
+          variables.completed ? { completed: true } : {},
+        ),
       }),
     onError: (error) => {
       console.error("Failed to save onboarding answers", error);
     },
   });
 
-  const goToStep = (next: number) =>
-    void navigate({ to: "/onboarding", search: { step: clampStep(next) } });
-
-  const handleNext = () => {
-    if (step === 0) {
+  const handleCommit = (stepIndex: number) => {
+    if (stepIndex === 0) {
       captureClientEvent("onboarding:interests_selected", {
         interests: answers.selectedInterests,
         interest_other: answers.interestOther.trim() || undefined,
       });
     }
-    saveMutation.mutate({});
-    goToStep(step + 1);
+    saveMutation.mutate({ stepIndex });
   };
 
-  const handleSkip = () => {
-    saveMutation.mutate({});
-    captureClientEvent("onboarding:step_skipped", { step });
-    goToStep(step + 1);
+  const handleSkip = (stepIndex: number) => {
+    saveMutation.mutate({ stepIndex });
+    captureClientEvent("onboarding:step_skipped", { step: stepIndex });
   };
 
-  const handleFinish = async () => {
+  // Marks onboarding finished and leaves. `destination` is the dashboard for
+  // the completion banner, and keyword research for the aside's escape hatch —
+  // both need the completed stamp first, or the route guard bounces the user
+  // straight back here.
+  const finish = async (
+    destination: { to: "/" } | { to: "keywords"; projectId: string },
+  ) => {
     try {
-      await saveMutation.mutateAsync({ completed: true });
+      await saveMutation.mutateAsync({
+        stepIndex: ONBOARDING_LAST_STEP,
+        completed: true,
+      });
       // Refresh the shared cache so the destination's onboarding-redirect guard
       // sees the completed state and doesn't bounce the user back here.
       await queryClient.invalidateQueries({ queryKey: ["onboardingAnswers"] });
@@ -128,6 +137,14 @@ function OnboardingFlow({
       work_for: answers.workFor,
       source: answers.source,
     });
+    if (destination.to === "keywords") {
+      void navigate({
+        to: "/p/$projectId/keywords",
+        params: { projectId: destination.projectId },
+        replace: true,
+      });
+      return;
+    }
     // The dashboard's onboarding checklist owns MCP coaching now.
     void navigate({ to: "/", replace: true });
   };
@@ -138,18 +155,19 @@ function OnboardingFlow({
       title={isExistingUser ? "Tell us about your work" : undefined}
       helperText={
         isExistingUser
-          ? "A little context helps us decide where to focus. You can also reach me anytime at ben@openseo.so."
+          ? "A little context helps us decide where to focus. Every step here is optional, and you can change any answer later in Settings."
           : undefined
       }
-      step={step}
       answers={answers}
       onAnswersChange={setAnswers}
-      onNext={handleNext}
-      onBack={() => goToStep(step - 1)}
+      onCommit={handleCommit}
       onSkip={handleSkip}
-      onFinish={handleFinish}
+      onFinish={() => void finish({ to: "/" })}
+      onResearchKeywords={(projectId) =>
+        void finish({ to: "keywords", projectId })
+      }
       isSaving={saveMutation.isPending}
-      accountMenu={<OnboardingAccountMenu email={email} />}
+      accountMenu={<AccountMenu email={email} />}
     />
   );
 }

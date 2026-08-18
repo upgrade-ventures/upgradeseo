@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { searchSerpLocations } from "@/serverFunctions/serp-locations";
 import { formatLocationLabel } from "@/shared/keyword-locations";
-import type { SerpLocationResult } from "@/server/lib/dataforseo/serp-locations";
+import type { SerpLocationResult } from "@/server/lib/free-seo/serp-locations";
 
 type Props = {
   value: string | undefined;
@@ -10,6 +10,8 @@ type Props = {
   /** ISO 3166-1 alpha-2 country code, e.g. "us". */
   countryCode: string;
   placeholder?: string;
+  /** Accessible name. The placeholder is not one: it disappears on input. */
+  label?: string;
 };
 
 function useDebounce(value: string, delayMs: number): string {
@@ -25,8 +27,11 @@ export function SerpLocationCombobox({
   value,
   onChange,
   countryCode,
-  placeholder = "Search cities...",
+  // Not "cities": the free stack targets a country, never a city inside it.
+  placeholder = "Search locations...",
+  label = "Search locations",
 }: Props) {
+  const listboxId = useId();
   const [inputValue, setInputValue] = useState(
     value ? formatLocationLabel(value) : "",
   );
@@ -164,8 +169,20 @@ export function SerpLocationCombobox({
         )}
         <input
           type="text"
-          className="grow min-w-0 bg-transparent outline-none placeholder:text-base-content/40"
+          className="grow min-w-0 bg-transparent outline-none placeholder:text-base-content/60"
           placeholder={placeholder}
+          aria-label={label}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-autocomplete="list"
+          // Names the arrow-key selection for a screen reader without moving
+          // DOM focus off the input.
+          aria-activedescendant={
+            open && results[activeIndex]
+              ? `${listboxId}-${results[activeIndex].locationCode}`
+              : undefined
+          }
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
@@ -183,24 +200,29 @@ export function SerpLocationCombobox({
               Unable to load locations
             </p>
           ) : results.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-base-content/50">
+            <p className="px-3 py-2 text-sm text-base-content/60">
               No locations found for "{debouncedQuery.trim()}"
             </p>
           ) : (
             <ul
               ref={listRef}
+              id={listboxId}
               role="listbox"
+              aria-label={label}
               className="menu max-h-56 w-full flex-nowrap overflow-y-auto p-0"
             >
               {results.map((loc, index) => (
-                <li
-                  key={loc.locationCode}
-                  role="option"
-                  aria-selected={loc.locationName === value}
-                >
+                // The option role sits on the button, not the <li>: the button
+                // is what carries the name, the click and aria-selected, and a
+                // focusable control nested inside an option is not a valid
+                // listbox.
+                <li key={loc.locationCode} role="presentation">
                   <button
                     type="button"
-                    className={`w-full flex items-center justify-between gap-2 ${index === activeIndex ? "menu-focus" : ""}`}
+                    id={`${listboxId}-${loc.locationCode}`}
+                    role="option"
+                    aria-selected={loc.locationName === value}
+                    className={`w-full flex items-center justify-between gap-2 max-sm:min-h-11 focus-visible:outline-none focus-visible:shadow-[var(--focus)] ${index === activeIndex ? "menu-focus" : ""}`}
                     onClick={() => select(loc)}
                     onMouseEnter={() => setActiveIndex(index)}
                   >

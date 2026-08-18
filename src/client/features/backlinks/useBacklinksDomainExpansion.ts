@@ -20,7 +20,7 @@ export type BacklinksDomainExpansion = {
 
 /**
  * Lazily loads the full link list for referring domains the user expands in
- * the one-per-domain backlinks view. Each expansion is one billed DataForSEO
+ * the one-per-domain backlinks view. Each expansion is one further
  * request (capped at 100 links), cached client-side and in R2.
  */
 export function useBacklinksDomainExpansion({

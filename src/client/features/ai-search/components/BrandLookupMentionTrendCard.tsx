@@ -27,14 +27,23 @@ export function BrandLookupMentionTrendCard({ result }: Props) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex h-56 items-center justify-center text-sm text-base-content/60">
-        Not enough historical data yet.
+      <div
+        style={{
+          display: "flex",
+          height: 224,
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 12.5,
+          color: "var(--text-2)",
+        }}
+      >
+        No month by month history in this measurement.
       </div>
     );
   }
 
   return (
-    <div className="h-56">
+    <div style={{ height: 224 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
@@ -47,12 +56,12 @@ export function BrandLookupMentionTrendCard({ result }: Props) {
           />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: "#888" }}
+            tick={{ fontSize: 11, fill: "var(--text-3)" }}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: "#888" }}
+            tick={{ fontSize: 11, fill: "var(--text-3)" }}
             tickLine={false}
             axisLine={false}
             allowDecimals={false}
@@ -64,7 +73,7 @@ export function BrandLookupMentionTrendCard({ result }: Props) {
           <Line
             type="monotone"
             dataKey="volume"
-            stroke="hsl(220 70% 50%)"
+            stroke="var(--accent)"
             strokeWidth={2}
             dot={false}
           />
@@ -85,9 +94,26 @@ function MentionTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-base-300 bg-base-100 px-3 py-2 shadow-sm">
-      <p className="text-xs text-base-content/60">{label}</p>
-      <p className="text-sm font-medium tabular-nums">
+    <div
+      style={{
+        borderRadius: 6,
+        border: "1px solid var(--line)",
+        background: "var(--overlay)",
+        padding: "6px 10px",
+        boxShadow: "var(--shadow)",
+      }}
+    >
+      <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-3)" }}>
+        {label}
+      </p>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 12.5,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {formatCount(payload[0].value)} mentions
       </p>
     </div>

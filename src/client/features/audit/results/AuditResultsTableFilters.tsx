@@ -1,9 +1,116 @@
-import { RotateCcw, SlidersHorizontal } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
+import { SecondaryButton } from "@/client/components/prominence/Primitives";
+import { focusRing } from "@/client/features/audit/auditStyles";
 import type {
   PagesFilters,
   PerformanceFilters,
 } from "@/client/features/audit/results/AuditResultsTableFilterLogic";
+
+/**
+ * The table toolbars.
+ *
+ * The design draws no filters at all, because the crawl it shows is a fixture.
+ * Filtering a real thousand-page inventory is not optional, so the controls
+ * stay and are restyled onto the design's band, gutter and control rules.
+ */
+
+const FIELD: CSSProperties = {
+  width: "100%",
+  minHeight: 28,
+  padding: "4px 8px",
+  border: "1px solid var(--line)",
+  borderRadius: 6,
+  background: "var(--surface)",
+  color: "var(--text)",
+  fontSize: 12.5,
+  fontFamily: "inherit",
+  outline: "none",
+};
+
+const FIELD_LABEL: CSSProperties = {
+  display: "block",
+  marginBottom: 4,
+  fontSize: 11,
+  fontWeight: 600,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+  color: "var(--text-3)",
+};
+
+const GRID: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 10,
+};
+
+export function TableFilterToggle({
+  showFilters,
+  onToggle,
+  activeFilterCount,
+  resultCount,
+  totalCount,
+  label,
+}: {
+  showFilters: boolean;
+  onToggle: () => void;
+  activeFilterCount: number;
+  resultCount: number;
+  totalCount: number;
+  /** Plural noun for the counted rows, e.g. "pages". */
+  label: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px var(--pad, 24px)",
+        borderBottom: "1px solid var(--line)",
+        background: "var(--subtle)",
+        flexWrap: "wrap",
+      }}
+    >
+      <SecondaryButton
+        icon="i-filter"
+        onClick={onToggle}
+        aria-expanded={showFilters}
+        style={
+          showFilters
+            ? {
+                background: "var(--inset)",
+                borderColor: "var(--border-strong)",
+              }
+            : undefined
+        }
+      >
+        Filters
+        {activeFilterCount > 0 ? (
+          <span
+            style={{
+              marginLeft: 6,
+              fontVariantNumeric: "tabular-nums",
+              fontWeight: 600,
+              color: "var(--accent)",
+            }}
+          >
+            {activeFilterCount}
+          </span>
+        ) : null}
+      </SecondaryButton>
+      <span
+        style={{
+          marginLeft: "auto",
+          fontSize: 12,
+          color: "var(--text-2)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {resultCount.toLocaleString()} of {totalCount.toLocaleString()} {label}
+      </span>
+    </div>
+  );
+}
 
 export function PagesFilterBar({
   filters,
@@ -18,7 +125,7 @@ export function PagesFilterBar({
 }) {
   return (
     <FilterPanel activeFilterCount={activeFilterCount} onReset={onReset}>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      <div style={GRID}>
         <TextFilter
           label="Search"
           value={filters.query}
@@ -47,8 +154,6 @@ export function PagesFilterBar({
             ["no", "No missing alt"],
           ]}
         />
-      </div>
-      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <RangeFilter
           label="Words"
           min={filters.minWords}
@@ -57,7 +162,7 @@ export function PagesFilterBar({
           onMaxChange={(maxWords) => onChange({ ...filters, maxWords })}
         />
         <RangeFilter
-          label="Speed ms"
+          label="Response ms"
           min={filters.minResponseMs}
           max={filters.maxResponseMs}
           onMinChange={(minResponseMs) =>
@@ -85,7 +190,7 @@ export function PerformanceFilterBar({
 }) {
   return (
     <FilterPanel activeFilterCount={activeFilterCount} onReset={onReset}>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+      <div style={GRID}>
         <TextFilter
           label="Search"
           value={filters.query}
@@ -103,12 +208,14 @@ export function PerformanceFilterBar({
           ]}
         />
         <SelectFilter
-          label="Status"
+          label="Run"
           value={filters.status}
           onChange={(status) => onChange({ ...filters, status })}
           options={[
             ["all", "All"],
-            ["ok", "OK"],
+            // The filter's stored token stays "ok"; the label it shows is the
+            // vocabulary's word for the state it filters to.
+            ["ok", "Finished"],
             ["failed", "Failed"],
           ]}
         />
@@ -119,8 +226,6 @@ export function PerformanceFilterBar({
           type="number"
           onChange={(maxLcpSeconds) => onChange({ ...filters, maxLcpSeconds })}
         />
-      </div>
-      <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <RangeFilter
           label="Perf"
           min={filters.minPerf}
@@ -137,46 +242,6 @@ export function PerformanceFilterBar({
         />
       </div>
     </FilterPanel>
-  );
-}
-
-export function EmptyTableMessage({ label }: { label: string }) {
-  return <div className="py-6 text-center text-base-content/60">{label}</div>;
-}
-
-export function TableFilterToggle({
-  showFilters,
-  onToggle,
-  activeFilterCount,
-  resultCount,
-  totalCount,
-}: {
-  showFilters: boolean;
-  onToggle: () => void;
-  activeFilterCount: number;
-  resultCount: number;
-  totalCount: number;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-2.5">
-      <button
-        className={`btn btn-ghost btn-sm gap-1.5 ${showFilters ? "btn-active" : ""}`}
-        onClick={onToggle}
-        title="Toggle filters"
-        type="button"
-      >
-        <SlidersHorizontal className="size-3.5" />
-        Filters
-        {activeFilterCount > 0 ? (
-          <span className="badge badge-xs badge-primary border-0 text-primary-content">
-            {activeFilterCount}
-          </span>
-        ) : null}
-      </button>
-      <span className="text-sm tabular-nums text-base-content/60">
-        {resultCount.toLocaleString()} of {totalCount.toLocaleString()}
-      </span>
-    </div>
   );
 }
 
@@ -200,25 +265,26 @@ function FilterPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-3 border-b border-base-300 bg-gradient-to-b from-base-100 to-base-200/30 px-4 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold">Refine results</p>
-          {activeFilterCount > 0 ? (
-            <span className="badge badge-xs badge-primary border-0 text-primary-content">
-              {activeFilterCount} active
-            </span>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="btn btn-xs btn-ghost gap-1"
-          onClick={onReset}
-          disabled={activeFilterCount === 0}
-        >
-          <RotateCcw className="size-3" />
+    <div
+      style={{
+        padding: "12px var(--pad, 24px)",
+        borderBottom: "1px solid var(--line)",
+        background: "var(--surface)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 700 }}>Refine results</span>
+        <SecondaryButton onClick={onReset} disabled={activeFilterCount === 0}>
           Clear all
-        </button>
+        </SecondaryButton>
       </div>
       {children}
     </div>
@@ -238,22 +304,32 @@ function TextFilter({
   type?: "text" | "number";
   onChange: (value: string) => void;
 }) {
+  const id = useId();
   return (
-    <label className="form-control gap-1.5">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
+    <div>
+      <label htmlFor={id} style={FIELD_LABEL}>
         {label}
-      </span>
+      </label>
       <input
-        className="input input-bordered input-sm w-full bg-base-100"
+        id={id}
+        style={FIELD}
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
+        {...focusRing<HTMLInputElement>()}
       />
-    </label>
+    </div>
   );
 }
 
+/**
+ * Two bounds under one visible name.
+ *
+ * The name belongs to the pair rather than to either input, so it labels a
+ * group and each input carries its own accessible name inside it. A single
+ * `<label>` here would have named only one of the two.
+ */
 function RangeFilter({
   label,
   min,
@@ -267,25 +343,34 @@ function RangeFilter({
   onMinChange: (value: string) => void;
   onMaxChange: (value: string) => void;
 }) {
+  const labelId = useId();
+  const minId = useId();
+  const maxId = useId();
   return (
-    <div className="space-y-2 rounded-lg border border-base-300 bg-base-100 p-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
+    <div role="group" aria-labelledby={labelId}>
+      <span id={labelId} style={FIELD_LABEL}>
         {label}
-      </p>
-      <div className="grid grid-cols-2 gap-2">
+      </span>
+      <div style={{ display: "flex", gap: 6 }}>
         <input
-          className="input input-bordered input-xs bg-base-100"
+          id={minId}
+          style={FIELD}
           type="number"
           value={min}
           placeholder="Min"
+          aria-label={`${label} minimum`}
           onChange={(event) => onMinChange(event.target.value)}
+          {...focusRing<HTMLInputElement>()}
         />
         <input
-          className="input input-bordered input-xs bg-base-100"
+          id={maxId}
+          style={FIELD}
           type="number"
           value={max}
           placeholder="Max"
+          aria-label={`${label} maximum`}
           onChange={(event) => onMaxChange(event.target.value)}
+          {...focusRing<HTMLInputElement>()}
         />
       </div>
     </div>
@@ -303,13 +388,15 @@ function SelectFilter<T extends string>({
   options: Array<[T, string]>;
   onChange: (value: T) => void;
 }) {
+  const id = useId();
   return (
-    <label className="form-control gap-1.5">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
+    <div>
+      <label htmlFor={id} style={FIELD_LABEL}>
         {label}
-      </span>
+      </label>
       <select
-        className="select select-bordered select-sm w-full bg-base-100"
+        id={id}
+        style={FIELD}
         value={value}
         onChange={(event) => {
           const selected = options.find(
@@ -317,6 +404,7 @@ function SelectFilter<T extends string>({
           )?.[0];
           if (selected != null) onChange(selected);
         }}
+        {...focusRing<HTMLSelectElement>()}
       >
         {options.map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>
@@ -324,6 +412,6 @@ function SelectFilter<T extends string>({
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }

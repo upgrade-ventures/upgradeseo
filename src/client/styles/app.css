@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./prominence.css";
 
 @theme {
   --container-8xl: 88rem;
@@ -21,7 +22,7 @@
 
 /* Light theme */
 @plugin "daisyui/theme" {
-  name: "openseo";
+  name: "upgradeseo";
   default: true;
   prefersdark: false;
   color-scheme: light;
@@ -57,7 +58,7 @@
 
 /* Dark theme - auto-activates via prefers-color-scheme */
 @plugin "daisyui/theme" {
-  name: "openseo-dark";
+  name: "upgradeseo-dark";
   prefersdark: true;
   color-scheme: dark;
   --color-base-100: oklch(18% 0 0);
@@ -153,7 +154,7 @@ select {
    base-200, which is darker than the base-100 content panel in dark mode,
    so they read as sunken/disabled. Colored variants (primary, error, ...)
    set their own --btn-color and are excluded. */
-html[data-theme="openseo-dark"]
+html[data-theme="upgradeseo-dark"]
   .btn:not(
     .btn-primary,
     .btn-error,
@@ -168,7 +169,7 @@ html[data-theme="openseo-dark"]
 /* Light mode: the base-200 default button is nearly invisible on the
    base-100 content panel; use a white surface with a visible border,
    matching inputs/selects. */
-html[data-theme="openseo"]
+html[data-theme="upgradeseo"]
   .btn:not(
     .btn-primary,
     .btn-error,
@@ -251,28 +252,28 @@ html[data-theme="openseo"]
   --tw-ring-color: color-mix(in oklab, #d946ef 30%, transparent);
 }
 
-html[data-theme="openseo-dark"] .tag-chip-slate {
+html[data-theme="upgradeseo-dark"] .tag-chip-slate {
   color: #cbd5e1;
 }
-html[data-theme="openseo-dark"] .tag-chip-rose {
+html[data-theme="upgradeseo-dark"] .tag-chip-rose {
   color: #fda4af;
 }
-html[data-theme="openseo-dark"] .tag-chip-amber {
+html[data-theme="upgradeseo-dark"] .tag-chip-amber {
   color: #fcd34d;
 }
-html[data-theme="openseo-dark"] .tag-chip-lime {
+html[data-theme="upgradeseo-dark"] .tag-chip-lime {
   color: #d9f99d;
 }
-html[data-theme="openseo-dark"] .tag-chip-emerald {
+html[data-theme="upgradeseo-dark"] .tag-chip-emerald {
   color: #6ee7b7;
 }
-html[data-theme="openseo-dark"] .tag-chip-sky {
+html[data-theme="upgradeseo-dark"] .tag-chip-sky {
   color: #7dd3fc;
 }
-html[data-theme="openseo-dark"] .tag-chip-violet {
+html[data-theme="upgradeseo-dark"] .tag-chip-violet {
   color: #c4b5fd;
 }
-html[data-theme="openseo-dark"] .tag-chip-fuchsia {
+html[data-theme="upgradeseo-dark"] .tag-chip-fuchsia {
   color: #f5d0fe;
 }
 
@@ -323,29 +324,29 @@ html[data-theme="openseo-dark"] .tag-chip-fuchsia {
   --tw-ring-color: color-mix(in oklab, #b91c1c 32%, transparent);
 }
 
-html[data-theme="openseo-dark"] .score-tier-na {
+html[data-theme="upgradeseo-dark"] .score-tier-na {
   color: #cbd5e1;
 }
-html[data-theme="openseo-dark"] .score-tier-1 {
+html[data-theme="upgradeseo-dark"] .score-tier-1 {
   color: #6ee7b7;
 }
-html[data-theme="openseo-dark"] .score-tier-2 {
+html[data-theme="upgradeseo-dark"] .score-tier-2 {
   color: #bef264;
 }
-html[data-theme="openseo-dark"] .score-tier-3 {
+html[data-theme="upgradeseo-dark"] .score-tier-3 {
   color: #fde047;
 }
-html[data-theme="openseo-dark"] .score-tier-4 {
+html[data-theme="upgradeseo-dark"] .score-tier-4 {
   color: #fdba74;
 }
-html[data-theme="openseo-dark"] .score-tier-5 {
+html[data-theme="upgradeseo-dark"] .score-tier-5 {
   color: #fca5a5;
 }
-html[data-theme="openseo-dark"] .score-tier-6 {
+html[data-theme="upgradeseo-dark"] .score-tier-6 {
   color: #fda4af;
 }
 
-html[data-theme="openseo-dark"] {
+html[data-theme="upgradeseo-dark"] {
   --trend-grid-color: oklch(78% 0.01 255 / 0.22);
   --trend-axis-color: oklch(84% 0.01 255 / 0.62);
   --trend-fill-start-opacity: 0.24;
@@ -355,18 +356,623 @@ html[data-theme="openseo-dark"] {
   --trend-tooltip-shadow: oklch(0% 0 0 / 0.35);
 }
 
-html[data-theme="openseo-dark"] .alert-warning {
+html[data-theme="upgradeseo-dark"] .alert-warning {
   @apply border-warning/60 bg-warning/20;
 }
 
-html[data-theme="openseo-dark"] .alert-info {
+html[data-theme="upgradeseo-dark"] .alert-info {
   @apply border-info/60 bg-info/20;
 }
 
-html[data-theme="openseo-dark"] .alert-success {
+html[data-theme="upgradeseo-dark"] .alert-success {
   @apply border-success/60 bg-success/20;
 }
 
-html[data-theme="openseo-dark"] .alert-error {
+html[data-theme="upgradeseo-dark"] .alert-error {
   @apply border-error/60 bg-error/20;
+}
+
+/* ---------------------------------------------------------------------------
+ * DaisyUI bridge.
+ *
+ * DaisyUI's theme variables are plain custom properties, so re-declaring them
+ * after the @plugin blocks re-points every existing `btn`/`input`/`tabs`/`card`
+ * at the design palette. Without this, a ported screen and an un-ported one
+ * would sit side by side in two different colour systems.
+ *
+ * base-100 is the design's `surface` (what cards and inputs sit ON), base-200
+ * is `canvas` (the page behind them), base-300 is `inset`. That ordering is
+ * DaisyUI's own convention and matches how the design layers its greys.
+ * ------------------------------------------------------------------------- */
+:root,
+[data-theme="upgradeseo"],
+[data-theme="upgradeseo-dark"] {
+  --color-base-100: var(--surface);
+  --color-base-200: var(--canvas);
+  --color-base-300: var(--inset);
+  --color-base-content: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-content: var(--text-inv);
+  --color-secondary: var(--purple);
+  --color-secondary-content: var(--text-inv);
+  --color-accent: var(--accent);
+  --color-accent-content: var(--text-inv);
+  --color-neutral: var(--text-2);
+  --color-neutral-content: var(--surface);
+  --color-info: var(--info);
+  --color-info-content: var(--text-inv);
+  --color-success: var(--success);
+  --color-success-content: var(--text-inv);
+  --color-warning: var(--warning);
+  --color-warning-content: var(--text-inv);
+  --color-error: var(--danger);
+  --color-error-content: var(--text-inv);
+  --radius-selector: 6px;
+  --radius-field: 6px;
+  --radius-box: 8px;
+  --border: 1px;
+}
+
+/* The design's type ramp. 13px/1.45 Inter is the base every screen is drawn
+ * against, so the ported spacing only reads correctly at this size. */
+:root {
+  --prominence-font:
+    "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  /* Row padding and page gutter. The design drives both from custom properties
+   * so tables can tighten on mobile without every cell being rewritten. */
+  --rp: 5px;
+  --pad: 24px;
+}
+
+/* Type only on <body>. Setting font-size on <html> would rebase every Tailwind
+ * rem utility in the app (spacing, widths, heights) to 13/16 = 81% — the whole
+ * UI silently shrinks. rem must stay anchored to the browser's 16px default. */
+html {
+  font-family: var(--prominence-font);
+  color: var(--text);
+}
+body {
+  font-family: var(--prominence-font);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+ * Prominence sidebar navigation.
+ *
+ * The design expresses hover as a `style-hover` attribute, which only exists in
+ * its own renderer — here it has to be real CSS. Hover and active fill with the
+ * SAME var(--inset); the 3px accent bar is the only thing that distinguishes
+ * them, so do not "helpfully" give hover a lighter tint.
+ * ------------------------------------------------------------------------- */
+.prominence-nav-group-label {
+  padding: 12px 8px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+/* The first group sits directly under the switcher and needs less lead-in. */
+.prominence-nav-group:first-child .prominence-nav-group-label {
+  padding-top: 8px;
+}
+
+.prominence-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  background: transparent;
+  color: var(--text-2);
+}
+.prominence-nav-item:hover {
+  background: var(--inset);
+  color: var(--text);
+}
+.prominence-nav-item-active {
+  background: var(--inset);
+  color: var(--text);
+}
+/* The active marker. Rendered on every item so the bar does not shift layout
+ * when selection moves; only its colour changes. */
+.prominence-nav-bar {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+}
+.prominence-nav-item-active .prominence-nav-bar {
+  background: var(--accent);
+}
+/* The design specifies no focus ring, but a keyboard user needs one and the
+ * token already exists. This is the one deliberate addition to the nav. */
+.prominence-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ---------------------------------------------------------------------------
+ * Prominence shell chrome.
+ *
+ * Hover states again: the design carries them as `style-hover`, which only its
+ * own renderer understands, so they live here as real CSS.
+ * ------------------------------------------------------------------------- */
+
+/* The 320px ⌘K trigger in the wide topbar. `cursor:text` is the design's
+ * choice — it reads as a search FIELD even though it opens a dialog. */
+.prominence-search-trigger {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 320px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  background: var(--subtle);
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: text;
+  text-align: left;
+}
+.prominence-search-trigger:hover {
+  border-color: var(--border-strong);
+}
+.prominence-search-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.prominence-kbd {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  font-size: 10.5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: var(--surface);
+}
+
+.prominence-icon-button:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.prominence-icon-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Sidebar brand row theme toggle. Names its DESTINATION ("Dark" while light),
+ * which is the design's wording and the less ambiguous of the two options. */
+.prominence-theme-toggle {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-2);
+  border-radius: 5px;
+  height: 22px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.prominence-theme-toggle:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.prominence-theme-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ---------------------------------------------------------------------------
+ * Prominence command palette (⌘K).
+ * ------------------------------------------------------------------------- */
+.prominence-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 14, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 50;
+}
+.prominence-palette {
+  width: 560px;
+  max-width: 92vw;
+  background: var(--overlay);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.prominence-palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line);
+}
+.prominence-palette-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+.prominence-palette-esc {
+  font-size: 10.5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: var(--text-3);
+}
+.prominence-palette-list {
+  padding: 6px 0 8px;
+  max-height: 52vh;
+  overflow: auto;
+}
+.prominence-palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 13px;
+  cursor: pointer;
+}
+/* Hover and keyboard selection are the SAME affordance here — moving the mouse
+ * sets the cursor — so they share one highlight rather than fighting. */
+.prominence-palette-row:hover,
+.prominence-palette-row[data-selected="true"] {
+  background: var(--subtle);
+}
+.prominence-palette-empty {
+  padding: 18px 13px;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Prominence toasts.
+ *
+ * The app already routes every notification through sonner, so this restyles
+ * sonner rather than standing up a second toast system beside it.
+ *
+ * The design specifies two variants, success and info. Error and warning follow
+ * the same shape using the danger/warning triples the token system already
+ * defines — extending the design's own pattern, not inventing a new one.
+ * ------------------------------------------------------------------------- */
+[data-sonner-toaster] {
+  /* The design centres the toast 22px off the bottom. */
+  --width: min(520px, 92vw);
+  z-index: 70;
+}
+
+[data-sonner-toast] {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  font-family: var(--prominence-font);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* The 7px status dot. Rendered as a pseudo-element so it needs no extra node
+ * inside sonner's own markup. */
+[data-sonner-toast]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--text-3);
+}
+[data-sonner-toast][data-type="success"] {
+  background: var(--success-soft);
+  border-color: var(--success-border);
+}
+[data-sonner-toast][data-type="success"]::before {
+  background: var(--success);
+}
+[data-sonner-toast][data-type="info"] {
+  background: var(--info-soft);
+  border-color: var(--info-border);
+}
+[data-sonner-toast][data-type="info"]::before {
+  background: var(--info);
+}
+[data-sonner-toast][data-type="warning"] {
+  background: var(--warning-soft);
+  border-color: var(--warning-border);
+}
+[data-sonner-toast][data-type="warning"]::before {
+  background: var(--warning);
+}
+[data-sonner-toast][data-type="error"] {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+}
+[data-sonner-toast][data-type="error"]::before {
+  background: var(--danger);
+}
+
+/* sonner ships its own leading icon; the design uses the dot instead. */
+[data-sonner-toast] [data-icon] {
+  display: none;
+}
+[data-sonner-toast] [data-content] {
+  flex: 1;
+  min-width: 0;
+}
+[data-sonner-toast] [data-title] {
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------------------
+ * Prominence site switcher.
+ * ------------------------------------------------------------------------- */
+.prominence-switcher-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.prominence-switcher-trigger:hover {
+  border-color: var(--border-strong);
+}
+.prominence-switcher-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.prominence-switcher-badge {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--text-inv);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Prominence primitives — the parts that need real CSS.
+ *
+ * The design carries hover as a `style-hover` attribute, and disabled states
+ * are not specified at all. Both live here.
+ * ------------------------------------------------------------------------- */
+.prominence-button-secondary,
+.prominence-button-primary {
+  min-height: 28px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.prominence-button-secondary {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.prominence-button-secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+.prominence-button-primary {
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  /* --text-inv, NOT #fff. The design hard-codes white, but dark mode lightens
+   * --accent to #7ba1ef, where white measures 2.57:1 and fails the 4.5:1 floor.
+   * --text-inv flips to #131313 there for 7.24:1, and stays #ffffff in light
+   * mode (6.46:1). The inversion is the point, not a bug to work around. */
+  color: var(--text-inv);
+  font-weight: 600;
+}
+.prominence-button-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+/* Not in the design, which shows no disabled state. Buttons that kick off real
+ * work do get disabled here, and they must not keep looking clickable. */
+.prominence-button-secondary:disabled,
+.prominence-button-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.prominence-button-secondary:focus-visible,
+.prominence-button-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.prominence-tab {
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* The design specifies no tab hover. A pointer target with no feedback reads as
+ * dead, so the inactive tab warms to full text colour; the active tab already
+ * carries the accent underline and is left alone. */
+.prominence-tab[aria-selected="false"]:hover {
+  color: var(--text);
+}
+.prominence-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Dismiss control on the full-bleed status bar. */
+.prominence-bar-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.prominence-bar-dismiss:hover {
+  color: var(--text);
+  background: rgba(127, 127, 127, 0.16);
+}
+.prominence-bar-dismiss:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ---------------------------------------------------------------------------
+ * Inline add-site field in the switcher footer. The design creates a site here
+ * rather than in a dialog.
+ * ------------------------------------------------------------------------- */
+.prominence-add-site-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.prominence-add-site-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.prominence-add-site-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-inv);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.prominence-add-site-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.prominence-add-site-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.prominence-add-site-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ---------------------------------------------------------------------------
+ * Mobile hit targets.
+ *
+ * The design draws compact 24-32px controls, which is right for a mouse and
+ * below the 44px floor for a finger. Rather than inflate every control at every
+ * width, the floor applies only to coarse pointers, so desktop keeps the
+ * design's density byte for byte.
+ *
+ * `pointer: coarse` rather than a width query: a 1024px tablet needs the bigger
+ * target and a 375px window on a laptop does not.
+ * ------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .prominence-button-primary,
+  .prominence-button-secondary,
+  .prominence-tab,
+  .prominence-nav-item,
+  .prominence-add-site-button,
+  .prominence-switcher-trigger,
+  .prominence-icon-button,
+  .prominence-bar-dismiss,
+  .prominence-bulk-button {
+    min-height: 44px;
+  }
+  /* Icon-only controls need the width too, or they stay a thin tall strip. */
+  .prominence-icon-button,
+  .prominence-bar-dismiss {
+    min-width: 44px;
+  }
+  /* Checkboxes keep their native box; the label around them grows instead. */
+  .prominence-checkbox-hit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Shared bulk-action bar. TableBulkActionBar applies this class but no rule
+ * existed for it, so Copy / CSV / Sheets / Remove had no hover and no focus
+ * ring in any table that used them.
+ * ------------------------------------------------------------------------- */
+.prominence-bulk-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.prominence-bulk-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+.prominence-bulk-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.prominence-bulk-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }

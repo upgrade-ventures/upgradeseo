@@ -87,14 +87,6 @@ export function formatRounded(value: number | null | undefined) {
   return new Intl.NumberFormat().format(Math.round(value));
 }
 
-export function formatMetric(
-  value: number | null | undefined,
-  hasData: boolean | undefined,
-) {
-  if (!hasData) return "Not enough data";
-  return formatRounded(value);
-}
-
 type ExportTable = { headers: string[]; rows: (string | number | null)[][] };
 
 export function keywordsToTable(rows: KeywordRow[]): ExportTable {

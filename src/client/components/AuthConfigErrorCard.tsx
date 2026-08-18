@@ -1,8 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
 
-const CLOUDFLARE_SETUP_GUIDE_URL =
-  "https://github.com/every-app/open-seo/blob/main/docs/SELF_HOSTING_CLOUDFLARE.md#2-configure-authentication-and-secrets";
+const CLOUDFLARE_SETUP_GUIDE_URL = "";
 
 type AuthConfigErrorCardProps = {
   message: string;

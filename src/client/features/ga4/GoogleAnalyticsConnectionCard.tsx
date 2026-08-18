@@ -129,7 +129,7 @@ export function GoogleAnalyticsConnectionCard({
       }
     >
       {connectionQuery.isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-base-content/50">
+        <div className="flex items-center gap-2 text-sm text-base-content/60">
           <span className="loading loading-spinner loading-sm" />
           Checking…
         </div>
@@ -203,6 +203,11 @@ export function GoogleAnalyticsConnectionCard({
               <DismissButton onClick={onDismiss} disabled={dismissing} />
             ) : null}
           </div>
+          <p className="text-xs text-base-content/60">
+            Google may show an &ldquo;unverified app&rdquo; screen while this
+            deployment awaits verification. Choose Advanced, then Continue
+            &mdash; the grant only reads your own Analytics data.
+          </p>
         </div>
       )}
     </IntegrationConnectionCard>
@@ -254,34 +259,34 @@ function ConnectedState({
       <div className="rounded-lg border border-base-300 bg-base-200/30 px-4 py-3.5">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-base-content/45">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-base-content/60">
               Selected property
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold">
               {displayName}
             </p>
           </div>
-          <span className="rounded-md border border-base-300 bg-base-100 px-2 py-1 font-mono text-[11px] text-base-content/60">
+          <span className="rounded-md border border-base-300 bg-base-100 px-2 py-1 text-[11px] text-base-content/60">
             ID {numericPropertyId}
           </span>
         </div>
 
         <dl className="mt-3 grid gap-x-6 gap-y-2 border-t border-base-300/70 pt-3 text-xs sm:grid-cols-3">
           <div className="min-w-0">
-            <dt className="text-base-content/45">Time zone</dt>
+            <dt className="text-base-content/60">Time zone</dt>
             <dd className="mt-0.5 truncate font-medium text-base-content/75">
               {timeZone}
             </dd>
           </div>
           <div>
-            <dt className="text-base-content/45">Currency</dt>
+            <dt className="text-base-content/60">Currency</dt>
             <dd className="mt-0.5 font-medium text-base-content/75">
               {currencyCode}
             </dd>
           </div>
           {connectedByEmail ? (
             <div className="min-w-0">
-              <dt className="text-base-content/45">Connected account</dt>
+              <dt className="text-base-content/60">Connected account</dt>
               <dd className="mt-0.5 truncate font-medium text-base-content/75">
                 {connectedByEmail}
               </dd>

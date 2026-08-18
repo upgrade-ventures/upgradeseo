@@ -1,6 +1,6 @@
 {
-  "name": "OpenSEO",
-  "short_name": "OpenSEO",
+  "name": "UpgradeSEO",
+  "short_name": "UpgradeSEO",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#0a0f0d",
-  "background_color": "#0a0f0d",
+  "theme_color": "#0B0E14",
+  "background_color": "#0B0E14",
   "display": "standalone"
 }

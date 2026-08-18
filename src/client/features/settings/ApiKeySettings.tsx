@@ -1,9 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { PortalMenu } from "@/client/components/PortalMenu";
-import { CopyButton } from "@/client/features/ai-mcp/SetupControls";
+
+import {
+  Field,
+  TextInput,
+  useBlurValidation,
+} from "@/client/components/prominence/Field";
+import {
+  PrimaryButton,
+  SecondaryButton,
+} from "@/client/components/prominence/Primitives";
+import {
+  DangerButton,
+  formatDay,
+  LIST_BOX,
+  QuietNote,
+  ROW_LINE,
+  SECTION_LEDE,
+  SECTION_TITLE,
+  SkeletonBar,
+} from "@/client/features/settings/settingsParts";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { captureClientEvent } from "@/client/lib/posthog";
 import { authClient } from "@/lib/auth-client";
@@ -11,16 +29,27 @@ import { authClient } from "@/lib/auth-client";
 // Better Auth rejects longer names with INVALID_NAME_LENGTH.
 const MAX_KEY_NAME_LENGTH = 32;
 
+/**
+ * There is no monospace font in this design. `<code>` would otherwise pick up
+ * the browser's monospace stack through Tailwind's preflight, so the family is
+ * pinned back to the UI one wherever a literal is shown.
+ */
+const INLINE_CODE = { fontFamily: "inherit" } as const;
+
 export function ApiKeySettings() {
   const queryClient = useQueryClient();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const nameField = useBlurValidation(name, (value) =>
+    value.trim()
+      ? null
+      : "Give the key a name, such as the machine it lives on.",
+  );
 
   const mcpUrl =
-    typeof window === "undefined"
-      ? "https://app.openseo.so/mcp"
-      : `${window.location.origin}/mcp`;
+    typeof window === "undefined" ? "" : `${window.location.origin}/mcp`;
 
   const apiKeysQuery = useQuery({
     queryKey: ["apiKeys"],
@@ -33,8 +62,10 @@ export function ApiKeySettings() {
         id: key.id,
         name: key.name,
         start: key.start,
-        createdAt: new Date(key.createdAt),
-        lastRequest: key.lastRequest ? new Date(key.lastRequest) : null,
+        createdAt: new Date(key.createdAt).toISOString(),
+        lastRequest: key.lastRequest
+          ? new Date(key.lastRequest).toISOString()
+          : null,
       }));
     },
   });
@@ -53,9 +84,7 @@ export function ApiKeySettings() {
       captureClientEvent("mcp:api_key_created");
       void queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
     },
-    onError: (error) => {
-      toast.error(getStandardErrorMessage(error));
-    },
+    onError: (error) => toast.error(getStandardErrorMessage(error)),
   });
 
   const revokeMutation = useMutation({
@@ -66,204 +95,233 @@ export function ApiKeySettings() {
       }
     },
     onSuccess: () => {
+      setRevoking(null);
       captureClientEvent("mcp:api_key_revoked");
       toast.success("API key revoked");
       void queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
     },
-    onError: (error) => {
-      toast.error(getStandardErrorMessage(error));
-    },
+    onError: (error) => toast.error(getStandardErrorMessage(error)),
   });
 
   const apiKeys = apiKeysQuery.data ?? [];
 
-  const closeCreateModal = () => {
-    setIsCreateOpen(false);
+  const closeCreate = () => {
+    setIsCreating(false);
     setCreatedKey(null);
     setName("");
   };
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-medium text-base-content/50">API keys</h2>
-      <div className="flex items-start justify-between gap-6">
+    <section>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 14,
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <p className="text-sm">
-            Authenticate MCP clients when OAuth doesn't work
-          </p>
-          <p className="mt-1 text-sm text-base-content/60">
-            Use this for remote agents like Hermes where the normal login flow
-            doesn't work.
-          </p>
-          <p className="mt-1 text-sm">
-            <a
-              className="link link-primary"
-              href="https://openseo.so/docs/mcp"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Setup guide
-            </a>
+          <h2 style={SECTION_TITLE}>API keys</h2>
+          <p style={SECTION_LEDE}>
+            Authenticate MCP clients where the browser login does not work, such
+            as a remote agent or a CI job. The setup guides live on{" "}
+            <Link to="/ai">AI &amp; MCP</Link>.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={() => setIsCreateOpen(true)}
-        >
-          Create API key
-        </button>
+        {isCreating ? null : (
+          <PrimaryButton icon="i-plus" onClick={() => setIsCreating(true)}>
+            Create API key
+          </PrimaryButton>
+        )}
       </div>
 
-      {apiKeysQuery.isError ? (
-        <p className="text-sm text-error">We couldn't load your API keys.</p>
-      ) : apiKeys.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border border-base-300">
-          <table className="table table-sm">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Key</th>
-                <th>Created</th>
-                <th>Last used</th>
-                <th className="w-10"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {apiKeys.map((key) => (
-                <tr key={key.id} className="hover">
-                  <td className="max-w-[220px] truncate font-medium">
-                    {key.name || "Unnamed key"}
-                  </td>
-                  <td className="font-mono text-xs text-base-content/70">
-                    {key.start || "oseo_"}…
-                  </td>
-                  <td className="text-xs text-base-content/70">
-                    {key.createdAt.toLocaleDateString()}
-                  </td>
-                  <td className="text-xs text-base-content/70">
-                    {key.lastRequest
-                      ? key.lastRequest.toLocaleDateString()
-                      : "Never"}
-                  </td>
-                  <td>
-                    <PortalMenu
-                      ariaLabel={`Actions for ${key.name || "API key"}`}
-                    >
-                      {(close) => (
-                        <li>
-                          <button
-                            className="text-error"
-                            disabled={
-                              revokeMutation.isPending &&
-                              revokeMutation.variables === key.id
-                            }
-                            onClick={() => {
-                              close();
-                              if (
-                                window.confirm(
-                                  `Revoke "${key.name || "Unnamed key"}"? Clients using it will stop working.`,
-                                )
-                              ) {
-                                revokeMutation.mutate(key.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="size-3.5" />
-                            Revoke key
-                          </button>
-                        </li>
-                      )}
-                    </PortalMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {isCreating ? (
+        <div
+          style={{
+            ...LIST_BOX,
+            marginTop: 10,
+            padding: 12,
+            background: "var(--subtle)",
+          }}
+        >
+          {createdKey ? (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>
+                Copy your new API key
+              </div>
+              <p
+                style={{
+                  margin: "5px 0 9px",
+                  fontSize: 12.5,
+                  color: "var(--text-2)",
+                }}
+              >
+                It is not shown again. Send it as an{" "}
+                <code style={INLINE_CODE}>Authorization: Bearer</code> header to{" "}
+                <code style={INLINE_CODE}>{mcpUrl}</code>.
+              </p>
+              <code
+                style={{
+                  ...INLINE_CODE,
+                  display: "block",
+                  overflowX: "auto",
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  border: "1px solid var(--line)",
+                  background: "var(--surface)",
+                  fontSize: 12,
+                }}
+              >
+                {createdKey}
+              </code>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <SecondaryButton
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(createdKey)
+                      .then(() => toast.success("API key copied"))
+                      .catch(() =>
+                        toast.error("Your browser blocked the clipboard."),
+                      );
+                  }}
+                >
+                  Copy key
+                </SecondaryButton>
+                <SecondaryButton onClick={closeCreate}>Done</SecondaryButton>
+              </div>
+            </div>
+          ) : (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                // Reveal the message rather than sitting behind a disabled
+                // button: a control that will not respond and will not say why
+                // is the failure the Forms page exists to prevent.
+                if (!nameField.isValid) {
+                  nameField.reveal();
+                  return;
+                }
+                createMutation.mutate(name.trim());
+              }}
+            >
+              <Field
+                label="Name"
+                required
+                description="Name it after the machine or agent that will carry it, so you know what you are revoking later."
+                error={nameField.error}
+                counter={`${name.length} / ${MAX_KEY_NAME_LENGTH}`}
+                style={{ maxWidth: 280 }}
+              >
+                {(props) => (
+                  <TextInput
+                    {...props}
+                    value={name}
+                    maxLength={MAX_KEY_NAME_LENGTH}
+                    placeholder="Claude Code on laptop"
+                    onChange={(event) => setName(event.target.value)}
+                    {...nameField.fieldProps}
+                  />
+                )}
+              </Field>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <PrimaryButton
+                  type="submit"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? "Creating…" : "Create"}
+                </PrimaryButton>
+                <SecondaryButton onClick={closeCreate}>Cancel</SecondaryButton>
+              </div>
+            </form>
+          )}
         </div>
       ) : null}
 
-      {isCreateOpen ? (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-md">
-            {createdKey ? (
-              <>
-                <h3 className="text-lg font-bold">Copy your new API key</h3>
-                <p className="mt-2 text-sm text-base-content/60">
-                  It won't be shown again. Send it as{" "}
-                  <span className="font-mono text-xs">
-                    Authorization: Bearer
-                  </span>{" "}
-                  to <span className="font-mono text-xs">{mcpUrl}</span>.
-                </p>
-                <div className="mt-4 flex items-center gap-2">
-                  <code className="min-w-0 flex-1 overflow-x-auto rounded bg-base-200 px-2.5 py-2 font-mono text-xs">
-                    {createdKey}
-                  </code>
-                  <CopyButton
-                    value={createdKey}
-                    successMessage="API key copied"
-                    iconOnly
-                  />
-                </div>
-                <div className="modal-action">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={closeCreateModal}
-                  >
-                    Done
-                  </button>
-                </div>
-              </>
-            ) : (
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (name.trim()) createMutation.mutate(name.trim());
-                }}
-              >
-                <h3 className="text-lg font-bold">Create API key</h3>
-                <label className="form-control mt-4 w-full">
-                  <span className="label-text pb-1 text-xs text-base-content/60">
-                    Name
-                  </span>
-                  <input
-                    className="input input-sm input-bordered w-full"
-                    placeholder="Claude Code on laptop"
-                    value={name}
-                    maxLength={MAX_KEY_NAME_LENGTH}
-                    onChange={(event) => setName(event.currentTarget.value)}
-                    required
-                    autoFocus
-                  />
-                </label>
-                <div className="modal-action">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={closeCreateModal}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-sm"
-                    disabled={createMutation.isPending || !name.trim()}
-                  >
-                    {createMutation.isPending ? "Creating…" : "Create"}
-                  </button>
-                </div>
-              </form>
-            )}
+      <div style={{ ...LIST_BOX, marginTop: 10 }}>
+        {apiKeysQuery.isPending ? (
+          <div aria-hidden style={{ padding: "9px 12px" }}>
+            <SkeletonBar width="60%" height={11} />
           </div>
-          {/* No backdrop close on the reveal step: the key is shown once. */}
-          {createdKey ? (
-            <div className="modal-backdrop" />
-          ) : (
-            <div className="modal-backdrop" onClick={closeCreateModal} />
-          )}
-        </div>
+        ) : apiKeysQuery.isError ? (
+          <p
+            style={{
+              margin: 0,
+              padding: "11px 12px",
+              fontSize: 12.5,
+              color: "var(--text-2)",
+            }}
+          >
+            {getStandardErrorMessage(
+              apiKeysQuery.error,
+              "We could not load your API keys.",
+            )}
+          </p>
+        ) : apiKeys.length === 0 ? (
+          <p
+            style={{
+              margin: 0,
+              padding: "11px 12px",
+              fontSize: 12.5,
+              color: "var(--text-2)",
+            }}
+          >
+            No API keys yet. MCP clients that can sign in with OAuth do not need
+            one.
+          </p>
+        ) : (
+          apiKeys.map((key, index) => (
+            <div
+              key={key.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "9px 12px",
+                borderBottom:
+                  index === apiKeys.length - 1 ? undefined : ROW_LINE,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                  {key.name || "Unnamed key"}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-2)" }}>
+                  {key.start || "oseo_"}… · created {formatDay(key.createdAt)} ·{" "}
+                  {key.lastRequest
+                    ? `last used ${formatDay(key.lastRequest)}`
+                    : "never used"}
+                </div>
+              </div>
+              {revoking === key.id ? (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <DangerButton
+                    solid
+                    disabled={revokeMutation.isPending}
+                    onClick={() => revokeMutation.mutate(key.id)}
+                  >
+                    {revokeMutation.isPending ? "Revoking…" : "Confirm revoke"}
+                  </DangerButton>
+                  <SecondaryButton onClick={() => setRevoking(null)}>
+                    Cancel
+                  </SecondaryButton>
+                </div>
+              ) : (
+                <SecondaryButton
+                  onClick={() => setRevoking(key.id)}
+                  style={{ minHeight: 24, padding: "2px 9px", fontSize: 12 }}
+                >
+                  Revoke
+                </SecondaryButton>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {revoking ? (
+        <QuietNote>Clients using that key stop working immediately.</QuietNote>
       ) : null}
     </section>
   );

@@ -1,23 +1,11 @@
-import {
-  Bookmark,
-  Bot,
-  ClipboardCheck,
-  Globe,
-  LayoutDashboard,
-  Link2,
-  MessageSquare,
-  Search,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
 import { linkOptions } from "@tanstack/react-router";
-import { GoogleGlyphMuted } from "@/client/features/gsc/GoogleGlyph";
+import type { IconName } from "@/client/components/icons/IconSprite";
 
 const projectNavItems = [
   {
     to: "/p/$projectId" as const,
     label: "Dashboard",
-    icon: LayoutDashboard,
+    icon: "i-grid" satisfies IconName,
     // Without exact matching, the index path is a prefix of every project
     // route and the Dashboard item would render active everywhere.
     activeOptions: { exact: true, includeSearch: false },
@@ -25,54 +13,59 @@ const projectNavItems = [
   {
     to: "/p/$projectId/keywords" as const,
     label: "Keyword Research",
-    icon: Search,
+    icon: "i-search" satisfies IconName,
   },
   {
     to: "/p/$projectId/saved" as const,
     label: "Saved Keywords",
-    icon: Bookmark,
+    icon: "i-bookmark" satisfies IconName,
   },
   {
     to: "/p/$projectId/rank-tracking" as const,
     label: "Rank Tracking",
-    icon: TrendingUp,
+    icon: "i-trend" satisfies IconName,
   },
   {
     to: "/p/$projectId/search-performance" as const,
-    label: "GSC Insights",
-    icon: GoogleGlyphMuted,
+    label: "Search Performance",
+    icon: "i-chart" satisfies IconName,
   },
   {
     to: "/p/$projectId/domain" as const,
     label: "Domain Overview",
-    icon: Globe,
+    icon: "i-globe" satisfies IconName,
   },
   {
     to: "/p/$projectId/backlinks" as const,
     label: "Backlinks",
-    icon: Link2,
+    icon: "i-link" satisfies IconName,
+  },
+  {
+    to: "/p/$projectId/competitors" as const,
+    label: "Competitors",
+    icon: "i-swords" satisfies IconName,
   },
   {
     to: "/p/$projectId/audit" as const,
     label: "Site Audit",
-    icon: ClipboardCheck,
+    icon: "i-clipboard" satisfies IconName,
   },
   {
     to: "/p/$projectId/brand-lookup" as const,
     label: "Brand Lookup",
-    icon: Sparkles,
+    icon: "i-sparkle" satisfies IconName,
   },
   {
     to: "/p/$projectId/prompt-explorer" as const,
     label: "Prompt Explorer",
-    icon: MessageSquare,
+    icon: "i-message" satisfies IconName,
   },
 ] as const;
 
 const aiNavItem = linkOptions({
   to: "/ai" as const,
   label: "AI & MCP",
-  icon: Bot,
+  icon: "i-plug" satisfies IconName,
 });
 
 // Always-visible sidebar group (not project-scoped, unlike the groups below).
@@ -109,6 +102,7 @@ export function getProjectNavGroups(projectId: string) {
         byPath("/p/$projectId/keywords"),
         byPath("/p/$projectId/domain"),
         byPath("/p/$projectId/backlinks"),
+        byPath("/p/$projectId/competitors"),
         byPath("/p/$projectId/brand-lookup"),
         byPath("/p/$projectId/prompt-explorer"),
       ],
@@ -125,6 +119,8 @@ export function getProjectNavGroups(projectId: string) {
   ];
 }
 
-export const dataforseoHelpLinkOptions = linkOptions({
-  to: "/help/dataforseo-api-key",
+// The DEFAULT setup path. UpgradeSEO runs on free sources, so new users are sent
+// here first.
+export const freeSetupHelpLinkOptions = linkOptions({
+  to: "/help/free-setup",
 });

@@ -1,6 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Clock, Globe, History, Search, X } from "lucide-react";
+import { Icon } from "@/client/components/icons/IconSprite";
+import {
+  Card,
+  InfoNote,
+  ScreenBody,
+} from "@/client/components/prominence/Primitives";
 import { LOCATIONS } from "@/client/features/keywords/utils";
+import { GhostButton, useFocusRing } from "./prominenceControls";
 import type { KeywordResearchControllerState } from "./types";
 
 type Props = {
@@ -18,6 +24,48 @@ export function KeywordResearchEmptyState({ controller, projectId }: Props) {
   return <SearchHistoryState controller={controller} projectId={projectId} />;
 }
 
+/** Re-runs a stored search. Carries the token focus ring, like every control. */
+function HistoryLink({
+  projectId,
+  keyword,
+  locationCode,
+  label,
+}: {
+  projectId: string;
+  keyword: string;
+  locationCode: number;
+  label: string;
+}) {
+  const { ring, ringProps } = useFocusRing();
+
+  return (
+    <Link
+      from="/p/$projectId/keywords"
+      to="/p/$projectId/keywords"
+      params={{ projectId }}
+      search={{ q: keyword, loc: locationCode }}
+      replace
+      {...ringProps}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        alignItems: "center",
+        minHeight: "max(20px, var(--tap, 0px))",
+        fontSize: 12.5,
+        fontWeight: 600,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        borderRadius: 4,
+        ...ring,
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
+
 function NoResultsState({
   controller,
 }: {
@@ -26,27 +74,21 @@ function NoResultsState({
   const { lastSearchKeyword, lastSearchLocationCode } = controller;
 
   return (
-    <div className="pt-1">
-      <div className="w-full max-w-2xl rounded-2xl border border-base-300 bg-base-100 p-6 md:p-8 text-center space-y-4 mx-auto">
-        <Globe className="size-10 mx-auto text-base-content/40" />
-        <div className="space-y-2">
-          <p className="text-lg font-semibold text-base-content">
-            Not enough keyword data for this query yet
+    <ScreenBody>
+      <Card title="No keywords returned">
+        <div style={{ padding: "14px 12px" }}>
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)" }}>
+            {`Nothing came back for "${lastSearchKeyword}" in ${
+              LOCATIONS[lastSearchLocationCode] ?? "this location"
+            }.`}
           </p>
-          <p className="text-sm text-base-content/70">
-            We could not find keyword opportunities for
-            <span className="font-medium text-base-content">
-              {` "${lastSearchKeyword}" `}
-            </span>
-            in
-            <span className="font-medium text-base-content">
-              {` ${LOCATIONS[lastSearchLocationCode] || "this location"}`}
-            </span>
-            .
-          </p>
+          <InfoNote>
+            Try a broader seed term, or switch the match mode. No figures are
+            shown here because none were reported, not because they are zero.
+          </InfoNote>
         </div>
-      </div>
-    </div>
+      </Card>
+    </ScreenBody>
   );
 }
 
@@ -59,81 +101,88 @@ function SearchHistoryState({
 }) {
   const { history, historyLoaded, removeHistoryItem } = controller;
 
-  if (!historyLoaded) {
-    return null;
+  if (!historyLoaded) return null;
+
+  if (history.length === 0) {
+    return (
+      <ScreenBody>
+        <Card>
+          <div style={{ padding: "28px 16px", textAlign: "center" }}>
+            <Icon
+              name="i-search"
+              size={22}
+              style={{ color: "var(--text-3)" }}
+            />
+            <p style={{ margin: "8px 0 0", fontSize: 13, fontWeight: 600 }}>
+              Enter a keyword to get started
+            </p>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: 12.5,
+                color: "var(--text-2)",
+              }}
+            >
+              Search any term to see volume, CPC and related keyword ideas.
+            </p>
+          </div>
+        </Card>
+      </ScreenBody>
+    );
   }
 
   return (
-    <div className="space-y-4 pt-1">
-      {history.length > 0 ? (
-        <section className="rounded-2xl border border-base-300 bg-base-100 p-5 md:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <History className="size-4 text-base-content/45" />
-              <span className="text-sm text-base-content/60">
-                {history.length} recent search
-                {history.length !== 1 ? "es" : ""}
-              </span>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            {history.map((item) => (
-              <div
-                key={item.timestamp}
-                className="group flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 p-2"
+    <ScreenBody>
+      <Card
+        title="Recent searches"
+        count={`${history.length}`}
+        note="Stored on this device"
+      >
+        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+          {history.map((item) => (
+            <li
+              key={item.timestamp}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderTop: "1px solid var(--border-muted)",
+              }}
+            >
+              <Icon
+                name="i-clock"
+                size={13}
+                style={{ color: "var(--text-3)", flexShrink: 0 }}
+              />
+              <HistoryLink
+                projectId={projectId}
+                keyword={item.keyword}
+                locationCode={item.locationCode}
+                label={`${item.keyword} ${item.locationName}`}
+              />
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--text-3)",
+                  whiteSpace: "nowrap",
+                }}
               >
-                <Link
-                  from="/p/$projectId/keywords"
-                  to="/p/$projectId/keywords"
-                  params={{ projectId }}
-                  search={{
-                    q: item.keyword,
-                    loc: item.locationCode,
-                  }}
-                  replace
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-base-200"
-                >
-                  <Clock className="size-4 shrink-0 text-base-content/40" />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-base-content">
-                      {item.keyword}
-                    </p>
-                    <p className="truncate text-sm text-base-content/60">
-                      {item.locationName}
-                    </p>
-                  </div>
-                </Link>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs text-base-content/40">
-                    {new Date(item.timestamp).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 p-1"
-                    onClick={() => removeHistoryItem(item.timestamp)}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <section className="rounded-2xl border border-dashed border-base-300 bg-base-100/70 p-6 text-center text-base-content/50 space-y-3">
-          <Search className="size-10 mx-auto opacity-40" />
-          <p className="text-lg font-medium text-base-content/80">
-            Enter a keyword to get started
-          </p>
-          <p className="text-sm max-w-md mx-auto">
-            Search for any keyword to see volume, difficulty, CPC, and related
-            keyword ideas.
-          </p>
-        </section>
-      )}
-    </div>
+                {new Date(item.timestamp).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+              <GhostButton
+                aria-label={`Remove ${item.keyword} from recent searches`}
+                onClick={() => removeHistoryItem(item.timestamp)}
+              >
+                <Icon name="i-x" size={12} />
+              </GhostButton>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </ScreenBody>
   );
 }

@@ -1,3 +1,13 @@
+import { useState } from "react";
+import { NoValue } from "@/client/components/prominence/Primitives";
+import { InfoCallout } from "@/client/features/ai-search/components/aiControls";
+import {
+  HEAD_CELL_STYLE,
+  HEAD_ROW_STYLE,
+  MessageRow,
+  TABLE_STYLE,
+  TableScroller,
+} from "@/client/features/ai-search/components/aiTableParts";
 import {
   formatCount,
   formatPlatformLabel,
@@ -5,106 +15,183 @@ import {
 import type { BrandLookupResult } from "@/types/schemas/ai-search";
 
 type ShareOfVoice = NonNullable<BrandLookupResult["shareOfVoice"]>;
-type ShareEntry = ShareOfVoice["entries"][number];
 
 /**
- * Competitor Share of Voice leaderboard. The server sorts entries descending by
- * mentions and flags `isTarget`; this component only renders. Bars are scaled to
- * the leader (the exact % is shown on every row, so nothing is hidden) so a
- * dominant competitor reads as a full bar and small shares stay visible.
+ * The design's competitor share table: domain, mention rate, average rank in
+ * the answer, and whether the domain was cited as a source.
+ *
+ * Two of those four have no source here. Rank inside an answer is not extracted
+ * by anything we run, and our model answers without a web-search tool so it
+ * cites no sources at all; both columns stay explicitly empty. What is real is
+ * each domain's share of the mentions we counted, so that replaces the design's
+ * "mention rate", which would need a per-domain denominator we never measured.
  */
 export function BrandLookupShareOfVoice({
   shareOfVoice,
+  resolvedTarget,
+  hasCompetitors,
 }: {
-  shareOfVoice: ShareOfVoice;
+  shareOfVoice: ShareOfVoice | null;
+  resolvedTarget: string;
+  /** Whether the user actually named competitors to compare against. */
+  hasCompetitors: boolean;
 }) {
-  const target = shareOfVoice.entries.find((entry) => entry.isTarget) ?? null;
-  const maxPct = Math.max(
-    0,
-    ...shareOfVoice.entries.map((entry) => entry.sharePct ?? 0),
-  );
+  const [hovered, setHovered] = useState<string | null>(null);
+  const entries = shareOfVoice?.entries ?? [];
 
   return (
-    <section className="flex h-full flex-col overflow-hidden rounded-xl border border-base-300 bg-base-100">
-      <div className="flex items-baseline justify-between gap-2 border-b border-base-300 px-4 py-3">
-        <h3 className="text-sm font-semibold">Share of Voice</h3>
-        {target ? (
-          <span className="text-xs text-base-content/50">
-            <span className="font-medium text-base-content/80">
-              {target.label}
-            </span>{" "}
-            {target.sharePct == null
-              ? "· no comparable data"
-              : `· ${Math.round(target.sharePct)}%`}
-          </span>
-        ) : null}
-      </div>
+    <>
+      <TableScroller>
+        <table style={TABLE_STYLE}>
+          <thead>
+            <tr style={HEAD_ROW_STYLE}>
+              <th
+                scope="col"
+                style={{
+                  ...HEAD_CELL_STYLE,
+                  textAlign: "left",
+                  padding: "6px var(--pad, 24px)",
+                }}
+              >
+                Domain
+              </th>
+              <th
+                scope="col"
+                style={{
+                  ...HEAD_CELL_STYLE,
+                  textAlign: "right",
+                  padding: "6px 12px",
+                }}
+              >
+                Mentions
+              </th>
+              <th
+                scope="col"
+                style={{
+                  ...HEAD_CELL_STYLE,
+                  textAlign: "right",
+                  padding: "6px 12px",
+                }}
+              >
+                Share of mentions
+              </th>
+              <th
+                scope="col"
+                style={{
+                  ...HEAD_CELL_STYLE,
+                  textAlign: "right",
+                  padding: "6px 12px",
+                }}
+              >
+                Avg rank in answer
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.length === 0 ? (
+              <MessageRow colSpan={4}>
+                {hasCompetitors
+                  ? `Competitor share needs the same measurement for every domain in the comparison, and this run produced none for ${resolvedTarget} or its competitors.`
+                  : "Add competitors to the lookup above to compare them against this brand."}
+              </MessageRow>
+            ) : (
+              entries.map((entry) => (
+                <tr
+                  key={entry.label}
+                  onMouseEnter={() => setHovered(entry.label)}
+                  onMouseLeave={() => setHovered(null)}
+                  style={{
+                    borderBottom: "1px solid var(--border-muted)",
+                    background:
+                      hovered === entry.label ? "var(--subtle)" : "transparent",
+                  }}
+                >
+                  <td
+                    style={{
+                      padding: "var(--rp, 5px) var(--pad, 24px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      {entry.label}
+                      {/* The design gives the tracked domain no marker. With an
+                          arbitrary lookup target the row is otherwise
+                          indistinguishable from its competitors. */}
+                      {entry.isTarget ? <YouBadge /> : null}
+                    </span>
+                  </td>
+                  <NumberCell>
+                    {entry.mentions == null ? (
+                      <NoValue />
+                    ) : (
+                      formatCount(entry.mentions)
+                    )}
+                  </NumberCell>
+                  <NumberCell>
+                    {entry.sharePct == null ? (
+                      <NoValue />
+                    ) : (
+                      `${Math.round(entry.sharePct)}%`
+                    )}
+                  </NumberCell>
+                  <NumberCell>
+                    <NoValue />
+                  </NumberCell>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </TableScroller>
 
-      <ul className="flex-1 divide-y divide-base-200">
-        {shareOfVoice.entries.map((entry, index) => (
-          <LeaderboardRow
-            key={entry.label}
-            entry={entry}
-            rank={index + 1}
-            maxPct={maxPct}
-          />
-        ))}
-      </ul>
-
-      {/* Captions only the platforms actually summed — when one platform's
-          cross_aggregated call failed, the leaderboard must not claim both. */}
-      <p className="border-t border-base-200 px-4 py-2 text-[11px] text-base-content/50">
-        Mentions share across{" "}
-        {shareOfVoice.platforms.map(formatPlatformLabel).join(" and ")} · bars
-        relative to the leader.
-      </p>
-    </section>
+      <InfoCallout>
+        {shareOfVoice
+          ? `Share is each domain's portion of the mentions counted across ${shareOfVoice.platforms.map(formatPlatformLabel).join(" and ")}. `
+          : ""}
+        Where a brand sits inside an answer is not extracted by anything we run,
+        and our model answers without a web-search tool, so it cites no sources:
+        those columns are left empty rather than filled with a guess.
+      </InfoCallout>
+    </>
   );
 }
 
-function LeaderboardRow({
-  entry,
-  rank,
-  maxPct,
-}: {
-  entry: ShareEntry;
-  rank: number;
-  maxPct: number;
-}) {
-  const hasData = entry.mentions != null && entry.sharePct != null;
-  const barWidth =
-    hasData && maxPct > 0 ? ((entry.sharePct ?? 0) / maxPct) * 100 : 0;
-
+function NumberCell({ children }: { children: React.ReactNode }) {
   return (
-    <li
-      className={`grid grid-cols-[1.25rem_minmax(0,1fr)_2.75rem] items-center gap-3 px-4 py-2.5 ${
-        entry.isTarget ? "bg-primary/5" : ""
-      }`}
+    <td
+      style={{
+        padding: "var(--rp, 5px) 12px",
+        textAlign: "right",
+        color: "var(--text-2)",
+        fontVariantNumeric: "tabular-nums",
+      }}
     >
-      <span className="text-xs tabular-nums text-base-content/40">{rank}</span>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm">{entry.label}</span>
-          {entry.isTarget ? (
-            <span className="badge badge-primary badge-xs border-0">You</span>
-          ) : null}
-          <span className="ml-auto shrink-0 text-xs tabular-nums text-base-content/50">
-            {/* Null mentions = "no data"; render a dash, not zero. */}
-            {entry.mentions == null ? "—" : formatCount(entry.mentions)}
-          </span>
-        </div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-base-200">
-          <div
-            className={`h-full rounded-full ${
-              entry.isTarget ? "bg-primary" : "bg-base-content/25"
-            }`}
-            style={{ width: `${barWidth}%` }}
-          />
-        </div>
-      </div>
-      <span className="text-right text-sm font-medium tabular-nums">
-        {hasData ? `${Math.round(entry.sharePct ?? 0)}%` : "—"}
-      </span>
-    </li>
+      {children}
+    </td>
+  );
+}
+
+function YouBadge() {
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        color: "var(--accent)",
+        border: "1px solid var(--accent-border)",
+        background: "var(--accent-soft)",
+        borderRadius: 999,
+        padding: "0 6px",
+      }}
+    >
+      You
+    </span>
   );
 }

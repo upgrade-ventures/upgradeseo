@@ -1,24 +1,28 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import {
-  AlertCircle,
-  ArrowLeft,
-  Columns3,
-  SearchCheck,
-  Sparkles,
-} from "lucide-react";
+  PageHeaderBand,
+  SecondaryButton,
+} from "@/client/components/prominence/Primitives";
 import { explorePrompt } from "@/serverFunctions/ai-search";
-import {
-  HostedPlanGate,
-  type HostedPlanGateState,
-} from "@/client/features/billing/HostedPlanGate";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
-import { PromptExplorerForm } from "@/client/features/ai-search/components/PromptExplorerForm";
+import {
+  AiVisibilityTabs,
+  panelId,
+  type AiVisibilityTabId,
+} from "@/client/features/ai-search/components/AiVisibilityTabs";
+import {
+  ErrorPanel,
+  InfoCallout,
+} from "@/client/features/ai-search/components/aiControls";
+import { InlineConfirm } from "@/client/features/ai-search/components/InlineConfirm";
+import {
+  PromptExplorerForm,
+  type PromptExplorerErrors,
+} from "@/client/features/ai-search/components/PromptExplorerForm";
 import { PromptExplorerResults } from "@/client/features/ai-search/components/PromptExplorerResults";
 import { PromptExplorerLoadingState } from "@/client/features/ai-search/components/PromptExplorerLoadingState";
 import { PromptExplorerHistorySection } from "@/client/features/ai-search/components/PromptExplorerHistorySection";
-import { AiSearchPaidPlanGate } from "@/client/features/ai-search/components/AiSearchPaidPlanGate";
 import { usePromptExplorerSearchHistory } from "@/client/hooks/usePromptExplorerSearchHistory";
 import {
   PROMPT_EXPLORER_MAX_PROMPT_LENGTH,
@@ -38,42 +42,28 @@ type Props = {
   projectId: string;
   urlState: PromptExplorerFormValues;
   onSubmit: (values: PromptExplorerFormValues) => void;
+  /** Drops the active prompt and returns the panel to recent prompts. */
+  onClear: () => void;
+  onSelectTab: (tab: AiVisibilityTabId) => void;
 };
 
-const PROMPT_EXPLORER_BULLETS = [
-  {
-    icon: Columns3,
-    title: "Four models side-by-side",
-    body: "Run one prompt across ChatGPT, Claude, Gemini, and Perplexity and compare answers in a single view.",
-  },
-  {
-    icon: SearchCheck,
-    title: "See what the models cite",
-    body: "Every answer lists the sources it drew from, so you can audit where each model gets its information.",
-  },
-  {
-    icon: Sparkles,
-    title: "Check brand mentions",
-    body: "Highlight a brand to instantly see whether it shows up in the answer text or the cited sources.",
-  },
-];
-
 export function PromptExplorerPage(props: Props) {
-  return (
-    <HostedPlanGate>
-      {(planGate) => <PromptExplorerPageInner {...props} planGate={planGate} />}
-    </HostedPlanGate>
-  );
+  return <PromptExplorerPageInner {...props} />;
 }
 
 function PromptExplorerPageInner({
   projectId,
   urlState,
   onSubmit,
-  planGate,
-}: Props & { planGate: HostedPlanGateState }) {
+  onClear,
+  onSelectTab,
+}: Props) {
   const [form, setForm] = useState<PromptExplorerFormValues>(urlState);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<PromptExplorerErrors>({});
+  // A prompt run is a job, so it states its scope and waits for a yes.
+  const [pendingRun, setPendingRun] = useState<PromptExplorerFormValues | null>(
+    null,
+  );
 
   const {
     history,
@@ -106,21 +96,17 @@ function PromptExplorerPageInner({
           webSearchCountryCode: urlState.webSearchCountryCode,
         },
       }),
-    // Client-side gate is a UX optimization only; the paywall is enforced
-    // server-side (explorePrompt → assertPaidPlan) before any DataForSEO spend,
-    // so a stale free-plan window here just yields a rejected request, not cost.
-    enabled:
-      hasActivePrompt && urlState.models.length > 0 && !planGate.isFreePlan,
+    enabled: hasActivePrompt && urlState.models.length > 0,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
-  // Sync form to URL state — covers initial mount, browser back/forward, and
+  // Sync form to URL state: covers initial mount, browser back/forward, and
   // cmd+click history navigation (in the originating tab nothing changes; in
   // a new tab the form mounts populated from the URL).
   useEffect(() => {
     setForm(urlState);
-    setValidationError(null);
+    setErrors({});
   }, [urlState]);
 
   // Persist successful searches to history. Run on isSuccess so failed
@@ -156,25 +142,25 @@ function PromptExplorerPageInner({
     addSearch,
   ]);
 
+  // Messages name the fix, not the fault, per the design's validation rule.
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     const trimmed = form.prompt.trim();
+    const next: PromptExplorerErrors = {};
+
     if (trimmed.length === 0) {
-      setValidationError("Enter a prompt");
-      return;
-    }
-    if (trimmed.length > PROMPT_EXPLORER_MAX_PROMPT_LENGTH) {
-      setValidationError(
-        `Keep prompts under ${PROMPT_EXPLORER_MAX_PROMPT_LENGTH} characters`,
-      );
-      return;
+      next.prompt = "Write the question you want an assistant to answer.";
+    } else if (trimmed.length > PROMPT_EXPLORER_MAX_PROMPT_LENGTH) {
+      next.prompt = `That is ${(trimmed.length - PROMPT_EXPLORER_MAX_PROMPT_LENGTH).toLocaleString()} characters over. Trim it to ${PROMPT_EXPLORER_MAX_PROMPT_LENGTH.toLocaleString()} or fewer.`;
     }
     if (form.models.length === 0) {
-      setValidationError("Select at least one model");
-      return;
+      next.models = "Pick at least one model to ask.";
     }
-    setValidationError(null);
-    onSubmit({
+
+    setErrors(next);
+    if (next.prompt || next.models) return;
+
+    setPendingRun({
       ...form,
       prompt: trimmed,
       highlightBrand: form.highlightBrand.trim(),
@@ -192,83 +178,95 @@ function PromptExplorerPageInner({
     value: PromptExplorerFormValues[K],
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-    if (validationError) setValidationError(null);
+    // Clear only the message the edit could have fixed.
+    setErrors((prev) => {
+      const field = key === "models" ? "models" : "prompt";
+      if (!prev[field]) return prev;
+      return { ...prev, [field]: undefined };
+    });
   };
 
   return (
-    <div className="px-4 py-4 pb-24 overflow-auto md:px-6 md:py-6 md:pb-8">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Prompt Explorer</h1>
-          <p className="text-sm text-base-content/70">
-            Ask any prompt across ChatGPT, Claude, Gemini, and Perplexity
-            side-by-side.
-          </p>
+    <div style={{ paddingBottom: 48 }}>
+      <PageHeaderBand
+        title="AI Visibility"
+        subtitle="Ask what your customers would ask, and read the answer back. Every answer here is written by our own Azure AI Foundry deployment."
+        tabs={<AiVisibilityTabs active="prompts" onSelect={onSelectTab} />}
+      />
+
+      <div
+        role="tabpanel"
+        id={panelId("prompts")}
+        aria-label="Prompt explorer"
+        style={{ padding: "16px var(--pad, 24px)" }}
+      >
+        <PromptExplorerForm
+          form={form}
+          onPromptChange={(value) => updateForm("prompt", value)}
+          onHighlightBrandChange={(value) =>
+            updateForm("highlightBrand", value)
+          }
+          onModelsChange={(value) => updateForm("models", value)}
+          onWebSearchChange={(value) => updateForm("webSearch", value)}
+          onCountryChange={(value) => updateForm("webSearchCountryCode", value)}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          errors={errors}
+        />
+
+        {pendingRun ? (
+          <InlineConfirm
+            title={`Run this prompt on ${pendingRun.models.length} model${pendingRun.models.length === 1 ? "" : "s"}?`}
+            // Scope is the model count and whether the run may search the web.
+            // The seven-day hold is the honest statement about repeat runs; no
+            // duration is claimed, because nothing here measures one.
+            body={`We ask our own deployment ${pendingRun.models.length} time${pendingRun.models.length === 1 ? "" : "s"} and read each answer back${pendingRun.webSearch ? ", with web search allowed" : ", without web search"}. Each answer is kept for seven days, so re-running the same prompt inside that window returns what you already have.`}
+            confirmLabel="Run prompt"
+            onConfirm={() => {
+              const values = pendingRun;
+              setPendingRun(null);
+              onSubmit(values);
+            }}
+            onCancel={() => setPendingRun(null)}
+          />
+        ) : null}
+
+        <div style={{ marginTop: 12 }}>
+          {errorMessage ? (
+            <ErrorPanel
+              message={errorMessage}
+              onRetry={() => void exploreQuery.refetch()}
+            />
+          ) : isLoading ? (
+            <PromptExplorerLoadingState />
+          ) : resultData ? (
+            <>
+              <PromptExplorerResults result={resultData} />
+              <div style={{ marginTop: 10 }}>
+                <SecondaryButton onClick={onClear}>
+                  Recent prompts
+                </SecondaryButton>
+              </div>
+            </>
+          ) : (
+            <PromptExplorerHistorySection
+              projectId={projectId}
+              history={history}
+              historyLoaded={historyLoaded}
+              onRemoveHistoryItem={removeHistoryItem}
+            />
+          )}
         </div>
 
-        {planGate.isFreePlan ? (
-          <AiSearchPaidPlanGate
-            feature="Prompt Explorer"
-            description="Ask one prompt across ChatGPT, Claude, Gemini, and Perplexity at the same time and compare their answers — including which sources each model cites."
-            bullets={PROMPT_EXPLORER_BULLETS}
-          />
-        ) : (
-          <>
-            <PromptExplorerForm
-              form={form}
-              onPromptChange={(value) => updateForm("prompt", value)}
-              onHighlightBrandChange={(value) =>
-                updateForm("highlightBrand", value)
-              }
-              onModelsChange={(value) => updateForm("models", value)}
-              onWebSearchChange={(value) => updateForm("webSearch", value)}
-              onCountryChange={(value) =>
-                updateForm("webSearchCountryCode", value)
-              }
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-              validationError={validationError}
-            />
-
-            {errorMessage ? (
-              <div
-                role="alert"
-                className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error"
-              >
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            ) : null}
-
-            {isLoading ? (
-              <PromptExplorerLoadingState modelCount={form.models.length} />
-            ) : resultData ? (
-              <>
-                <div>
-                  <Link
-                    from="/p/$projectId/prompt-explorer"
-                    to="/p/$projectId/prompt-explorer"
-                    params={{ projectId }}
-                    search={{}}
-                    replace
-                    className="btn btn-ghost btn-sm gap-2 px-0 text-base-content/70 hover:bg-transparent"
-                  >
-                    <ArrowLeft className="size-4" />
-                    Recent searches
-                  </Link>
-                </div>
-                <PromptExplorerResults result={resultData} />
-              </>
-            ) : !errorMessage ? (
-              <PromptExplorerHistorySection
-                projectId={projectId}
-                history={history}
-                historyLoaded={historyLoaded}
-                onRemoveHistoryItem={removeHistoryItem}
-              />
-            ) : null}
-          </>
-        )}
+        <div style={{ maxWidth: 820, marginTop: 12 }}>
+          <InfoCallout gutter={false}>
+            Answers vary between runs, and this one is kept for seven days, so
+            the same prompt returns the same answer for a week. The model
+            buttons record what you asked for: we run one deployment of our own
+            and never call ChatGPT, Claude, Gemini or Perplexity, so no answer
+            here is labelled with their names.
+          </InfoCallout>
+        </div>
       </div>
     </div>
   );

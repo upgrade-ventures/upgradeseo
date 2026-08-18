@@ -1,66 +1,124 @@
-import { useEffect, useMemo } from "react";
-import { SlidersHorizontal } from "lucide-react";
-import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { AnchorsTable } from "./AnchorsTable";
+import type { AnchorSummary } from "./backlinksAnchors";
+import { ANCHOR_SAMPLE_SIZE } from "./backlinksAnchors";
 import { BacklinksFilterPanel } from "./BacklinksFilterPanel";
+import { BacklinksToolbar } from "./BacklinksControls";
+import type { BacklinksTableSort } from "./BacklinksDataTable";
+import {
+  BacklinksStatStrip,
+  BacklinksTrendPanels,
+} from "./BacklinksOverviewPanels";
+import { BACKLINKS_PANEL_ID } from "./BacklinksHeader";
+import { BacklinksTabError } from "./BacklinksPageStates";
 import { BacklinksTable } from "./BacklinksTable";
 import { ReferringDomainsTable } from "./ReferringDomainsTable";
 import { TopPagesTable } from "./TopPagesTable";
 import type {
-  BacklinksSearchState,
+  BacklinksOverviewData,
   BacklinksTabRows,
+  BacklinksUiTab,
 } from "./backlinksPageTypes";
-import { TAB_DESCRIPTIONS } from "./backlinksPageUtils";
-import {
-  BacklinksActionsMenu,
-  BacklinksExportMenu,
-} from "./BacklinksToolbarMenus";
-import { buildBacklinksTabExport } from "./export";
 import type { BacklinksDomainExpansion } from "./useBacklinksDomainExpansion";
 import type { BacklinksFiltersState } from "./useBacklinksFilters";
-import { useAhrefsDomainRatings } from "./useAhrefsDomainRatings";
+import type { DomainRatings } from "./useAhrefsDomainRatings";
+import { InfoNote } from "@/client/components/prominence/Primitives";
+import type { CsvValue } from "@/client/lib/csv";
 import { TablePagination } from "@/client/components/table/TablePagination";
 import {
   BACKLINKS_PAGE_SIZES,
-  type BacklinksTab,
+  type BacklinksSortOrder,
 } from "@/types/schemas/backlinks";
 
-const BACKLINKS_RESULTS_TABS: Array<{
-  tab: BacklinksSearchState["tab"];
-  label: string;
-}> = [
-  { tab: "backlinks", label: "Backlinks" },
-  { tab: "domains", label: "Referring Domains" },
-  { tab: "pages", label: "Top Pages" },
-];
+/**
+ * What each tab's numbers are made of. Every table on this screen is built
+ * from free sources with real gaps, and a reader who is not told where a
+ * column comes from will read a blank as a zero.
+ */
+const TAB_NOTES: Record<BacklinksUiTab, string> = {
+  domains:
+    "Domains are grouped from the links Bing Webmaster Tools reports for this site, so the link counts are a floor rather than a site total. DR is an authority proxy from OpenPageRank, not a licensed link-index rank.",
+  backlinks:
+    "Individual links come from Bing Webmaster Tools, which reports them only for sites verified in your own Bing account. It does not report rel attributes, so follow status stays blank.",
+  pages:
+    "Pages and their inbound link counts come from Bing Webmaster Tools. It counts links per page and never the distinct domains behind them.",
+  anchors:
+    "Anchor text is counted on this device from the links Bing Webmaster Tools reports.",
+};
 
-export function BacklinksResultsCard({
-  projectId,
+function GutterNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ padding: "0 var(--pad, 24px)" }}>
+      <InfoNote>{children}</InfoNote>
+    </div>
+  );
+}
+
+/** The design's bordered note, used once beneath the anchors table. */
+function InfoCallout({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 9,
+        margin: "14px var(--pad, 24px)",
+        padding: "9px 12px",
+        border: "1px solid var(--line)",
+        borderRadius: 8,
+        background: "var(--subtle)",
+        fontSize: 12.5,
+        color: "var(--text-2)",
+      }}
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: "var(--info)",
+          flexShrink: 0,
+          marginTop: 5,
+        }}
+      />
+      <span>{children}</span>
+    </div>
+  );
+}
+
+export function BacklinksResults({
   activeTab,
+  overviewData,
   tabRows,
+  anchors,
   filters,
-  sorting,
+  sort,
   view,
   domainExpansion,
+  domainRatings,
+  isLoadingRatings,
+  onLoadRatings,
+  sheetsExport,
   isTabLoading,
   tabErrorMessage,
-  exportTarget,
   pagination,
   onPageChange,
   onPageSizeChange,
-  onSortingChange,
-  onTabChange,
+  onSortChange,
   onViewChange,
 }: {
-  projectId: string;
-  activeTab: BacklinksSearchState["tab"];
+  activeTab: BacklinksUiTab;
+  overviewData: BacklinksOverviewData;
   tabRows: BacklinksTabRows;
+  anchors: AnchorSummary;
   filters: BacklinksFiltersState;
-  sorting: SortingState;
+  sort: BacklinksTableSort;
   view: "all" | undefined;
   domainExpansion: BacklinksDomainExpansion;
+  domainRatings: DomainRatings | null;
+  isLoadingRatings: boolean;
+  onLoadRatings: () => void;
+  sheetsExport: { headers: string[]; rows: CsvValue[][]; feature: string };
   isTabLoading: boolean;
   tabErrorMessage: string | null;
-  exportTarget: string;
   pagination: {
     page: number;
     pageSize: number;
@@ -70,120 +128,39 @@ export function BacklinksResultsCard({
   };
   onPageChange: (nextPage: number) => void;
   onPageSizeChange: (nextPageSize: number) => void;
-  onSortingChange: OnChangeFn<SortingState>;
-  onTabChange: (tab: BacklinksSearchState["tab"]) => void;
+  onSortChange: (field: string, order: BacklinksSortOrder) => void;
   onViewChange: (view: "all" | undefined) => void;
 }) {
-  const {
-    ratings: domainRatings,
-    isLoading: isLoadingRatings,
-    loadRatings,
-  } = useAhrefsDomainRatings(projectId);
-  const activeFilterCount = filters[activeTab].activeFilterCount;
-  const exportTable = useMemo(
-    () =>
-      buildBacklinksTabExport({ tab: activeTab, rows: tabRows, domainRatings }),
-    [activeTab, domainRatings, tabRows],
-  );
-  // Domains keyed by both tables that the DR column can enrich. Each table
-  // holds the currently loaded page, so this changes as the user paginates.
-  const ratableDomains = useMemo(
-    () => collectRatableDomains(tabRows),
-    [tabRows],
-  );
-  // Once the user has opted in, keep newly loaded domains enriched without a
-  // re-click (e.g. after paging or switching to the Referring Domains tab).
-  // KV-cached, so re-requesting already-known domains is nearly free.
-  useEffect(() => {
-    if (!domainRatings) return;
-    const missing = ratableDomains.filter(
-      (domain) => !Object.hasOwn(domainRatings, domain),
-    );
-    if (missing.length > 0) void loadRatings(missing);
-  }, [domainRatings, ratableDomains, loadRatings]);
+  const showTable = !tabErrorMessage;
 
   return (
-    <div className="border border-base-300 rounded-xl bg-base-100 overflow-hidden">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 px-4 py-3 border-b border-base-300">
-        <div className="space-y-2">
-          <div role="tablist" className="tabs tabs-border w-fit">
-            {BACKLINKS_RESULTS_TABS.map(({ label, tab }) => (
-              <TabLink
-                key={tab}
-                activeTab={activeTab}
-                label={label}
-                onSelect={onTabChange}
-                tab={tab}
-              />
-            ))}
-          </div>
-          <p className="max-w-xl text-sm text-base-content/60">
-            {TAB_DESCRIPTIONS[activeTab]}
-          </p>
-        </div>
+    <div id={BACKLINKS_PANEL_ID} role="tabpanel" tabIndex={-1}>
+      {overviewData.scope === "page" ? (
+        <InfoCallout>
+          Showing links to this exact page. Enter a bare domain for site-wide
+          results and the authority trend.
+        </InfoCallout>
+      ) : null}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <BacklinksExportMenu
-            activeTab={activeTab}
-            exportTarget={exportTarget}
-            headers={exportTable.headers}
-            rows={exportTable.rows}
-          />
-          {activeTab !== "pages" ? (
-            <BacklinksActionsMenu
-              isLoadingRatings={isLoadingRatings}
-              loadRatings={loadRatings}
-              ratableDomains={ratableDomains}
-            />
-          ) : null}
-        </div>
-      </div>
+      {activeTab === "domains" ? (
+        <>
+          <BacklinksStatStrip data={overviewData} />
+          <BacklinksTrendPanels data={overviewData} />
+        </>
+      ) : null}
 
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-base-300">
-        <button
-          className={`btn btn-ghost btn-sm gap-1.5 ${filters.showFilters ? "btn-active" : ""}`}
-          onClick={() => filters.setShowFilters((current) => !current)}
-          title="Toggle table filters"
-        >
-          <SlidersHorizontal className="size-3.5" />
-          Filters
-          {activeFilterCount > 0 ? (
-            <span className="badge badge-xs badge-primary border-0 text-primary-content">
-              {activeFilterCount}
-            </span>
-          ) : null}
-        </button>
-        {activeTab === "backlinks" ? (
-          <div
-            role="tablist"
-            aria-label="Backlinks view"
-            className="ml-auto tabs tabs-border tabs-xs w-fit"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view !== "all"}
-              className={`tab ${view !== "all" ? "tab-active" : ""}`}
-              title="Show each referring domain's strongest link; expand a row for the rest"
-              onClick={() => onViewChange(undefined)}
-            >
-              One per domain
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "all"}
-              className={`tab ${view === "all" ? "tab-active" : ""}`}
-              title="List every individual backlink"
-              onClick={() => onViewChange("all")}
-            >
-              All links
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <BacklinksToolbar
+        activeTab={activeTab}
+        filters={filters}
+        view={view}
+        onViewChange={onViewChange}
+        domainRatingsLoaded={domainRatings !== null}
+        isLoadingRatings={isLoadingRatings}
+        onLoadRatings={onLoadRatings}
+        sheetsExport={sheetsExport}
+      />
 
-      {filters.showFilters ? (
+      {filters.showFilters && activeTab !== "anchors" ? (
         <BacklinksFilterPanel
           activeTab={activeTab}
           filters={filters}
@@ -191,111 +168,71 @@ export function BacklinksResultsCard({
         />
       ) : null}
 
-      <div className="p-4">
-        {tabErrorMessage ? (
-          <div className="alert alert-error mb-3">
-            <span>{tabErrorMessage}</span>
-          </div>
-        ) : null}
-        {isTabLoading && !tabErrorMessage ? (
-          <TabLoadingState label={TAB_LOADING_LABELS[activeTab]} />
-        ) : null}
-        {!isTabLoading && !tabErrorMessage ? (
-          <>
-            {activeTab === "backlinks" ? (
-              <BacklinksTable
-                rows={tabRows.backlinks}
-                domainRatings={domainRatings}
-                sorting={sorting}
-                onSortingChange={onSortingChange}
-                expansion={view === "all" ? null : domainExpansion}
-              />
-            ) : null}
-            {activeTab === "domains" ? (
-              <ReferringDomainsTable
-                rows={tabRows.referringDomains}
-                domainRatings={domainRatings}
-                sorting={sorting}
-                onSortingChange={onSortingChange}
-              />
-            ) : null}
-            {activeTab === "pages" ? (
-              <TopPagesTable
-                rows={tabRows.topPages}
-                sorting={sorting}
-                onSortingChange={onSortingChange}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </div>
+      {tabErrorMessage ? <BacklinksTabError message={tabErrorMessage} /> : null}
 
-      {/* Kept visible on tab errors so a failing page still offers a way back. */}
-      <TablePagination
-        page={pagination.page}
-        pageSize={pagination.pageSize}
-        pageSizes={BACKLINKS_PAGE_SIZES}
-        totalCount={pagination.totalCount}
-        hasNextPage={pagination.hasNextPage}
-        isLoading={pagination.isFetching}
-        onPageChange={onPageChange}
-        onPageSizeChange={onPageSizeChange}
-      />
-    </div>
-  );
-}
+      {showTable && activeTab === "domains" ? (
+        <ReferringDomainsTable
+          rows={tabRows.referringDomains}
+          domainRatings={domainRatings}
+          sort={sort}
+          onSortChange={onSortChange}
+          loading={isTabLoading}
+        />
+      ) : null}
+      {showTable && activeTab === "backlinks" ? (
+        <BacklinksTable
+          rows={tabRows.backlinks}
+          domainRatings={domainRatings}
+          sort={sort}
+          onSortChange={onSortChange}
+          expansion={view === "all" ? null : domainExpansion}
+          loading={isTabLoading}
+        />
+      ) : null}
+      {showTable && activeTab === "pages" ? (
+        <TopPagesTable
+          rows={tabRows.topPages}
+          sort={sort}
+          onSortChange={onSortChange}
+          loading={isTabLoading}
+        />
+      ) : null}
+      {showTable && activeTab === "anchors" ? (
+        <AnchorsTable rows={anchors.rows} loading={isTabLoading} />
+      ) : null}
 
-const TAB_LOADING_LABELS: Record<BacklinksTab, string> = {
-  backlinks: "Loading backlinks",
-  domains: "Loading referring domains",
-  pages: "Loading top pages",
-};
-
-/** Unique domains the DR column keys on, from both the backlinks and referring
- * domains tables, normalized to match how each table renders its domain. */
-function collectRatableDomains(tabRows: BacklinksTabRows): string[] {
-  const domains = [
-    ...tabRows.backlinks.map((row) => row.domainFrom?.replace(/^www\./, "")),
-    ...tabRows.referringDomains.map((row) => row.domain),
-  ];
-  return [
-    ...new Set(domains.filter((domain): domain is string => Boolean(domain))),
-  ];
-}
-
-function TabLink({
-  activeTab,
-  label,
-  onSelect,
-  tab,
-}: {
-  activeTab: BacklinksSearchState["tab"];
-  label: string;
-  onSelect: (tab: BacklinksSearchState["tab"]) => void;
-  tab: BacklinksSearchState["tab"];
-}) {
-  const isActive = activeTab === tab;
-
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={isActive}
-      className={`tab ${isActive ? "tab-active" : ""}`}
-      onClick={() => onSelect(tab)}
-    >
-      {label}
-    </button>
-  );
-}
-
-function TabLoadingState({ label }: { label: string }) {
-  return (
-    <div className="space-y-3 py-2">
-      <p className="text-sm text-base-content/60">{label}...</p>
-      <div className="skeleton h-10 w-full" />
-      <div className="skeleton h-10 w-full" />
-      <div className="skeleton h-10 w-full" />
+      {activeTab === "anchors" ? (
+        <>
+          <InfoCallout>
+            A healthy profile has variety. If one commercial anchor dominates,
+            it usually means paid or templated links.
+          </InfoCallout>
+          <GutterNote>
+            {TAB_NOTES.anchors} Share is a share of the{" "}
+            {anchors.counted.toLocaleString()} counted{" "}
+            {anchors.counted === 1 ? "link" : "links"}
+            {anchors.withoutAnchor > 0
+              ? `, excluding ${anchors.withoutAnchor.toLocaleString()} with no anchor text`
+              : ""}
+            , not of the whole profile. At most {ANCHOR_SAMPLE_SIZE} links are
+            counted.
+          </GutterNote>
+        </>
+      ) : (
+        <>
+          <GutterNote>{TAB_NOTES[activeTab]}</GutterNote>
+          <TablePagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            pageSizes={BACKLINKS_PAGE_SIZES}
+            totalCount={pagination.totalCount}
+            hasNextPage={pagination.hasNextPage}
+            isLoading={pagination.isFetching}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        </>
+      )}
     </div>
   );
 }

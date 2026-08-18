@@ -17,7 +17,8 @@ function BacklinksRoute() {
   const {
     target = "",
     scope: rawScope,
-    tab = "backlinks",
+    // The design opens on Referring domains.
+    tab = "domains",
     page = 1,
     size = DEFAULT_BACKLINKS_PAGE_SIZE,
     sort,

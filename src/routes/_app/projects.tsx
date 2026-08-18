@@ -10,7 +10,7 @@ import {
 } from "@/serverFunctions/projects";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { getLastProjectId } from "@/client/lib/active-project";
-import { CreateProjectModal } from "@/client/features/projects/CreateProjectModal";
+import { CreateProjectPanel } from "@/client/features/projects/CreateProjectPanel";
 
 export const Route = createFileRoute("/_app/projects")({
   component: ProjectsPage,
@@ -87,12 +87,12 @@ function ProjectsPage() {
           </ul>
         )}
 
+        {creating ? (
+          <CreateProjectPanel onClose={() => setCreating(false)} />
+        ) : null}
+
         <ArchivedProjects />
       </div>
-
-      {creating ? (
-        <CreateProjectModal onClose={() => setCreating(false)} />
-      ) : null}
     </div>
   );
 }

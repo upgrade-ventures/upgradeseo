@@ -1,6 +1,6 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { KeywordResearchRow } from "@/types/keywords";
+import { PagerButton, ProminenceSelect } from "./prominenceControls";
 
 const KEYWORD_RESEARCH_PAGE_SIZES = [50, 100, 300, 500] as const;
 const DEFAULT_KEYWORD_RESEARCH_PAGE_SIZE = 50;
@@ -29,53 +29,64 @@ export function KeywordResearchPagination({
   const end = Math.min(totalCount, page * pageSize);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-base-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="text-sm tabular-nums text-base-content/70">
-        {start.toLocaleString()}-{end.toLocaleString()} of{" "}
-        {totalCount.toLocaleString()}
-      </div>
-      <div className="flex items-center gap-6">
-        <label className="flex items-center gap-2 text-sm text-base-content/70">
-          <span className="whitespace-nowrap">Rows per page</span>
-          <select
-            className="select select-bordered select-sm w-20"
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        flexWrap: "wrap",
+        padding: "10px var(--pad, 24px)",
+        borderTop: "1px solid var(--line)",
+        color: "var(--text-2)",
+        fontSize: 12,
+      }}
+    >
+      <span style={{ fontVariantNumeric: "tabular-nums" }}>
+        {`Showing ${start.toLocaleString()}–${end.toLocaleString()} of ${totalCount.toLocaleString()}`}
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginRight: 4,
+          }}
+        >
+          <span style={{ whiteSpace: "nowrap" }}>Rows per page</span>
+          <ProminenceSelect
             value={pageSize}
             onChange={(event) =>
               onPageSizeChange(parseKeywordResearchPageSize(event.target.value))
             }
+            style={{
+              minHeight: "max(26px, var(--tap, 0px))",
+              padding: "3px 6px",
+              fontSize: 12,
+            }}
           >
             {KEYWORD_RESEARCH_PAGE_SIZES.map((size) => (
               <option key={size} value={size}>
                 {size}
               </option>
             ))}
-          </select>
+          </ProminenceSelect>
         </label>
-        <div className="flex items-center gap-2">
-          <span className="whitespace-nowrap text-sm tabular-nums text-base-content/70">
-            Page {page.toLocaleString()} of {totalPages.toLocaleString()}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm btn-square"
-              disabled={page <= 1}
-              onClick={() => onPageChange(page - 1)}
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm btn-square"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-              aria-label="Next page"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        </div>
+        <PagerButton
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous page"
+        >
+          Previous
+        </PagerButton>
+        <PagerButton
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next page"
+        >
+          Next
+        </PagerButton>
       </div>
     </div>
   );

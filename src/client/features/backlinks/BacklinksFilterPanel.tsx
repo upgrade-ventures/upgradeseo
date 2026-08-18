@@ -1,4 +1,6 @@
 import { DomainFilterPanel } from "@/client/features/domain/components/DomainFilterPanel";
+import { focusRing } from "@/client/features/domain/components/domainTableStyles";
+import { SecondaryButton } from "@/client/components/prominence/Primitives";
 import type { BacklinksTab } from "@/types/schemas/backlinks";
 import {
   BACKLINKS_FILTER_FIELDS,
@@ -11,8 +13,8 @@ import type { BacklinksFiltersState } from "./useBacklinksFilters";
 
 /**
  * Filters are applied explicitly (not per keystroke) because every change
- * triggers a billed DataForSEO request. Each include/exclude term and each
- * set field costs one DataForSEO filter condition, capped per request —
+ * triggers a fresh provider request. Each include/exclude term and each
+ * set field costs one filter condition, capped per request —
  * DomainFilterPanel surfaces the count and gates Apply.
  */
 export function BacklinksFilterPanel({
@@ -169,6 +171,58 @@ export function BacklinksFilterPanel({
   );
 }
 
+const GROUP_LABEL: React.CSSProperties = {
+  display: "block",
+  fontSize: 12.5,
+  fontWeight: 600,
+  marginBottom: 6,
+};
+
+const CHECKBOX_ROW: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 7,
+  fontSize: 12.5,
+  cursor: "pointer",
+};
+
+/** The design's segmented choice: selected carries the accent tint, and the
+ * pressed state is exposed rather than left to colour alone. */
+function LinkTypeButton({
+  selected,
+  label,
+  onSelect,
+}: {
+  selected: boolean;
+  label: string;
+  onSelect: () => void;
+}) {
+  return (
+    <SecondaryButton
+      aria-pressed={selected}
+      onClick={onSelect}
+      style={
+        selected
+          ? {
+              background: "var(--accent-soft)",
+              borderColor: "var(--accent-border)",
+              color: "var(--accent)",
+              fontWeight: 600,
+            }
+          : undefined
+      }
+    >
+      {label}
+    </SecondaryButton>
+  );
+}
+
+const LINK_TYPES = [
+  { value: "", label: "All" },
+  { value: "dofollow", label: "Dofollow" },
+  { value: "nofollow", label: "Nofollow" },
+] as const;
+
 function BacklinksToggleControls({
   draft,
   setValue,
@@ -177,58 +231,72 @@ function BacklinksToggleControls({
   setValue: (key: keyof BacklinksTabFilterValues, value: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
-          Link Type
-        </p>
-        <div className="flex items-center gap-1">
-          {(["", "dofollow", "nofollow"] as const).map((value) => (
-            <button
-              key={value || "all"}
-              type="button"
-              className={`btn btn-xs ${draft.linkType === value ? "btn-soft" : "btn-ghost"}`}
-              onClick={() => setValue("linkType", value)}
-            >
-              {value === ""
-                ? "All"
-                : value === "dofollow"
-                  ? "Dofollow"
-                  : "Nofollow"}
-            </button>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
+      <div>
+        <span id="backlinks-link-type-label" style={GROUP_LABEL}>
+          Link type
+        </span>
+        <div
+          role="group"
+          aria-labelledby="backlinks-link-type-label"
+          style={{ display: "flex", gap: 4 }}
+        >
+          {LINK_TYPES.map((option) => (
+            <LinkTypeButton
+              key={option.value || "all"}
+              selected={draft.linkType === option.value}
+              label={option.label}
+              onSelect={() => setValue("linkType", option.value)}
+            />
           ))}
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-base-content/60">
+      <div>
+        <span id="backlinks-visibility-label" style={GROUP_LABEL}>
           Visibility
-        </p>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 cursor-pointer">
+        </span>
+        <div
+          role="group"
+          aria-labelledby="backlinks-visibility-label"
+          style={{ display: "flex", alignItems: "center", gap: 14 }}
+        >
+          <label style={CHECKBOX_ROW}>
             <input
               type="checkbox"
-              className="checkbox checkbox-xs"
+              style={CHECKBOX}
               checked={draft.hideLost === "true"}
               onChange={(event) =>
                 setValue("hideLost", event.target.checked ? "true" : "")
               }
+              {...focusRing<HTMLInputElement>()}
             />
-            <span className="text-xs">Hide lost</span>
+            Hide lost
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <label style={CHECKBOX_ROW}>
             <input
               type="checkbox"
-              className="checkbox checkbox-xs"
+              style={CHECKBOX}
               checked={draft.hideBroken === "true"}
               onChange={(event) =>
                 setValue("hideBroken", event.target.checked ? "true" : "")
               }
+              {...focusRing<HTMLInputElement>()}
             />
-            <span className="text-xs">Hide broken</span>
+            Hide broken
           </label>
         </div>
       </div>
     </div>
   );
 }
+
+const CHECKBOX: React.CSSProperties = {
+  width: 13,
+  height: 13,
+  margin: 0,
+  accentColor: "var(--accent)",
+  outline: "none",
+  borderRadius: 3,
+  cursor: "pointer",
+};

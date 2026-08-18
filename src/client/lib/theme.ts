@@ -2,8 +2,8 @@ import * as React from "react";
 
 export type ThemePreference = "system" | "light" | "dark";
 
-const LIGHT_THEME_NAME = "openseo";
-const DARK_THEME_NAME = "openseo-dark";
+const LIGHT_THEME_NAME = "upgradeseo";
+const DARK_THEME_NAME = "upgradeseo-dark";
 
 const THEME_STORAGE_KEY = "theme-preference";
 const THEME_CHANGE_EVENT = "theme-preference-change";

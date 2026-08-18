@@ -9,6 +9,8 @@ import {
   YAxis,
 } from "recharts";
 import type { TooltipContentProps } from "recharts";
+import { Chip } from "./RankScreenParts";
+import { CHART_TICK } from "./RankChartParts";
 
 export interface TrendSeries {
   /** key into each data row holding the position value (1 = best, serpDepth = bottom band) */
@@ -61,14 +63,24 @@ export function RankTrendChart({
   const { containerRef, width: chartWidth } = useChartWidth();
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-[11px] text-base-content/50">
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 4,
+          fontSize: 11,
+          color: "var(--text-3)",
+        }}
+      >
         <span>Google position (1 = best)</span>
-        <span className="inline-flex items-center gap-1">
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           Better <span aria-hidden>↑</span>
         </span>
       </div>
-      <div ref={containerRef} className="w-full min-w-0" style={{ height }}>
+      <div ref={containerRef} style={{ width: "100%", minWidth: 0, height }}>
         {chartWidth > 0 ? (
           <LineChart
             width={chartWidth}
@@ -98,7 +110,7 @@ export function RankTrendChart({
               scale="time"
               domain={["dataMin", "dataMax"]}
               tickFormatter={formatDateTick}
-              tick={{ fontSize: 10, fill: "#888" }}
+              tick={CHART_TICK}
               tickLine={false}
               axisLine={false}
               minTickGap={32}
@@ -107,7 +119,7 @@ export function RankTrendChart({
               reversed
               domain={[1, serpDepth]}
               allowDecimals={false}
-              tick={{ fontSize: 10, fill: "#888" }}
+              tick={CHART_TICK}
               tickLine={false}
               axisLine={false}
               width={32}
@@ -128,7 +140,7 @@ export function RankTrendChart({
                 );
                 return renderTooltip(label, entries);
               }}
-              cursor={{ stroke: "rgba(150,150,150,0.3)" }}
+              cursor={{ stroke: "var(--border-strong)" }}
             />
             {series.map((s) => (
               <Line
@@ -180,11 +192,11 @@ export function useChartWidth() {
   return { containerRef, width };
 }
 
-/** 30d / 90d / All range toggle shared by the modal and overview charts. */
+/** 30d / 90d / All range toggle shared by the panel and overview charts. */
 const TREND_RANGES = [
-  { label: "30d", sinceDays: 30 },
-  { label: "90d", sinceDays: 90 },
-  { label: "All", sinceDays: 730 },
+  { label: "30d", sinceDays: 30, title: "Checks from the last 30 days" },
+  { label: "90d", sinceDays: 90, title: "Checks from the last 90 days" },
+  { label: "All", sinceDays: 730, title: "Every check on record" },
 ] as const;
 
 export function TrendRangeToggle({
@@ -195,18 +207,22 @@ export function TrendRangeToggle({
   onChange: (sinceDays: number) => void;
 }) {
   return (
-    <div className="join">
+    // A chip group, not a segmented control: the screen already toggles views
+    // and devices with chips, and the range is the same kind of choice.
+    <div
+      role="group"
+      aria-label="Chart range"
+      style={{ display: "flex", gap: 4, flexWrap: "wrap" }}
+    >
       {TREND_RANGES.map((range) => (
-        <button
+        <Chip
           key={range.label}
-          type="button"
-          className={`btn btn-xs join-item ${
-            value === range.sinceDays ? "btn-active" : "btn-ghost"
-          }`}
+          active={value === range.sinceDays}
+          title={range.title}
           onClick={() => onChange(range.sinceDays)}
         >
           {range.label}
-        </button>
+        </Chip>
       ))}
     </div>
   );

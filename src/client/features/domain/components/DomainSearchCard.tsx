@@ -1,146 +1,188 @@
 import type { FormEvent } from "react";
-import { AlertCircle, Search } from "lucide-react";
+import { Icon } from "@/client/components/icons/IconSprite";
+import { PrimaryButton } from "@/client/components/prominence/Primitives";
+import { LocationSelect } from "@/client/components/LocationSelect";
+import { focusRing } from "@/client/features/domain/components/domainTableStyles";
 import { getFieldError, getFormError } from "@/client/lib/forms";
 import type { DomainOverviewControlsForm } from "@/client/features/domain/DomainOverviewPage";
-import { toSortMode } from "@/client/features/domain/utils";
-import type { DomainSortMode } from "@/client/features/domain/types";
 import { LABS_LOCATION_OPTIONS } from "@/client/features/keywords/locations";
-import { LocationSelect } from "@/client/components/LocationSelect";
 
 type Props = {
   controlsForm: DomainOverviewControlsForm;
   isLoading: boolean;
   onSubmit: (event: FormEvent) => void;
-  onSortChange: (sort: DomainSortMode) => void;
   onLocationChange: (locationCode: number) => void;
 };
 
+/**
+ * The lookup controls, sitting inside the header band above the tab strip.
+ *
+ * The design's header names a fixed domain because its markup is static. Here
+ * the domain is whatever the user asks for, so the control that chooses it
+ * belongs with the identity it sets rather than in a card of its own.
+ *
+ * Sorting is not repeated here: every sortable column carries its own header
+ * control, so a second sort picker would be two ways to write the same URL.
+ */
 export function DomainSearchCard({
   controlsForm,
   isLoading,
   onSubmit,
-  onSortChange,
   onLocationChange,
 }: Props) {
   return (
-    <div className="card bg-base-100 border border-base-300">
-      <div className="card-body gap-4">
-        <form
-          className="flex flex-col gap-3 lg:flex-row lg:items-center"
-          onSubmit={onSubmit}
-        >
-          <controlsForm.Field name="domain">
-            {(field) => {
-              const domainError = getFieldError(field.state.meta.errors);
-
-              return (
-                <label
-                  className={`input input-bordered flex items-center gap-2 w-full lg:flex-1 lg:min-w-0 lg:max-w-md ${domainError ? "input-error" : ""}`}
-                >
-                  <Search className="size-4 text-base-content/60" />
-                  <input
-                    className="grow min-w-0"
-                    placeholder="Enter a domain"
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    aria-invalid={domainError ? true : undefined}
-                    aria-describedby={
-                      domainError ? "domain-input-error" : undefined
-                    }
-                  />
-                </label>
-              );
-            }}
-          </controlsForm.Field>
-
-          <controlsForm.Field name="locationCode">
-            {(field) => (
-              <LocationSelect
-                value={field.state.value}
-                options={LABS_LOCATION_OPTIONS}
-                className="w-full lg:w-44 lg:shrink-0"
-                onChange={(code) => {
-                  field.handleChange(code);
-                  onLocationChange(code);
-                }}
-              />
-            )}
-          </controlsForm.Field>
-
-          <controlsForm.Field name="sort">
-            {(field) => (
-              <select
-                className="select select-bordered shrink-0"
-                value={field.state.value}
-                onChange={(event) => {
-                  const next = toSortMode(event.target.value) ?? "traffic";
-                  field.handleChange(next);
-                  onSortChange(next);
-                }}
-              >
-                <option value="rank">By Rank</option>
-                <option value="traffic">By Traffic</option>
-                <option value="volume">By Volume</option>
-                <option value="score">By Score</option>
-                <option value="cpc">By CPC</option>
-              </select>
-            )}
-          </controlsForm.Field>
-
-          <controlsForm.Subscribe selector={(state) => state.isSubmitting}>
-            {(isSubmitting) => (
-              <button
-                type="submit"
-                className="btn btn-primary shrink-0 px-6"
-                disabled={isLoading || isSubmitting}
-              >
-                {isLoading || isSubmitting ? "Loading..." : "Search"}
-              </button>
-            )}
-          </controlsForm.Subscribe>
-        </form>
-
+    <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
         <controlsForm.Field name="domain">
           {(field) => {
             const domainError = getFieldError(field.state.meta.errors);
-
-            return domainError ? (
-              <p id="domain-input-error" className="text-sm text-error">
-                {domainError}
-              </p>
-            ) : null;
+            return (
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  minWidth: 0,
+                  flex: "1 1 220px",
+                  maxWidth: 340,
+                  minHeight: 28,
+                  padding: "0 9px",
+                  border: `1px solid ${domainError ? "var(--danger-border)" : "var(--line)"}`,
+                  background: "var(--surface)",
+                  borderRadius: 6,
+                }}
+              >
+                <span style={{ color: "var(--text-3)", display: "flex" }}>
+                  <Icon name="i-search" size={13} />
+                </span>
+                <input
+                  placeholder="Enter a domain"
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  aria-label="Domain to look up"
+                  aria-invalid={domainError ? true : undefined}
+                  aria-describedby={
+                    domainError ? "domain-input-error" : undefined
+                  }
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: "none",
+                    outline: "none",
+                    background: "none",
+                    color: "var(--text)",
+                    fontSize: 12.5,
+                    fontFamily: "inherit",
+                    padding: "4px 0",
+                  }}
+                />
+              </label>
+            );
           }}
         </controlsForm.Field>
 
-        <controlsForm.Subscribe selector={(state) => state.errorMap.onSubmit}>
-          {(submitError) => {
-            const errorMessage = getFormError(submitError);
+        <controlsForm.Field name="locationCode">
+          {(field) => (
+            <LocationSelect
+              value={field.state.value}
+              options={LABS_LOCATION_OPTIONS}
+              className="w-44 shrink-0"
+              onChange={(code) => {
+                field.handleChange(code);
+                onLocationChange(code);
+              }}
+            />
+          )}
+        </controlsForm.Field>
 
-            return errorMessage ? (
-              <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error flex items-start gap-2">
-                <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                <span>{errorMessage}</span>
-              </div>
-            ) : null;
-          }}
+        <controlsForm.Field name="subdomains">
+          {(field) => (
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12.5,
+                color: "var(--text-2)",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={field.state.value}
+                onChange={(event) => field.handleChange(event.target.checked)}
+                style={{
+                  width: 13,
+                  height: 13,
+                  margin: 0,
+                  accentColor: "var(--accent)",
+                  outline: "none",
+                  borderRadius: 3,
+                  cursor: "pointer",
+                }}
+                {...focusRing<HTMLInputElement>()}
+              />
+              Include subdomains
+            </label>
+          )}
+        </controlsForm.Field>
+
+        <controlsForm.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <PrimaryButton type="submit" disabled={isLoading || isSubmitting}>
+              {isLoading || isSubmitting ? "Looking up..." : "Look up"}
+            </PrimaryButton>
+          )}
         </controlsForm.Subscribe>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="label cursor-pointer gap-2 py-0">
-            <controlsForm.Field name="subdomains">
-              {(field) => (
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.checked)}
-                />
-              )}
-            </controlsForm.Field>
-            <span className="label-text">Include subdomains</span>
-          </label>
-        </div>
       </div>
-    </div>
+
+      <controlsForm.Field name="domain">
+        {(field) => {
+          const domainError = getFieldError(field.state.meta.errors);
+          return domainError ? (
+            <p
+              id="domain-input-error"
+              style={{
+                margin: "6px 0 0",
+                fontSize: 12,
+                color: "var(--danger)",
+              }}
+            >
+              {domainError}
+            </p>
+          ) : null;
+        }}
+      </controlsForm.Field>
+
+      <controlsForm.Subscribe selector={(state) => state.errorMap.onSubmit}>
+        {(submitError) => {
+          const errorMessage = getFormError(submitError);
+          return errorMessage ? (
+            <p
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 6,
+                margin: "6px 0 0",
+                fontSize: 12,
+                color: "var(--danger)",
+              }}
+            >
+              <Icon name="i-alert" size={13} style={{ marginTop: 1 }} />
+              <span>{errorMessage}</span>
+            </p>
+          ) : null;
+        }}
+      </controlsForm.Subscribe>
+    </form>
   );
 }

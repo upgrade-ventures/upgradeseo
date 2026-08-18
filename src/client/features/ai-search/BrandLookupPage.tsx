@@ -1,24 +1,28 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import {
-  AlertCircle,
-  ArrowLeft,
-  BarChart3,
-  Quote,
-  TrendingUp,
-} from "lucide-react";
+  PageHeaderBand,
+  ScreenBody,
+} from "@/client/components/prominence/Primitives";
 import { lookupBrand } from "@/serverFunctions/ai-search";
-import {
-  HostedPlanGate,
-  type HostedPlanGateState,
-} from "@/client/features/billing/HostedPlanGate";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
+import {
+  AiVisibilityTabs,
+  panelId,
+  type AiVisibilityTabId,
+} from "@/client/features/ai-search/components/AiVisibilityTabs";
+import {
+  ErrorPanel,
+  formatRelative,
+} from "@/client/features/ai-search/components/aiControls";
 import { BrandLookupResults } from "@/client/features/ai-search/components/BrandLookupResults";
-import { BrandLookupSearchCard } from "@/client/features/ai-search/components/BrandLookupSearchCard";
+import {
+  BrandLookupSearchCard,
+  type LookupValidationError,
+} from "@/client/features/ai-search/components/BrandLookupSearchCard";
+import { BrandLookupShareOfVoice } from "@/client/features/ai-search/components/BrandLookupShareOfVoice";
 import { BrandLookupHistorySection } from "@/client/features/ai-search/components/BrandLookupHistorySection";
 import { AiSearchLoadingState } from "@/client/features/ai-search/components/AiSearchLoadingState";
-import { AiSearchPaidPlanGate } from "@/client/features/ai-search/components/AiSearchPaidPlanGate";
 import { useBrandLookupSearchHistory } from "@/client/hooks/useBrandLookupSearchHistory";
 import {
   BRAND_LOOKUP_MAX_INPUT_LENGTH,
@@ -30,52 +34,102 @@ type Props = {
   projectId: string;
   initialQuery: string;
   initialCompetitors: string[];
+  /** Which of the two tabs this route owns is open. */
+  tab: "mentions" | "share";
   onSearchChange: (nextQuery: string, nextCompetitors: string[]) => void;
+  onSelectTab: (tab: AiVisibilityTabId) => void;
 };
 
-const BRAND_LOOKUP_BULLETS = [
-  {
-    icon: TrendingUp,
-    title: "Track AI visibility",
-    body: "See estimated counts for ChatGPT and Google AI Overview answers that cite your brand, and watch the trend month over month.",
-  },
-  {
-    icon: Quote,
-    title: "See the prompts",
-    body: "View sample user questions where LLMs reference your brand or domain.",
-  },
-  {
-    icon: BarChart3,
-    title: "Map the competition",
-    body: "Spot the pages LLMs cite alongside you so you know who's competing for attention in AI answers.",
-  },
-];
+/** The Share of Voice comparison caps at five, matching the input schema. */
+const MAX_COMPETITORS = 5;
+
+/**
+ * The one rule set for the lookup form.
+ *
+ * Called on blur by each field and again on submit, so a message a field shows
+ * is the same message the button would give. Every message names the fix, per
+ * the Forms & validation rule, rather than only naming the fault.
+ */
+function validateLookup(
+  rawQuery: string,
+  rawCompetitors: string,
+): LookupValidationError | null {
+  const trimmed = rawQuery.trim();
+  if (trimmed.length === 0) {
+    return { field: "query", message: "Enter a brand name or domain." };
+  }
+  if (trimmed.length > BRAND_LOOKUP_MAX_INPUT_LENGTH) {
+    return {
+      field: "query",
+      message: `That is ${(trimmed.length - BRAND_LOOKUP_MAX_INPUT_LENGTH).toLocaleString()} characters over. Trim it to ${BRAND_LOOKUP_MAX_INPUT_LENGTH} or fewer.`,
+    };
+  }
+
+  const competitors = parseCompetitorList(rawCompetitors);
+  // Mirror the server's input schema (per-item max) and its competitor
+  // resolution (a competitor that resolves to the target is dropped) so the
+  // user gets an inline message instead of a generic server error or a
+  // silently missing Share of Voice section.
+  const tooLong = competitors.find(
+    (competitor) => competitor.length > BRAND_LOOKUP_MAX_INPUT_LENGTH,
+  );
+  if (tooLong) {
+    return {
+      field: "competitors",
+      message: `Shorten "${tooLong}": each competitor has to be ${BRAND_LOOKUP_MAX_INPUT_LENGTH} characters or fewer.`,
+    };
+  }
+
+  // `parseCompetitorList` caps the list silently, so a sixth entry would vanish
+  // without the user ever being told. Count the raw entries and say so.
+  const entered = new Set(
+    rawCompetitors
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0),
+  ).size;
+  if (entered > MAX_COMPETITORS) {
+    return {
+      field: "competitors",
+      message: `Remove ${entered - MAX_COMPETITORS}: up to ${MAX_COMPETITORS} competitors are compared in one lookup.`,
+    };
+  }
+
+  const targetValue = detectTarget(trimmed).value.toLowerCase();
+  const matchesTarget = competitors.find(
+    (competitor) =>
+      detectTarget(competitor).value.toLowerCase() === targetValue,
+  );
+  if (matchesTarget) {
+    return {
+      field: "competitors",
+      message: `Remove "${matchesTarget}": it matches the brand you are looking up.`,
+    };
+  }
+
+  return null;
+}
 
 export function BrandLookupPage(props: Props) {
-  return (
-    <HostedPlanGate>
-      {(planGate) => <BrandLookupPageInner {...props} planGate={planGate} />}
-    </HostedPlanGate>
-  );
+  return <BrandLookupPageInner {...props} />;
 }
 
 function BrandLookupPageInner({
   projectId,
   initialQuery,
   initialCompetitors,
+  tab,
   onSearchChange,
-  planGate,
-}: Props & { planGate: HostedPlanGateState }) {
+  onSelectTab,
+}: Props) {
   const [query, setQuery] = useState(initialQuery);
   // Raw comma-separated competitor text; parsed into a deduped array on submit.
   const [competitorsInput, setCompetitorsInput] = useState(
     initialCompetitors.join(", "),
   );
   // Field-tagged so the error styling lands on the input that caused it.
-  const [validationError, setValidationError] = useState<{
-    field: "query" | "competitors";
-    message: string;
-  } | null>(null);
+  const [validationError, setValidationError] =
+    useState<LookupValidationError | null>(null);
 
   const trimmedInitialQuery = initialQuery.trim();
   const hasActiveQuery = trimmedInitialQuery.length > 0;
@@ -96,10 +150,7 @@ function BrandLookupPageInner({
           languageCode: "en",
         },
       }),
-    // Client-side gate is a UX optimization only; the paywall is enforced
-    // server-side (lookupBrand → assertPaidPlan) before any DataForSEO spend,
-    // so a stale free-plan window here just yields a rejected request, not cost.
-    enabled: hasActiveQuery && !planGate.isFreePlan,
+    enabled: hasActiveQuery,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
@@ -111,7 +162,7 @@ function BrandLookupPageInner({
     removeHistoryItem,
   } = useBrandLookupSearchHistory(projectId);
 
-  // Dedup ref prevents repeat adds — `addSearch` identity is not stable
+  // Dedup ref prevents repeat adds: `addSearch` identity is not stable
   // across renders, so we'd otherwise re-write the same item every render.
   // Key on query + competitors so changing competitors records a fresh entry.
   const lastAddedKeyRef = useRef<string | null>(null);
@@ -134,53 +185,13 @@ function BrandLookupPageInner({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const trimmed = query.trim();
-    if (trimmed.length === 0) {
-      setValidationError({
-        field: "query",
-        message: "Enter a brand name or domain",
-      });
-      return;
-    }
-    if (trimmed.length > BRAND_LOOKUP_MAX_INPUT_LENGTH) {
-      setValidationError({
-        field: "query",
-        message: `Keep it under ${BRAND_LOOKUP_MAX_INPUT_LENGTH} characters`,
-      });
-      return;
-    }
-    const competitors = parseCompetitorList(competitorsInput);
-    // Mirror the server's input schema (per-item max) and its competitor
-    // resolution (a competitor that resolves to the target is dropped) so the
-    // user gets an inline message instead of a generic server error or a
-    // silently missing Share of Voice section.
-    const tooLong = competitors.find(
-      (competitor) => competitor.length > BRAND_LOOKUP_MAX_INPUT_LENGTH,
-    );
-    if (tooLong) {
-      setValidationError({
-        field: "competitors",
-        message: `Keep each competitor under ${BRAND_LOOKUP_MAX_INPUT_LENGTH} characters`,
-      });
-      return;
-    }
-    const targetValue = detectTarget(trimmed).value.toLowerCase();
-    const matchesTarget = competitors.find(
-      (competitor) =>
-        detectTarget(competitor).value.toLowerCase() === targetValue,
-    );
-    if (matchesTarget) {
-      setValidationError({
-        field: "competitors",
-        message: `"${matchesTarget}" matches the brand you're looking up — remove it from competitors`,
-      });
-      return;
-    }
-    setValidationError(null);
-    onSearchChange(trimmed, competitors);
+    const failure = validateLookup(query, competitorsInput);
+    setValidationError(failure);
+    if (failure) return;
+    onSearchChange(query.trim(), parseCompetitorList(competitorsInput));
   };
 
-  // The form inputs are reset whenever the URL `q`/`c` changes — including the
+  // The form inputs are reset whenever the URL `q`/`c` changes, including the
   // browser-back path and Cmd+click navigation. This keeps local form state in
   // sync with the URL source-of-truth. Depend on the stable `competitorKey`
   // string (not the fresh-each-render `initialCompetitors` array) so typing in
@@ -196,80 +207,78 @@ function BrandLookupPageInner({
     hasActiveQuery && lookupQuery.isError
       ? getStandardErrorMessage(lookupQuery.error)
       : null;
-  const resultData = hasActiveQuery ? lookupQuery.data : undefined;
+  const result = hasActiveQuery ? lookupQuery.data : undefined;
 
   return (
-    <div className="px-4 py-4 pb-24 overflow-auto md:px-6 md:py-6 md:pb-8">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Brand Lookup</h1>
-          <p className="text-sm text-base-content/70">
-            See how AI search cites any brand name or domain.
-          </p>
-        </div>
-
-        {planGate.isFreePlan ? (
-          <AiSearchPaidPlanGate
-            feature="Brand Lookup"
-            description="See how ChatGPT and Google AI Overview cite any brand or domain — total mentions, sample prompts where it appears, and the pages cited alongside it."
-            bullets={BRAND_LOOKUP_BULLETS}
-          />
-        ) : (
+    <div style={{ paddingBottom: 48 }}>
+      <PageHeaderBand
+        title="AI Visibility"
+        subtitle={
           <>
-            <BrandLookupSearchCard
-              query={query}
-              onQueryChange={(next) => {
-                setQuery(next);
-                if (validationError) setValidationError(null);
-              }}
-              competitors={competitorsInput}
-              onCompetitorsChange={(next) => {
-                setCompetitorsInput(next);
-                if (validationError) setValidationError(null);
-              }}
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-              validationError={validationError}
-            />
-
-            {errorMessage ? (
-              <div
-                role="alert"
-                className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error"
-              >
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            ) : null}
-
-            {isLoading ? (
-              <AiSearchLoadingState />
-            ) : resultData ? (
-              <>
-                <div>
-                  <Link
-                    from="/p/$projectId/brand-lookup"
-                    to="/p/$projectId/brand-lookup"
-                    params={{ projectId }}
-                    search={{ q: undefined, c: undefined }}
-                    replace
-                    className="btn btn-ghost btn-sm gap-2 px-0 text-base-content/70 hover:bg-transparent"
-                  >
-                    <ArrowLeft className="size-4" />
-                    Recent searches
-                  </Link>
-                </div>
-                <BrandLookupResults result={resultData} projectId={projectId} />
-              </>
-            ) : !errorMessage ? (
-              <BrandLookupHistorySection
-                projectId={projectId}
-                history={history}
-                historyLoaded={historyLoaded}
-                onRemoveHistoryItem={removeHistoryItem}
-              />
-            ) : null}
+            How often AI answers name a brand. We ask our own Azure AI Foundry
+            deployment a set of category questions that never name it, then
+            count the answers that bring it up anyway.
+            {result
+              ? ` Measured for ${result.resolvedTarget} ${formatRelative(result.fetchedAt)}.`
+              : ""}
           </>
+        }
+        tabs={<AiVisibilityTabs active={tab} onSelect={onSelectTab} />}
+      />
+
+      <div style={{ borderBottom: "1px solid var(--line)" }}>
+        <BrandLookupSearchCard
+          query={query}
+          onQueryChange={(next) => {
+            setQuery(next);
+            if (validationError) setValidationError(null);
+          }}
+          competitors={competitorsInput}
+          onCompetitorsChange={(next) => {
+            setCompetitorsInput(next);
+            if (validationError) setValidationError(null);
+          }}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          validationError={validationError}
+          validate={validateLookup}
+          onClear={hasActiveQuery ? () => onSearchChange("", []) : undefined}
+        />
+      </div>
+
+      <div
+        role="tabpanel"
+        id={panelId(tab)}
+        aria-label={tab === "mentions" ? "Brand mentions" : "Competitor share"}
+      >
+        {errorMessage ? (
+          <ScreenBody>
+            <ErrorPanel
+              message={errorMessage}
+              onRetry={() => void lookupQuery.refetch()}
+            />
+          </ScreenBody>
+        ) : isLoading ? (
+          <AiSearchLoadingState withStats={tab === "mentions"} />
+        ) : result ? (
+          tab === "mentions" ? (
+            <BrandLookupResults result={result} projectId={projectId} />
+          ) : (
+            <BrandLookupShareOfVoice
+              shareOfVoice={result.shareOfVoice}
+              resolvedTarget={result.resolvedTarget}
+              hasCompetitors={initialCompetitors.length > 0}
+            />
+          )
+        ) : (
+          <ScreenBody>
+            <BrandLookupHistorySection
+              projectId={projectId}
+              history={history}
+              historyLoaded={historyLoaded}
+              onRemoveHistoryItem={removeHistoryItem}
+            />
+          </ScreenBody>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { Icon } from "@/client/components/icons/IconSprite";
+import { focusRing } from "@/client/features/domain/components/domainTableStyles";
 import { DOMAIN_KEYWORDS_PAGE_SIZES } from "@/types/schemas/domain";
 
 type Props = {
@@ -20,11 +21,11 @@ function formatRange(
 ) {
   const start = (page - 1) * pageSize + 1;
   if (totalCount == null) {
-    return `${start.toLocaleString()}–${(start + pageSize - 1).toLocaleString()}`;
+    return `${start.toLocaleString()}-${(start + pageSize - 1).toLocaleString()}`;
   }
   if (totalCount === 0) return "0";
   const end = Math.min(totalCount, start + pageSize - 1);
-  return `${start.toLocaleString()}–${end.toLocaleString()} of ${totalCount.toLocaleString()}`;
+  return `${start.toLocaleString()}-${end.toLocaleString()} of ${totalCount.toLocaleString()}`;
 }
 
 export function DomainKeywordsPagination({
@@ -42,21 +43,49 @@ export function DomainKeywordsPagination({
   const canGoNext = totalPages != null ? page < totalPages : hasNextPage;
 
   return (
-    <div className="flex flex-col gap-3 border-t border-base-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2 text-sm text-base-content/70 tabular-nums">
-        <span>{formatRange(page, pageSize, totalCount)}</span>
-        {isLoading ? (
-          <span className="loading loading-spinner loading-xs" />
-        ) : null}
-      </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 12,
+        padding: "9px var(--pad, 24px)",
+        borderTop: "1px solid var(--line)",
+        fontSize: 12,
+        color: "var(--text-2)",
+      }}
+    >
+      <span
+        style={{
+          fontVariantNumeric: "tabular-nums",
+          letterSpacing: "0.01em",
+        }}
+        aria-live="polite"
+      >
+        {formatRange(page, pageSize, totalCount)}
+        {isLoading ? " (updating)" : ""}
+      </span>
 
-      <div className="flex items-center gap-6">
-        <label className="flex items-center gap-2 text-sm text-base-content/70">
-          <span className="whitespace-nowrap">Rows per page</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ whiteSpace: "nowrap" }}>Rows per page</span>
           <select
-            className="select select-bordered select-sm w-20"
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
+            style={{
+              minHeight: 26,
+              padding: "2px 6px",
+              border: "1px solid var(--line)",
+              background: "var(--surface)",
+              color: "var(--text)",
+              borderRadius: 6,
+              fontSize: 12,
+              fontFamily: "inherit",
+              outline: "none",
+              cursor: "pointer",
+            }}
+            {...focusRing<HTMLSelectElement>()}
           >
             {DOMAIN_KEYWORDS_PAGE_SIZES.map((size) => (
               <option key={size} value={size}>
@@ -66,35 +95,46 @@ export function DomainKeywordsPagination({
           </select>
         </label>
 
-        <div className="flex items-center gap-2">
-          <span className="whitespace-nowrap text-sm tabular-nums text-base-content/70">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              whiteSpace: "nowrap",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             Page {page.toLocaleString()}
             {totalPages != null ? ` of ${totalPages.toLocaleString()}` : ""}
           </span>
-          <div className="flex items-center gap-1">
-            <PageLink
-              page={page - 1}
-              disabled={!canGoPrev || isLoading}
-              onPageChange={onPageChange}
-              label="Previous page"
-            >
-              <ChevronLeft className="size-4" />
-            </PageLink>
-            <PageLink
-              page={page + 1}
-              disabled={!canGoNext || isLoading}
-              onPageChange={onPageChange}
-              label="Next page"
-            >
-              <ChevronRight className="size-4" />
-            </PageLink>
-          </div>
+          <PageLink
+            page={page - 1}
+            disabled={!canGoPrev || isLoading}
+            onPageChange={onPageChange}
+            label="Previous page"
+          >
+            <Icon
+              name="i-chev-right"
+              size={13}
+              style={{ transform: "rotate(180deg)" }}
+            />
+          </PageLink>
+          <PageLink
+            page={page + 1}
+            disabled={!canGoNext || isLoading}
+            onPageChange={onPageChange}
+            label="Next page"
+          >
+            <Icon name="i-chev-right" size={13} />
+          </PageLink>
         </div>
       </div>
     </div>
   );
 }
 
+/**
+ * Stays an anchor rather than a button: paging writes the URL, so the pager has
+ * to keep working with a middle click or an open-in-new-tab.
+ */
 function PageLink({
   page,
   disabled,
@@ -118,7 +158,18 @@ function PageLink({
       })}
       aria-label={label}
       aria-disabled={disabled}
-      className={`btn btn-ghost btn-sm btn-square ${disabled ? "btn-disabled" : ""}`}
+      className="prominence-button-secondary"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 26,
+        minHeight: 26,
+        padding: 0,
+        color: "var(--text-2)",
+        opacity: disabled ? 0.45 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
       onClick={(event) => {
         if (disabled) {
           event.preventDefault();

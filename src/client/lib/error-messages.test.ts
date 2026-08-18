@@ -6,17 +6,17 @@ import {
 
 describe("getStandardErrorMessage", () => {
   it("maps known error codes to standard copy", () => {
-    expect(getStandardErrorMessage(new Error("PAYMENT_REQUIRED"))).toBe(
-      "An active hosted subscription is required before you can use OpenSEO.",
+    expect(getStandardErrorMessage(new Error("RATE_LIMITED"))).toBe(
+      "Too many requests. Please wait and try again.",
     );
   });
 
   it("returns custom messages when the error is not a shared code", () => {
     expect(
       getStandardErrorMessage(
-        new Error("DataForSEO task missing billing metadata. Response: {...}"),
+        new Error("Provider task missing response metadata. Response: {...}"),
       ),
-    ).toBe("DataForSEO task missing billing metadata. Response: {...}");
+    ).toBe("Provider task missing response metadata. Response: {...}");
   });
 });
 

@@ -1,5 +1,12 @@
 import type { FormEvent } from "react";
 import {
+  Chip,
+  ControlSelect,
+  RunButton,
+  useFocusRing,
+} from "@/client/features/ai-search/components/aiControls";
+import { Field, TextInput } from "@/client/components/prominence/Field";
+import {
   formatCountryLabel,
   formatModelLabel,
 } from "@/client/features/ai-search/platformLabels";
@@ -19,6 +26,11 @@ type FormValues = {
   webSearchCountryCode: WebSearchCountryCode;
 };
 
+export type PromptExplorerErrors = {
+  prompt?: string;
+  models?: string;
+};
+
 type Props = {
   form: FormValues;
   onPromptChange: (value: string) => void;
@@ -28,7 +40,7 @@ type Props = {
   onCountryChange: (value: WebSearchCountryCode) => void;
   onSubmit: (event: FormEvent) => void;
   isLoading: boolean;
-  validationError: string | null;
+  errors: PromptExplorerErrors;
 };
 
 function isCountryCode(value: string): value is WebSearchCountryCode {
@@ -39,6 +51,18 @@ function parseCountryCode(value: string): WebSearchCountryCode {
   return isCountryCode(value) ? value : "US";
 }
 
+/**
+ * The design's control row: prompt, one select, one run button. The extra
+ * controls this screen actually sends (the brand to look for, the requested
+ * models, the web-search location) sit on a second line in the same
+ * vocabulary, since dropping them would drop what the request can express.
+ *
+ * The design's own row labels its inputs with `aria-label` only. The Forms &
+ * validation page overrides that for the whole product — "Label always
+ * visible. Placeholders show format, never the name of the field." — so the
+ * two text fields carry real labels here, and the placeholders are left to
+ * show shape.
+ */
 export function PromptExplorerForm({
   form,
   onPromptChange,
@@ -48,143 +72,204 @@ export function PromptExplorerForm({
   onCountryChange,
   onSubmit,
   isLoading,
-  validationError,
+  errors,
 }: Props) {
+  const promptOverLimit =
+    form.prompt.length > PROMPT_EXPLORER_MAX_PROMPT_LENGTH;
+
   const toggleModel = (model: PromptExplorerModel) => {
-    if (form.models.includes(model)) {
-      onModelsChange(form.models.filter((m) => m !== model));
-    } else {
-      onModelsChange([...form.models, model]);
-    }
+    onModelsChange(
+      form.models.includes(model)
+        ? form.models.filter((current) => current !== model)
+        : [...form.models, model],
+    );
   };
 
-  const promptCharCount = form.prompt.length;
-  const promptOverLimit = promptCharCount > PROMPT_EXPLORER_MAX_PROMPT_LENGTH;
-
   return (
-    <form
-      onSubmit={onSubmit}
-      className="card border border-base-300 bg-base-100"
-    >
-      <div className="card-body gap-5">
-        <div className="space-y-1.5">
-          <label
-            className="block text-sm font-medium"
-            htmlFor="prompt-explorer-prompt"
-          >
-            Prompt
-          </label>
-          <textarea
-            id="prompt-explorer-prompt"
-            className={`textarea textarea-bordered w-full resize-none ${
-              promptOverLimit ? "textarea-error" : ""
-            }`}
-            rows={3}
-            value={form.prompt}
-            maxLength={PROMPT_EXPLORER_MAX_PROMPT_LENGTH + 50}
-            onChange={(event) => onPromptChange(event.target.value)}
-            aria-invalid={promptOverLimit ? true : undefined}
-            autoFocus
-          />
-          <div className="flex items-center justify-between text-xs text-base-content/60">
-            <span>What your customers might ask AI.</span>
-            <span
-              className={`tabular-nums ${promptOverLimit ? "font-medium text-error" : ""}`}
-            >
-              {promptCharCount}/{PROMPT_EXPLORER_MAX_PROMPT_LENGTH}
-            </span>
-          </div>
-        </div>
+    <form onSubmit={onSubmit} aria-busy={isLoading || undefined}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          marginBottom: 10,
+        }}
+      >
+        <Field
+          label="Prompt to test"
+          required
+          description="Ask what a customer would ask an assistant, in their words."
+          error={errors.prompt ?? null}
+          counter={`${form.prompt.length} / ${PROMPT_EXPLORER_MAX_PROMPT_LENGTH}`}
+          style={{ flex: 1, minWidth: 260, maxWidth: 460 }}
+        >
+          {(control) => (
+            <TextInput
+              {...control}
+              value={form.prompt}
+              onChange={(event) => onPromptChange(event.target.value)}
+              maxLength={PROMPT_EXPLORER_MAX_PROMPT_LENGTH + 50}
+              placeholder="best seo tool for a small team"
+              aria-invalid={
+                promptOverLimit || errors.prompt
+                  ? true
+                  : control["aria-invalid"]
+              }
+              autoComplete="off"
+              autoFocus
+            />
+          )}
+        </Field>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label
-              className="block text-sm font-medium"
-              htmlFor="prompt-explorer-brand"
-            >
-              Highlight brand (optional)
-            </label>
-            <input
-              id="prompt-explorer-brand"
-              type="text"
-              className="input input-bordered w-full"
+        <Field
+          label="Brand to look for"
+          description="Optional. We mark it wherever the answer names it."
+          style={{ width: 220, minWidth: 180 }}
+        >
+          {(control) => (
+            <TextInput
+              {...control}
               value={form.highlightBrand}
               onChange={(event) => onHighlightBrandChange(event.target.value)}
+              placeholder="Prominence"
               autoComplete="off"
-              spellCheck={false}
             />
-            <p className="text-xs text-base-content/60">
-              We&apos;ll flag whether each model mentions this brand.
-            </p>
-          </div>
+          )}
+        </Field>
 
-          <div className="space-y-1.5">
-            <span className="block text-sm font-medium">Models</span>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1.5">
-              {PROMPT_EXPLORER_MODELS.map((model) => {
-                const isActive = form.models.includes(model);
-                return (
-                  <label
-                    key={model}
-                    className="flex cursor-pointer items-center gap-2"
-                  >
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-sm"
-                      checked={isActive}
-                      onChange={() => toggleModel(model)}
-                    />
-                    <span className="text-sm">{formatModelLabel(model)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+        {/* Aligns with the control line of the two fields above, which sit
+            under a label and a description. */}
+        <div style={{ paddingTop: 37 }}>
+          <RunButton
+            running={isLoading}
+            idleLabel="Run prompt"
+            runningLabel={`Running ${form.models.length} model${form.models.length === 1 ? "" : "s"}…`}
+            disabled={form.models.length === 0}
+          />
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-base-300 pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                className="checkbox checkbox-sm"
-                checked={form.webSearch}
-                onChange={(event) => onWebSearchChange(event.target.checked)}
-              />
-              <span className="text-sm">
-                Allow web search (more current answers)
-              </span>
-            </label>
-            <select
-              id="prompt-explorer-country"
-              aria-label="Web search location"
-              className="select select-bordered select-sm min-w-0 sm:max-w-xs"
-              value={form.webSearchCountryCode}
-              onChange={(event) =>
-                onCountryChange(parseCountryCode(event.target.value))
-              }
-              disabled={!form.webSearch}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <span
+          id="prompt-explorer-models"
+          style={{ fontSize: 12.5, fontWeight: 600 }}
+        >
+          Models
+        </span>
+        <div
+          role="group"
+          aria-labelledby="prompt-explorer-models"
+          aria-describedby="prompt-explorer-models-error"
+          style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+        >
+          {PROMPT_EXPLORER_MODELS.map((model) => (
+            <Chip
+              key={model}
+              active={form.models.includes(model)}
+              onClick={() => toggleModel(model)}
             >
-              {WEB_SEARCH_COUNTRY_CODES.map((code) => (
-                <option key={code} value={code}>
-                  {formatCountryLabel(code)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary shrink-0 px-6"
-            disabled={isLoading || form.models.length === 0}
-          >
-            {isLoading ? "Running…" : "Run"}
-          </button>
+              {formatModelLabel(model)}
+            </Chip>
+          ))}
         </div>
 
-        {validationError ? (
-          <p className="text-sm text-error">{validationError}</p>
+        <WebSearchToggle
+          checked={form.webSearch}
+          onChange={onWebSearchChange}
+        />
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Label always visible, per the Forms & validation rule. It greys
+              with the select it names when web search is off. */}
+          <label
+            htmlFor="prompt-explorer-location"
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: form.webSearch ? undefined : "var(--text-3)",
+            }}
+          >
+            Searching from
+          </label>
+          <ControlSelect
+            id="prompt-explorer-location"
+            value={form.webSearchCountryCode}
+            disabled={!form.webSearch}
+            onChange={(event) =>
+              onCountryChange(parseCountryCode(event.target.value))
+            }
+          >
+            {WEB_SEARCH_COUNTRY_CODES.map((code) => (
+              <option key={code} value={code}>
+                {formatCountryLabel(code)}
+              </option>
+            ))}
+          </ControlSelect>
+        </span>
+      </div>
+
+      {/* Always mounted, so the message is an update to a live region. */}
+      <div id="prompt-explorer-models-error" aria-live="polite">
+        {errors.models ? (
+          <p
+            style={{
+              margin: "6px 0 0",
+              fontSize: 12,
+              color: "var(--danger)",
+            }}
+          >
+            {errors.models}
+          </p>
         ) : null}
       </div>
     </form>
+  );
+}
+
+function WebSearchToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const { ring, ringProps } = useFocusRing();
+  return (
+    <label
+      // A 14px box is well under the 44px touch floor, and the label is the
+      // whole hit area. A media query cannot be written inline.
+      className="max-sm:min-h-11"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 12.5,
+        color: "var(--text-2)",
+        cursor: "pointer",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        {...ringProps}
+        style={{
+          width: 14,
+          height: 14,
+          accentColor: "var(--accent)",
+          cursor: "pointer",
+          borderRadius: 3,
+          ...ring,
+        }}
+      />
+      Allow web search
+    </label>
   );
 }

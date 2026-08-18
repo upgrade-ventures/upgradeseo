@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import type {
   BacklinksPageProps,
   BacklinksSearchState,
+  BacklinksUiTab,
 } from "./backlinksPageTypes";
+import { ANCHOR_SAMPLE_SIZE } from "./backlinksAnchors";
 import {
   getErrorCode,
   getStandardErrorMessage,
@@ -33,6 +35,8 @@ type UseBacklinksPageDataArgs = {
   projectId: string;
   searchState: BacklinksSearchState;
   filters: BacklinksFiltersState;
+  /** Which tab is on screen, including the client-derived anchors tab. */
+  activeTab: BacklinksUiTab;
 };
 
 // Five-minute client staleness on top of the server's 6h R2 cache, so window
@@ -73,6 +77,7 @@ export function useBacklinksPageData({
   projectId,
   searchState,
   filters,
+  activeTab,
 }: UseBacklinksPageDataArgs) {
   const searchCardInitialValues = useMemo(
     () => ({
@@ -82,7 +87,7 @@ export function useBacklinksPageData({
     [searchState.scope, searchState.target],
   );
 
-  const { target, scope, tab, page, pageSize, sort, order, view } = searchState;
+  const { target, scope, page, pageSize, sort, order, view } = searchState;
   const rowsMode = view === "all" ? "as_is" : "one_per_domain";
   const targetReady = Boolean(target);
   const baseQueryKeyParts = [projectId, scope, target] as const;
@@ -116,7 +121,7 @@ export function useBacklinksPageData({
       rowsFilters,
       rowsMode,
     ],
-    enabled: targetReady && tab === "backlinks",
+    enabled: targetReady && activeTab === "backlinks",
     staleTime: BACKLINKS_QUERY_STALE_TIME_MS,
     queryFn: () =>
       getBacklinksRows({
@@ -150,7 +155,7 @@ export function useBacklinksPageData({
       domainsSort.order,
       domainsFilters,
     ],
-    enabled: targetReady && tab === "domains",
+    enabled: targetReady && activeTab === "domains",
     staleTime: BACKLINKS_QUERY_STALE_TIME_MS,
     queryFn: () =>
       getBacklinksReferringDomains({
@@ -183,7 +188,7 @@ export function useBacklinksPageData({
       pagesSort.order,
       pagesFilters,
     ],
-    enabled: targetReady && tab === "pages",
+    enabled: targetReady && activeTab === "pages",
     staleTime: BACKLINKS_QUERY_STALE_TIME_MS,
     queryFn: () =>
       getBacklinksTopPages({
@@ -196,16 +201,41 @@ export function useBacklinksPageData({
       }),
   });
 
+  // Anchor text comes from the same link rows, ungrouped and unfiltered, so
+  // the tab counts every link Bing reports rather than the current page of the
+  // backlinks table.
+  const anchorsQuery = useQuery({
+    queryKey: ["backlinksAnchors", ...baseQueryKeyParts],
+    enabled: targetReady && activeTab === "anchors",
+    staleTime: BACKLINKS_QUERY_STALE_TIME_MS,
+    queryFn: () =>
+      getBacklinksRows({
+        data: {
+          projectId,
+          target,
+          scope,
+          page: 1,
+          pageSize: ANCHOR_SAMPLE_SIZE,
+          sortField: "rank",
+          sortOrder: "desc",
+          filters: {},
+          mode: "as_is",
+        },
+      }),
+  });
+
   const overviewErrorMessage = getBacklinksErrorMessage(
     overviewQuery.error,
     "Could not load backlinks data.",
   );
   const activeTabQuery =
-    tab === "backlinks"
+    activeTab === "backlinks"
       ? rowsQuery
-      : tab === "domains"
+      : activeTab === "domains"
         ? referringDomainsQuery
-        : topPagesQuery;
+        : activeTab === "pages"
+          ? topPagesQuery
+          : anchorsQuery;
   const activeTabErrorMessage = getBacklinksErrorMessage(
     activeTabQuery.error,
     "Could not load this tab.",
@@ -214,6 +244,7 @@ export function useBacklinksPageData({
   return {
     activeTabErrorMessage,
     activeTabQuery,
+    anchorsQuery,
     overviewErrorMessage,
     overviewQuery,
     referringDomainsQuery,

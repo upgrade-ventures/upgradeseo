@@ -27,6 +27,12 @@ export type BacklinksRow = BacklinksRowsPageData["rows"][number];
 export type ReferringDomainRow = BacklinksReferringDomainsData["rows"][number];
 export type TopPageRow = BacklinksTopPagesData["rows"][number];
 
+/**
+ * The tab the user sees. "anchors" is derived on the client from the links we
+ * hold, so it stays out of the URL's tab enum (which names server queries).
+ */
+export type BacklinksUiTab = BacklinksTab | "anchors";
+
 export type BacklinksSearchState = {
   target: string;
   scope: BacklinksTargetScope;

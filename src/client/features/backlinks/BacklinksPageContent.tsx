@@ -1,24 +1,23 @@
-import { useMemo } from "react";
-import type { OnChangeFn, SortingState } from "@tanstack/react-table";
-import { BacklinksOverviewPanels } from "./BacklinksOverviewPanels";
-import { BacklinksResultsCard } from "./BacklinksPageSections";
+import { BacklinksResults } from "./BacklinksPageSections";
 import {
   BacklinksErrorState,
   BacklinksLoadingState,
 } from "./BacklinksPageStates";
 import { BacklinksHistorySection } from "./BacklinksHistorySection";
+import type { AnchorSummary } from "./backlinksAnchors";
+import type { BacklinksTableSort } from "./BacklinksDataTable";
 import type { BacklinksSearchHistoryItem } from "@/client/hooks/useBacklinksSearchHistory";
 import type {
   BacklinksOverviewData,
-  BacklinksReferringDomainsData,
-  BacklinksRowsPageData,
   BacklinksSearchState,
   BacklinksTabRows,
-  BacklinksTopPagesData,
+  BacklinksUiTab,
 } from "./backlinksPageTypes";
-import { buildSummaryStats } from "./backlinksPageUtils";
 import type { BacklinksDomainExpansion } from "./useBacklinksDomainExpansion";
 import type { BacklinksFiltersState } from "./useBacklinksFilters";
+import type { DomainRatings } from "./useAhrefsDomainRatings";
+import type { CsvValue } from "@/client/lib/csv";
+import type { BacklinksSortOrder } from "@/types/schemas/backlinks";
 import {
   SearchTabStrip,
   type SearchTab,
@@ -31,13 +30,18 @@ type BacklinksBodyProps = {
   overviewData: BacklinksOverviewData | undefined;
   overviewError: string | null;
   overviewLoading: boolean;
-  backlinksRowsPage: BacklinksRowsPageData | undefined;
-  referringDomainsPage: BacklinksReferringDomainsData | undefined;
-  topPagesPage: BacklinksTopPagesData | undefined;
+  activeTab: BacklinksUiTab;
+  tabRows: BacklinksTabRows;
+  anchors: AnchorSummary;
+  activeTabPage: { totalCount: number | null; hasMore: boolean } | undefined;
   searchState: BacklinksSearchState;
   filters: BacklinksFiltersState;
-  sorting: SortingState;
+  sort: BacklinksTableSort;
   domainExpansion: BacklinksDomainExpansion;
+  domainRatings: DomainRatings | null;
+  isLoadingRatings: boolean;
+  onLoadRatings: () => void;
+  sheetsExport: { headers: string[]; rows: CsvValue[][]; feature: string };
   tabErrorMessage: string | null;
   tabLoading: boolean;
   tabFetching: boolean;
@@ -45,8 +49,7 @@ type BacklinksBodyProps = {
   onPageSizeChange: (nextPageSize: number) => void;
   onRemoveHistoryItem: (timestamp: number) => void;
   onRetryOverview: () => void;
-  onSortingChange: OnChangeFn<SortingState>;
-  onTabChange: (tab: BacklinksSearchState["tab"]) => void;
+  onSortChange: (field: string, order: BacklinksSortOrder) => void;
   onViewChange: (view: "all" | undefined) => void;
   searchTabs: {
     activeTabId: string | null;
@@ -64,13 +67,18 @@ export function BacklinksBody({
   overviewData,
   overviewError,
   overviewLoading,
-  backlinksRowsPage,
-  referringDomainsPage,
-  topPagesPage,
+  activeTab,
+  tabRows,
+  anchors,
+  activeTabPage,
   searchState,
   filters,
-  sorting,
+  sort,
   domainExpansion,
+  domainRatings,
+  isLoadingRatings,
+  onLoadRatings,
+  sheetsExport,
   tabErrorMessage,
   tabLoading,
   tabFetching,
@@ -78,29 +86,10 @@ export function BacklinksBody({
   onPageSizeChange,
   onRemoveHistoryItem,
   onRetryOverview,
-  onSortingChange,
-  onTabChange,
+  onSortChange,
   onViewChange,
   searchTabs,
 }: BacklinksBodyProps) {
-  const tabRows = useMemo<BacklinksTabRows>(
-    () => ({
-      backlinks: backlinksRowsPage?.rows ?? [],
-      referringDomains: referringDomainsPage?.rows ?? [],
-      topPages: topPagesPage?.rows ?? [],
-    }),
-    [backlinksRowsPage, referringDomainsPage, topPagesPage],
-  );
-  const activeTabPage =
-    searchState.tab === "backlinks"
-      ? backlinksRowsPage
-      : searchState.tab === "domains"
-        ? referringDomainsPage
-        : topPagesPage;
-  const summaryStats = useMemo(
-    () => buildSummaryStats(overviewData),
-    [overviewData],
-  );
   const tabStrip = searchTabs ? (
     <SearchTabStrip
       projectId={projectId}
@@ -147,22 +136,21 @@ export function BacklinksBody({
   return (
     <>
       {tabStrip}
-      <BacklinksOverviewPanels
-        projectId={projectId}
-        data={overviewData}
-        summaryStats={summaryStats}
-      />
-      <BacklinksResultsCard
-        projectId={projectId}
-        activeTab={searchState.tab}
+      <BacklinksResults
+        activeTab={activeTab}
+        overviewData={overviewData}
         tabRows={tabRows}
+        anchors={anchors}
         filters={filters}
-        sorting={sorting}
+        sort={sort}
         view={searchState.view}
         domainExpansion={domainExpansion}
+        domainRatings={domainRatings}
+        isLoadingRatings={isLoadingRatings}
+        onLoadRatings={onLoadRatings}
+        sheetsExport={sheetsExport}
         isTabLoading={tabLoading}
         tabErrorMessage={tabErrorMessage}
-        exportTarget={overviewData.displayTarget || searchState.target}
         pagination={{
           page: searchState.page,
           pageSize: searchState.pageSize,
@@ -172,8 +160,7 @@ export function BacklinksBody({
         }}
         onPageChange={onPageChange}
         onPageSizeChange={onPageSizeChange}
-        onSortingChange={onSortingChange}
-        onTabChange={onTabChange}
+        onSortChange={onSortChange}
         onViewChange={onViewChange}
       />
     </>

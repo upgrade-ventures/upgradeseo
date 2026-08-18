@@ -4,19 +4,9 @@ export const Route = createFileRoute("/_project/p/$projectId/rank-tracking")({
   component: RankTrackingLayout,
 });
 
+// No wrapper: the design's screens are full-bleed inside the shell's scroll
+// container and paint their own header band, so a page gutter here would
+// double every screen's padding.
 function RankTrackingLayout() {
-  return (
-    <div className="px-4 py-4 pb-24 overflow-auto md:px-6 md:py-6 md:pb-8">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Rank Tracking</h1>
-          <p className="text-sm text-base-content/70">
-            Track keyword positions across domains
-          </p>
-        </div>
-
-        <Outlet />
-      </div>
-    </div>
-  );
+  return <Outlet />;
 }

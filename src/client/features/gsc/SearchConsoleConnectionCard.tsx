@@ -153,7 +153,7 @@ export function SearchConsoleConnectionCard({
       }
     >
       {connectionQuery.isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-base-content/50">
+        <div className="flex items-center gap-2 text-sm text-base-content/60">
           <span className="loading loading-spinner loading-sm" />
           Checking…
         </div>
@@ -206,6 +206,11 @@ export function SearchConsoleConnectionCard({
             <GoogleGlyph className="size-[18px]" />
             Connect with Google
           </button>
+          <p className="text-xs text-base-content/60">
+            Google may show an &ldquo;unverified app&rdquo; screen while this
+            deployment awaits verification. Choose Advanced, then Continue
+            &mdash; the grant only reads your own Search Console data.
+          </p>
         </div>
       )}
     </IntegrationConnectionCard>
@@ -236,9 +241,9 @@ function ConnectedState({
           <GoogleSearchConsoleLogo className="size-5" />
         </div>
         <div className="min-w-0">
-          <p className="truncate font-mono text-sm">{siteUrl}</p>
+          <p className="truncate text-sm">{siteUrl}</p>
           {connectedByEmail ? (
-            <p className="truncate text-xs text-base-content/55">
+            <p className="truncate text-xs text-base-content/60">
               Connected by {connectedByEmail}
             </p>
           ) : null}

@@ -9,10 +9,9 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { AutumnProvider } from "autumn-js/react";
 import * as React from "react";
 import { DefaultCatchBoundary } from "@/client/components/DefaultCatchBoundary";
-import { ExportToSheetsModal } from "@/client/components/table/ExportToSheetsModal";
+import { IconSprite } from "@/client/components/icons/IconSprite";
 import { themePreferenceInitScript } from "@/client/lib/theme";
 import {
   identifyAnalyticsUser,
@@ -32,7 +31,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       {
-        title: "OpenSEO",
+        title: "UpgradeSEO",
       },
       {
         charSet: "utf-8",
@@ -40,6 +39,23 @@ export const Route = createRootRoute({
       {
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
+      // This is a private operator console, not a public page. It sits on a
+      // marketing hostname whose root IS meant to be indexed, so the exclusion
+      // has to travel with the app rather than rely on that site's robots.txt.
+      // `noai`/`noimageai` are honoured by a subset of crawlers and cost
+      // nothing to state.
+      // One tag per name. Two `<meta name="robots">` entries collide and the
+      // later one wins, which silently dropped the noindex and left only the
+      // AI directives behind — verified in the rendered head.
+      {
+        name: "robots",
+        content:
+          "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai",
+      },
+      {
+        name: "googlebot",
+        content: "noindex, nofollow, noarchive, nosnippet, noimageindex",
       },
       // Disable browser auto-translate (Google Translate) app-wide. It rewrites
       // text nodes into <font> wrappers, which React then can't remove/insert,
@@ -66,6 +82,11 @@ export const Route = createRootRoute({
         sizes: "180x180",
         href: "/apple-touch-icon.png",
       },
+      // The SVG is the Upgrade plus mark from the brand package, copied
+      // byte-for-byte rather than redrawn. Browsers that support it prefer it
+      // and it stays sharp at any size; the PNGs and the .ico below are the
+      // fallback chain for those that do not.
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       {
         rel: "icon",
         type: "image/png",
@@ -134,38 +155,37 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        {/* Outside ClientOnly: the sprite is inert markup, and mounting it with
+            the document means icons are painted on the first frame rather than
+            popping in after hydration. */}
+        <IconSprite />
         <ClientOnly>
-          {/* Keep this the ONLY AutumnProvider. Each provider creates its own
-              customer cache (autumn-js bundles a private react-query, so it
-              never shares the app QueryClient), and every extra provider mount
-              pays its own ~1s getOrCreateCustomer round trip. It only provides
-              context — nothing fetches until a useCustomer consumer mounts. */}
-          <AutumnProvider>
-            <QueryClientProvider client={queryClient}>
-              <>
-                <PostHogBootstrap />
-                {children}
-                <ExportToSheetsModal />
-                <Toaster
-                  position="bottom-right"
-                  mobileOffset={{ bottom: 100 }}
+          <QueryClientProvider client={queryClient}>
+            <>
+              <PostHogBootstrap />
+              {children}
+              {/* The design centres toasts 22px off the bottom, on every width. The
+                    mobile offset clears the bottom tab bar. */}
+              <Toaster
+                position="bottom-center"
+                offset={22}
+                mobileOffset={{ bottom: 100 }}
+              />
+              {showDevtools ? (
+                <TanStackDevtools
+                  config={{ position: "bottom-right" }}
+                  eventBusConfig={{ connectToServerBus: true }}
+                  plugins={[
+                    {
+                      name: "TanStack Router",
+                      render: <TanStackRouterDevtoolsPanel />,
+                      defaultOpen: true,
+                    },
+                  ]}
                 />
-                {showDevtools ? (
-                  <TanStackDevtools
-                    config={{ position: "bottom-right" }}
-                    eventBusConfig={{ connectToServerBus: true }}
-                    plugins={[
-                      {
-                        name: "TanStack Router",
-                        render: <TanStackRouterDevtoolsPanel />,
-                        defaultOpen: true,
-                      },
-                    ]}
-                  />
-                ) : null}
-              </>
-            </QueryClientProvider>
-          </AutumnProvider>
+              ) : null}
+            </>
+          </QueryClientProvider>
         </ClientOnly>
         <Scripts />
       </body>

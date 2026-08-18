@@ -1,152 +1,139 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { HeaderHelpLabel } from "@/client/features/keywords/components";
+import { Card, NoValue } from "@/client/components/prominence/Primitives";
 import {
   BacklinksNewLostChart,
   BacklinksTrendChart,
 } from "./BacklinksPageCharts";
 import type { BacklinksOverviewData } from "./backlinksPageTypes";
-import { formatRelativeTimestamp } from "./backlinksPageUtils";
+import { formatNumber } from "./backlinksPageUtils";
 
-type SummaryStat = { label: string; value: string; description: string };
-
-export function BacklinksOverviewPanels({
-  projectId,
-  data,
-  summaryStats,
-}: {
-  projectId: string;
-  data: BacklinksOverviewData;
-  summaryStats: SummaryStat[];
-}) {
-  return (
-    <>
-      <div>
-        <Link
-          to="/p/$projectId/backlinks"
-          params={{ projectId }}
-          search={{
-            target: undefined,
-            scope: undefined,
-            tab: undefined,
-            page: undefined,
-            size: undefined,
-            sort: undefined,
-            order: undefined,
-          }}
-          replace
-          className="btn btn-ghost btn-sm gap-2 px-0 text-base-content/70 hover:bg-transparent"
-        >
-          <ArrowLeft className="size-4" />
-          Recent searches
-        </Link>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/65">
-        <span className="badge badge-outline">{data.scope}</span>
-        <span>Target: {data.displayTarget}</span>
-        <span>-</span>
-        <span>Updated {formatRelativeTimestamp(data.fetchedAt)}</span>
-      </div>
-      <OverviewGrid data={data} summaryStats={summaryStats} />
-      {data.scope === "page" ? (
-        <div className="alert alert-info">
-          <span>
-            Showing backlinks for this exact page. Enter a bare domain for
-            site-wide results. Trend charts are only shown for domain-level
-            lookups.
-          </span>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function OverviewGrid({
-  data,
-  summaryStats,
-}: {
-  data: BacklinksOverviewData;
-  summaryStats: SummaryStat[];
-}) {
-  const domainScope = data.scope === "domain";
+/**
+ * The counter strip above the referring-domains table.
+ *
+ * The design shows four counters with period deltas. Only two of them have a
+ * free source: referring domains (OpenPageRank) and backlinks (Bing Webmaster
+ * Tools, and only when it can list every page of the site). Dofollow share and
+ * lost domains need rel attributes and link history that no free source
+ * publishes, so they render as unavailable instead of as a zero. Nothing here
+ * has a comparison period either, so no deltas are shown.
+ */
+export function BacklinksStatStrip({ data }: { data: BacklinksOverviewData }) {
+  const cells: { label: string; value: React.ReactNode; note?: string }[] = [
+    {
+      label: "Referring domains",
+      value:
+        data.summary.referringDomains == null ? (
+          <NoValue />
+        ) : (
+          formatNumber(data.summary.referringDomains)
+        ),
+      note: "Unique domains linking to this site, from OpenPageRank.",
+    },
+    {
+      label: "Backlinks",
+      value:
+        data.summary.backlinks == null ? (
+          <NoValue />
+        ) : (
+          formatNumber(data.summary.backlinks)
+        ),
+      note: "Inbound links Bing Webmaster Tools reports for the verified site.",
+    },
+    {
+      label: "Domain authority",
+      value:
+        data.summary.rank == null ? (
+          <NoValue />
+        ) : (
+          formatNumber(data.summary.rank)
+        ),
+      note: "Authority proxy on 0-100 (OpenPageRank, or the keyless Ahrefs Domain Rating). Not a licensed link-index rank.",
+    },
+    {
+      label: "Dofollow",
+      value: <NoValue />,
+      note: "Follow status comes from a link's rel attributes, which no free source reports.",
+    },
+    {
+      label: "Lost this month",
+      value: <NoValue />,
+      note: "Lost links need link history, which no free source publishes.",
+    },
+  ];
 
   return (
     <div
-      className={`grid grid-cols-1 gap-3 ${domainScope ? "md:grid-cols-2 xl:grid-cols-3" : ""}`}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+        borderBottom: "1px solid var(--line)",
+      }}
     >
-      <SummaryStatsGrid data={data} summaryStats={summaryStats} />
-      {domainScope ? <TrendPanels data={data} /> : null}
+      {cells.map((cell, index) => (
+        <div
+          key={cell.label}
+          title={cell.note}
+          style={{
+            padding: "13px 20px",
+            borderRight:
+              index === cells.length - 1
+                ? undefined
+                : "1px solid var(--border-muted)",
+          }}
+        >
+          <div style={{ fontSize: 11.5, color: "var(--text-2)" }}>
+            {cell.label}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              fontVariantNumeric: "tabular-nums",
+              letterSpacing: "0.01em",
+              fontSize: 22,
+              fontWeight: 700,
+            }}
+          >
+            {cell.value}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function SummaryStatsGrid({
+/**
+ * Authority history from OpenPageRank. Only domain lookups have it: every free
+ * authority source rates a domain, so a single page gets no series at all.
+ */
+export function BacklinksTrendPanels({
   data,
-  summaryStats,
 }: {
   data: BacklinksOverviewData;
-  summaryStats: SummaryStat[];
 }) {
-  const cardClassName = `card bg-base-100 border border-base-300 ${data.scope === "domain" ? "md:col-span-2 xl:col-span-1" : ""}`;
+  if (data.scope !== "domain") return null;
 
   return (
-    <div className={cardClassName}>
-      <div className="card-body p-4 xl:h-full">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 xl:gap-y-6">
-          {summaryStats.map((item) => (
-            <div key={item.label}>
-              <div className="text-xs uppercase tracking-wide text-base-content/55">
-                <HeaderHelpLabel
-                  label={item.label}
-                  helpText={item.description}
-                />
-              </div>
-              <p className="text-2xl font-semibold">{item.value}</p>
-            </div>
-          ))}
+    <div
+      style={{
+        display: "grid",
+        gap: 12,
+        gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+        padding: "14px var(--pad, 24px)",
+      }}
+    >
+      <Card title="Domain authority trend" note="OpenPageRank monthly history">
+        <div style={{ padding: 12 }}>
+          <BacklinksTrendChart data={data.trends} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function TrendPanels({ data }: { data: BacklinksOverviewData }) {
-  return (
-    <>
-      <TrendCard
-        title="Backlink growth"
-        description="Backlinks and referring domains over the last year"
-      >
-        <BacklinksTrendChart data={data.trends} />
-      </TrendCard>
-      <TrendCard
-        title="New vs lost"
-        description="Backlink acquisition and attrition"
-      >
-        <BacklinksNewLostChart data={data.newLostTrends} />
-      </TrendCard>
-    </>
-  );
-}
-
-function TrendCard({
-  children,
-  description,
-  title,
-}: {
-  children: React.ReactNode;
-  description: string;
-  title: string;
-}) {
-  return (
-    <div className="card bg-base-100 border border-base-300">
-      <div className="card-body gap-2 p-4">
-        <div>
-          <h2 className="text-sm font-medium">{title}</h2>
-          <p className="text-xs text-base-content/55">{description}</p>
-        </div>
-        {children}
-      </div>
+      </Card>
+      {data.newLostTrends.length > 0 ? (
+        <Card title="New vs lost" note="Link acquisition and attrition">
+          <div style={{ padding: 12 }}>
+            <BacklinksNewLostChart data={data.newLostTrends} />
+          </div>
+        </Card>
+      ) : null}
     </div>
   );
 }

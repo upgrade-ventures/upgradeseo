@@ -8,6 +8,13 @@ type Input = {
   locationCode: number | undefined;
 };
 
+/**
+ * The overview payload as the screen receives it. Derived from the server
+ * function so the free-stack annotations (`free.unavailable`, `free.source`)
+ * cannot drift out of sync with the copy the UI renders.
+ */
+export type DomainOverview = Awaited<ReturnType<typeof getDomainOverview>>;
+
 export function useDomainOverviewQuery(input: Input) {
   const trimmedDomain = input.domain.trim();
 

@@ -1,76 +1,107 @@
 import { useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { SecondaryButton } from "@/client/components/prominence/Primitives";
 import type { RankPositionMatrixCell } from "@/serverFunctions/rank-tracking";
+import {
+  HEAD_ROW,
+  HoverRow,
+  Skeleton,
+  StateBand,
+  TABLE,
+  TABLE_SCROLLER,
+  TD_GUTTER,
+  TD_VALUE,
+  TH_GUTTER,
+  TH_VALUE,
+} from "./RankScreenParts";
+import { formatDay } from "./rankFormat";
 
 /**
- * "By date" view: keyword rows × recent check columns, each cell the position
- * on that date with its change vs the previous check. This is the pivoted
- * history table users want for client reporting ("look — we won 5 positions").
+ * Keyword rows against completed checks, newest check first.
+ *
+ * A cell is the position that check recorded. An empty cell is an absence of
+ * data, which the note under the table spells out — it is never rendered as a
+ * position, and never as a zero.
  */
 export function RankTrackingHistoryMatrix({
   cells,
-  isLoading,
   keywords,
+  isLoading,
+  isError,
+  onRetry,
 }: {
   cells: RankPositionMatrixCell[];
-  isLoading: boolean;
   keywords: { trackingKeywordId: string; keyword: string }[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) {
-  const { runs, cellByKeyword } = useMemo(() => buildMatrix(cells), [cells]);
+  const { runs, byKeyword } = useMemo(() => buildMatrix(cells), [cells]);
+
+  if (isError) {
+    return (
+      <StateBand
+        action={<SecondaryButton onClick={onRetry}>Try again</SecondaryButton>}
+      >
+        Could not load the check history for this domain.
+      </StateBand>
+    );
+  }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="size-5 animate-spin text-base-content/50" />
+      <div style={{ padding: "12px var(--pad,24px)" }} aria-busy>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} width="100%" style={{ marginBottom: 9 }} />
+        ))}
       </div>
     );
   }
 
   if (runs.length === 0 || keywords.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-base-300 p-10 text-center text-sm text-base-content/55">
-        No history yet. Run a check to start building the timeline.
-      </div>
+      <StateBand>
+        No completed check has recorded a position yet, so there is no history
+        to compare.
+      </StateBand>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-base-300">
-      <table className="table table-sm">
+    <div style={TABLE_SCROLLER}>
+      <table style={TABLE}>
         <thead>
-          <tr>
-            {/* Unconstrained keyword column absorbs the slack when only a few
-                check columns exist, so sparse history doesn't stretch oddly. */}
-            <th className="sticky left-0 z-10 bg-base-100 w-full">Keyword</th>
-            {runs.map((r) => (
-              <th
-                key={r.runId}
-                className="w-24 whitespace-nowrap text-right text-xs font-medium text-base-content/60"
-              >
-                {formatDate(r.checkedAt)}
+          <tr style={HEAD_ROW}>
+            <th style={TH_GUTTER}>Keyword</th>
+            {runs.map((run) => (
+              <th key={run.runId} style={TH_VALUE}>
+                {formatDay(run.checkedAt)}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {keywords.map((kw) => {
-            const byRun = cellByKeyword.get(kw.trackingKeywordId);
+          {keywords.map((keyword) => {
+            const positions = byKeyword.get(keyword.trackingKeywordId);
             return (
-              <tr key={kw.trackingKeywordId}>
-                <td className="sticky left-0 z-10 bg-base-100 whitespace-nowrap font-medium">
-                  {kw.keyword}
-                </td>
-                {runs.map((r, i) => {
-                  const position = byRun?.get(r.runId) ?? null;
-                  const previous =
-                    i > 0 ? (byRun?.get(runs[i - 1].runId) ?? null) : undefined;
+              <HoverRow key={keyword.trackingKeywordId}>
+                <td style={TD_GUTTER}>{keyword.keyword}</td>
+                {runs.map((run) => {
+                  const position = positions?.get(run.runId) ?? null;
                   return (
-                    <td key={r.runId} className="text-right">
-                      <MatrixCell position={position} previous={previous} />
+                    <td
+                      key={run.runId}
+                      style={{
+                        ...TD_VALUE,
+                        fontVariantNumeric: "tabular-nums",
+                        color:
+                          position === null ? "var(--text-3)" : "var(--text-2)",
+                      }}
+                    >
+                      {position ?? "—"}
                     </td>
                   );
                 })}
-              </tr>
+              </HoverRow>
             );
           })}
         </tbody>
@@ -79,67 +110,29 @@ export function RankTrackingHistoryMatrix({
   );
 }
 
-function MatrixCell({
-  position,
-  previous,
-}: {
-  position: number | null;
-  previous: number | null | undefined;
-}) {
-  if (position === null) {
-    return <span className="text-base-content/30">—</span>;
-  }
-  // Only show a change arrow when both checks ranked (no subtracting through a
-  // null, matching the rest of the rank-tracking UI).
-  const change =
-    previous != null && previous !== undefined ? previous - position : null;
-  return (
-    <span className="inline-flex items-center justify-end gap-1 font-mono text-xs">
-      <span>{position}</span>
-      {change != null && change > 0 && (
-        <span className="text-success">▲{change}</span>
-      )}
-      {change != null && change < 0 && (
-        <span className="text-warning">▼{-change}</span>
-      )}
-    </span>
-  );
-}
-
 interface MatrixRun {
   runId: string;
   checkedAt: string;
 }
 
-/** Distinct completed runs in a matrix payload (= history columns). */
-export function countMatrixRuns(cells: RankPositionMatrixCell[]): number {
-  return new Set(cells.map((c) => c.runId)).size;
-}
-
 function buildMatrix(cells: RankPositionMatrixCell[]): {
   runs: MatrixRun[];
-  cellByKeyword: Map<string, Map<string, number | null>>;
+  byKeyword: Map<string, Map<string, number | null>>;
 } {
-  const runMap = new Map<string, string>(); // runId -> checkedAt
-  const cellByKeyword = new Map<string, Map<string, number | null>>();
-  for (const c of cells) {
-    runMap.set(c.runId, c.checkedAt);
-    let byRun = cellByKeyword.get(c.trackingKeywordId);
-    if (!byRun) {
-      byRun = new Map();
-      cellByKeyword.set(c.trackingKeywordId, byRun);
+  const runMap = new Map<string, string>();
+  const byKeyword = new Map<string, Map<string, number | null>>();
+  for (const cell of cells) {
+    runMap.set(cell.runId, cell.checkedAt);
+    let positions = byKeyword.get(cell.trackingKeywordId);
+    if (!positions) {
+      positions = new Map();
+      byKeyword.set(cell.trackingKeywordId, positions);
     }
-    byRun.set(c.runId, c.position);
+    positions.set(cell.runId, cell.position);
   }
+  // Newest first: the design reads left to right from the most recent check.
   const runs = [...runMap.entries()]
     .map(([runId, checkedAt]) => ({ runId, checkedAt }))
-    .toSorted((a, b) => a.checkedAt.localeCompare(b.checkedAt));
-  return { runs, cellByKeyword };
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+    .toSorted((a, b) => b.checkedAt.localeCompare(a.checkedAt));
+  return { runs, byKeyword };
 }
